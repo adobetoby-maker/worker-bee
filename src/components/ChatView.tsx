@@ -220,6 +220,14 @@ export function ChatView({
         })}
       </div>
 
+      {streaming && (() => {
+        const last = messages[messages.length - 1];
+        if (!last || last.role !== "assistant") return null;
+        const action = detectBrowserAction(last.content);
+        if (!action) return null;
+        return <BrowserTaskCard action={action} onStop={stop} />;
+      })()}
+
       <div className="border-t border-border bg-surface/40 px-4 py-3">
         <div className="flex items-end gap-3">
           <Textarea
