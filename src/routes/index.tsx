@@ -555,6 +555,8 @@ function Index() {
             hasError: t.hasError,
             messageCount: t.messages.length,
             hasInteracted: t.messages.some((m) => m.role === "user"),
+            isQueued: queueState.queue.some((q) => q.tabId === t.id),
+            flashTurn: flashTurnTabId === t.id,
           }))}
           activeId={activeTabId}
           onSelect={(id) => {
