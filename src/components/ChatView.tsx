@@ -76,6 +76,7 @@ export function ChatView({
   matchProjectFile,
   onCompareCodeBlock,
   onSmokeTest,
+}: Props) {
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
   const setInput = (v: string) => {
