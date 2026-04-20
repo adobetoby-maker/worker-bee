@@ -121,9 +121,12 @@ export function ConnectionsPanel({ state, onChange, appendLog, onSaveToVault }: 
   const [slackToken, setSlackToken] = useState("");
   const [slackChannel, setSlackChannel] = useState("#general");
 
-  const [waPhoneId, setWaPhoneId] = useState("");
+  const [waSid, setWaSid] = useState("");
   const [waToken, setWaToken] = useState("");
-  const [waRecipient, setWaRecipient] = useState("");
+  const [waTwilioNumber, setWaTwilioNumber] = useState("whatsapp:+14155238886");
+  const [waYourNumber, setWaYourNumber] = useState("");
+  const [waSending, setWaSending] = useState(false);
+  const [waProdOpen, setWaProdOpen] = useState(false);
 
   const [vaultPrompt, setVaultPrompt] = useState<{
     service: ServiceId;
