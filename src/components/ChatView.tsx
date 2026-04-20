@@ -65,6 +65,8 @@ export function ChatView({
   onMoveToFront,
   onSendStart,
   onSendEnd,
+  projectName = null,
+  onSaveCodeBlock,
 }: Props) {
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
