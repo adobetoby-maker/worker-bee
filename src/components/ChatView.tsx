@@ -39,6 +39,10 @@ interface Props {
   // Project binding — when set, code blocks render save/copy/download toolbar
   projectName?: string | null;
   onSaveCodeBlock?: (language: string, code: string, suggestedName: string) => void;
+  // When provided, returns the matching project file path (e.g. "index.html")
+  // for a given code block; if a match exists a "↔ Compare" button appears.
+  matchProjectFile?: (language: string, code: string, suggestedName: string) => string | null;
+  onCompareCodeBlock?: (filePath: string, newContent: string) => void;
 }
 
 export function ChatView({
@@ -67,6 +71,8 @@ export function ChatView({
   onSendEnd,
   projectName = null,
   onSaveCodeBlock,
+  matchProjectFile,
+  onCompareCodeBlock,
 }: Props) {
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
@@ -260,6 +266,8 @@ export function ChatView({
                     showCursor={showCursor}
                     projectName={projectName}
                     onSaveCodeBlock={onSaveCodeBlock}
+                    matchProjectFile={matchProjectFile}
+                    onCompareCodeBlock={onCompareCodeBlock}
                   />
                 )}
               </div>
@@ -356,9 +364,11 @@ interface AssistantContentProps {
   showCursor: boolean;
   projectName: string | null;
   onSaveCodeBlock?: (language: string, code: string, suggestedName: string) => void;
+  matchProjectFile?: (language: string, code: string, suggestedName: string) => string | null;
+  onCompareCodeBlock?: (filePath: string, newContent: string) => void;
 }
 
-function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock }: AssistantContentProps) {
+function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, matchProjectFile, onCompareCodeBlock }: AssistantContentProps) {
   // Split on fenced ```lang\n...\n``` code blocks
   const parts: Array<{ type: "text" | "code"; lang?: string; text: string }> = [];
   const re = /```([a-zA-Z0-9]*)\n([\s\S]*?)```/g;
@@ -390,6 +400,7 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock }:
         }
         const lang = p.lang ?? "text";
         const guess = guessName(lang);
+        const matchedPath = matchProjectFile?.(lang, p.text, guess) ?? null;
         return (
           <div key={i} className="rounded overflow-hidden" style={{ border: "1px solid #1a1a1a" }}>
             <div
@@ -398,6 +409,17 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock }:
             >
               <span style={{ color: "#ffaa00" }}>{lang}</span>
               <div className="ml-auto flex gap-1">
+                {matchedPath && onCompareCodeBlock && (
+                  <button
+                    type="button"
+                    onClick={() => onCompareCodeBlock(matchedPath, p.text)}
+                    className="px-2 py-0.5 rounded text-[10px] tracking-[0.1em]"
+                    style={{ background: "#39ff14", color: "#001a00" }}
+                    title={`Compare with ${matchedPath}`}
+                  >
+                    ↔ Compare
+                  </button>
+                )}
                 {projectName && onSaveCodeBlock && (
                   <button
                     type="button"

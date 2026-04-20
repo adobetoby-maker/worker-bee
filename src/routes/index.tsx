@@ -47,6 +47,7 @@ import {
 } from "@/lib/agent-queue";
 import { ProjectsDashboard } from "@/components/ProjectsDashboard";
 import { ProjectWorkspace } from "@/components/ProjectWorkspace";
+import { DiffViewer } from "@/components/DiffViewer";
 import {
   subscribeProjects,
   bindTabToProject,
@@ -57,6 +58,7 @@ import {
   formatBytes,
   type Project,
 } from "@/lib/projects";
+import { diffLines } from "@/lib/diff";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -147,6 +149,13 @@ function Index() {
   useEffect(() => subscribeQueue(setQueueState), []);
   const [projects, setProjects] = useState<Project[]>([]);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
+  const [diffState, setDiffState] = useState<{
+    projectId: string;
+    filePath: string;
+    before: string;
+    after: string;
+    fromTabName?: string;
+  } | null>(null);
   useEffect(() => subscribeProjects(setProjects), []);
 
   useEffect(() => {
@@ -708,6 +717,31 @@ function Index() {
                                 emitActivity({ kind: "tool", icon: "💾", text: `${proj.name} · saved ${name}` });
                               }
                             }}
+                            matchProjectFile={(lang, _code, suggested) => {
+                              const proj = projectForTab(t.id);
+                              if (!proj) return null;
+                              const language = languageFromFenceLabel(lang);
+                              const guess = guessFilenameFromCode(language, suggested);
+                              const exact = proj.files.find((f) => f.path === guess || f.path.endsWith("/" + guess));
+                              if (exact) return exact.path;
+                              const sameLang = proj.files.find((f) => f.language === language);
+                              return sameLang ? sameLang.path : null;
+                            }}
+                            onCompareCodeBlock={(filePath, newContent) => {
+                              const proj = projectForTab(t.id);
+                              if (!proj) return;
+                              const file = proj.files.find((f) => f.path === filePath);
+                              if (!file) return;
+                              setOpenProjectId(proj.id);
+                              setDiffState({
+                                projectId: proj.id,
+                                filePath: file.path,
+                                before: file.content,
+                                after: newContent,
+                                fromTabName: t.name,
+                              });
+                              setActive("projects");
+                            }}
                           />
                         </div>
                       ))}
@@ -733,7 +767,35 @@ function Index() {
               </>
             )}
             {active === "projects" && (
-              openProjectId ? (
+              diffState ? (
+                <DiffViewer
+                  filename={diffState.filePath}
+                  before={diffState.before}
+                  after={diffState.after}
+                  onAccept={(newContent) => {
+                    const proj = projects.find((p) => p.id === diffState.projectId);
+                    const { summary } = diffLines(diffState.before, newContent);
+                    addFile(diffState.projectId, diffState.filePath, newContent);
+                    toast(`✅ Changes accepted — ${diffState.filePath} updated`);
+                    appendLog({
+                      ts: nowTs(),
+                      level: "OK",
+                      msg: `Diff accepted: ${diffState.filePath} (+${summary.additions} -${summary.removals})`,
+                    });
+                    emitActivity({
+                      kind: "tool",
+                      icon: "↔",
+                      text: `${proj?.name ?? "project"} · ${diffState.filePath} updated${diffState.fromTabName ? ` by ${diffState.fromTabName}` : ""}`,
+                    });
+                    setDiffState(null);
+                  }}
+                  onReject={() => {
+                    toast("↩ Changes rejected — original preserved");
+                    setDiffState(null);
+                  }}
+                  onBack={() => setDiffState(null)}
+                />
+              ) : openProjectId ? (
                 <ProjectWorkspace
                   projectId={openProjectId}
                   onBack={() => setOpenProjectId(null)}
@@ -743,6 +805,14 @@ function Index() {
                       activeTabId,
                       `Here is the current ${filename}. Please \n\n\`\`\`\n${content}\n\`\`\``,
                     );
+                  }}
+                  onCompareFile={(filePath, before, after) => {
+                    setDiffState({
+                      projectId: openProjectId,
+                      filePath,
+                      before,
+                      after,
+                    });
                   }}
                   appendLog={(msg) => appendLog({ ts: nowTs(), level: "OK", msg })}
                 />
