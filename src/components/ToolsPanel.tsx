@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { nowTs, type LogLine } from "@/lib/agent-state";
+import type { ConnectionsState } from "@/lib/connections";
 
 interface Tool {
   id: string;
@@ -7,9 +8,11 @@ interface Tool {
   name: string;
   desc: string;
   installCmd: string;
+  /** When true, this tool is gated by a live connection and cannot be installed/uninstalled. */
+  connectionTool?: boolean;
 }
 
-const TOOLS: Tool[] = [
+const BASE_TOOLS: Tool[] = [
   { id: "web_search", icon: "🌐", name: "Web Search", desc: "DuckDuckGo / Brave API", installCmd: "pip install duckduckgo-search" },
   { id: "code_exec", icon: "⚡", name: "Code Executor", desc: "Sandboxed Python & JS", installCmd: "pip install jupyter_client" },
   { id: "file_ops", icon: "📁", name: "File System", desc: "Read/write local directories", installCmd: "pip install watchdog" },
@@ -30,6 +33,7 @@ interface ToolState {
 
 interface Props {
   appendLog: (line: LogLine) => void;
+  connections?: ConnectionsState;
 }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
