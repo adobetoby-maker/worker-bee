@@ -732,6 +732,7 @@ function Index() {
                               if (!proj) return;
                               const file = proj.files.find((f) => f.path === filePath);
                               if (!file) return;
+                              setOpenProjectId(proj.id);
                               setDiffState({
                                 projectId: proj.id,
                                 filePath: file.path,
@@ -739,6 +740,7 @@ function Index() {
                                 after: newContent,
                                 fromTabName: t.name,
                               });
+                              setActive("projects");
                             }}
                           />
                         </div>
