@@ -49,6 +49,8 @@ function Index() {
   const [model, setModel] = useState<string | null>("llama3.1:8b");
   const [connected, setConnected] = useState(false);
   const [bannerDismissedAt, setBannerDismissedAt] = useState(0);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [editingPromptTabId, setEditingPromptTabId] = useState<string | null>(null);
 
   const appendLog = useCallback((line: LogLine) => {
     setLog((prev) => [...prev, line]);
