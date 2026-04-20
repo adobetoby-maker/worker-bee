@@ -419,6 +419,7 @@ function Index() {
           whatsapp: !!connections.whatsapp,
         }}
         onServiceClick={() => setActive("connections")}
+        onSearchOpen={() => setSearchOpen(true)}
       />
       {active === "chat" && (
         <ChatTabsBar
