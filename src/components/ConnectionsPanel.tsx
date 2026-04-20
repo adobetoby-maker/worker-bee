@@ -429,90 +429,174 @@ export function ConnectionsPanel({ state, onChange, appendLog, onSaveToVault }: 
         )}
       </Card>
 
-      {/* WHATSAPP */}
-      <Card icon="📱" title="WHATSAPP" description="Send WhatsApp messages via Meta Cloud API.">
+      {/* WHATSAPP — Twilio Sandbox */}
+      <Card
+        icon="📱"
+        title="WHATSAPP (via Twilio)"
+        description="Send WhatsApp messages via Twilio Sandbox. No business verification required for testing. Upgrade to production when ready."
+      >
         <div className="flex justify-end">
           <StatusBadge on={!!state.whatsapp} />
         </div>
         {!state.whatsapp ? (
           <>
-            <StepBlock>
-              <div>
-                <span style={{ color: AMBER }}>Step 1:</span> developers.facebook.com → Create App
-                (Business)
-              </div>
-              <div className="ml-12">Add WhatsApp product</div>
-              <div className="mt-2">
-                <span style={{ color: AMBER }}>Step 2:</span> Get Phone Number ID and Access Token
-              </div>
-              <div className="ml-12">from WhatsApp → API Setup</div>
-              <div className="mt-2">
-                <span style={{ color: AMBER }}>Step 3:</span> Add a verified recipient phone number
-                for testing
-              </div>
-            </StepBlock>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Field label="Phone Number ID" value={waPhoneId} onChange={setWaPhoneId} />
+            <details className="md:open:" open>
+              <summary
+                className="font-mono text-[10px] uppercase tracking-[0.18em] cursor-pointer mb-2"
+                style={{ color: "#888" }}
+              >
+                ▸ Setup Instructions
+              </summary>
+              <StepBlock>
+                <div>
+                  <span style={{ color: AMBER }}>Step 1:</span> Create free account at{" "}
+                  <span style={{ color: "#ddd" }}>twilio.com</span>
+                </div>
+                <div className="ml-12">No credit card required for sandbox testing.</div>
+                <div className="mt-2">
+                  <span style={{ color: AMBER }}>Step 2:</span> Messaging → Try it out → Send a
+                  WhatsApp message
+                </div>
+                <div className="ml-12">
+                  You'll see your sandbox number (e.g.{" "}
+                  <span style={{ color: "#ddd" }}>+1 415 523 8886</span>) and a join code (e.g.{" "}
+                  <span style={{ color: "#ddd" }}>"join bright-elephant"</span>).
+                </div>
+                <div className="mt-2">
+                  <span style={{ color: AMBER }}>Step 3:</span> From <em>your</em> WhatsApp, message
+                  the sandbox number:
+                </div>
+                <div className="ml-12" style={{ color: GREEN }}>
+                  "join bright-elephant"
+                </div>
+                <div className="ml-12">You are now a verified sandbox recipient.</div>
+                <div className="mt-2">
+                  <span style={{ color: AMBER }}>Step 4:</span> Paste your credentials below.
+                </div>
+              </StepBlock>
+            </details>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field
-                label="Access Token"
+                label="Account SID"
+                value={waSid}
+                onChange={setWaSid}
+                placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              />
+              <Field
+                label="Auth Token"
                 type="password"
                 value={waToken}
                 onChange={setWaToken}
+                placeholder="32-char auth token"
               />
               <Field
-                label="Test Recipient"
-                value={waRecipient}
-                onChange={setWaRecipient}
-                placeholder="+1234567890"
+                label="Twilio Number"
+                value={waTwilioNumber}
+                onChange={setWaTwilioNumber}
+                placeholder="whatsapp:+14155238886"
+              />
+              <Field
+                label="Your WA Number"
+                value={waYourNumber}
+                onChange={setWaYourNumber}
+                placeholder="whatsapp:+15551234567"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={connectWhatsApp}
-                disabled={!waPhoneId || !waToken}
+                disabled={!waSid || !waToken || !waTwilioNumber || !waYourNumber}
                 className="font-mono text-[11px] uppercase tracking-[0.18em] px-4 py-2 rounded disabled:opacity-40"
                 style={{ background: AMBER, color: "#000", fontWeight: 700 }}
               >
-                🔗 Connect WhatsApp
+                🔗 Connect Twilio
               </button>
               <button
                 onClick={sendTest}
-                disabled={!waToken}
+                disabled={!waSid || !waToken || !waYourNumber || waSending}
                 className="font-mono text-[11px] uppercase tracking-[0.18em] px-4 py-2 rounded disabled:opacity-40"
                 style={{ background: "transparent", color: "#888", border: "1px solid #333" }}
               >
-                📤 Send Test Message
+                {waSending ? "⏳ Sending…" : "📤 Send Test Message"}
               </button>
             </div>
           </>
         ) : (
           <div className="flex flex-col gap-3 font-mono text-[12px]" style={{ color: "#bbb" }}>
             <div>
-              <span style={{ color: "#666" }}>Phone:</span>{" "}
-              <span style={{ color: GREEN }}>{state.whatsapp.phoneNumberId}</span>{" "}
-              <span style={{ color: "#666" }}>·</span> {state.whatsapp.displayName}
+              <span style={{ color: GREEN }}>✓</span>{" "}
+              <span style={{ color: "#666" }}>Account:</span>{" "}
+              <span style={{ color: GREEN }}>{state.whatsapp.friendlyName}</span>
+            </div>
+            <div>
+              <span style={{ color: GREEN }}>✓</span>{" "}
+              <span style={{ color: "#666" }}>Sandbox number:</span>{" "}
+              {state.whatsapp.twilioNumber}
+            </div>
+            <div>
+              <span style={{ color: GREEN }}>✓</span>{" "}
+              <span style={{ color: "#666" }}>Recipient:</span> {state.whatsapp.yourNumber}
+            </div>
+            <div>
+              <span style={{ color: GREEN }}>✓</span>{" "}
+              <span style={{ color: "#666" }}>Messages sent this month:</span>{" "}
+              {state.whatsapp.messagesThisMonth ?? 0}
             </div>
             <div className="flex flex-col gap-1 pt-1" style={{ color: "#888", fontSize: 11 }}>
-              <div>✓ Send text message to any verified number</div>
-              <div>✓ Send template message</div>
-              <div>✓ Receive webhook triggers (manual setup required)</div>
+              <div>✓ Send text message to verified recipient</div>
+              <div>✓ Send message with emoji formatting</div>
+              <div>✓ Send multi-part long messages (auto-split at 1600 chars)</div>
+              <div style={{ color: "#666" }}>✗ Receive messages (requires public webhook URL)</div>
             </div>
-            <div
-              className="font-mono text-[11px] p-2 rounded"
-              style={{ background: "#1a1400", border: "1px solid #ffaa0040", color: "#ffaa00" }}
-            >
-              ⚠ Meta Cloud API — free tier allows 1,000 conversations/month. Business verification
-              required for unrestricted messaging.
+            <div className="flex gap-2">
+              <button
+                onClick={sendTest}
+                disabled={waSending}
+                className="font-mono text-[11px] uppercase tracking-[0.18em] px-4 py-2 rounded disabled:opacity-40"
+                style={{ background: "transparent", color: "#888", border: "1px solid #333" }}
+              >
+                {waSending ? "⏳ Sending…" : "📤 Send Test Message"}
+              </button>
+              <button
+                onClick={() => disconnect("whatsapp")}
+                className="font-mono text-[10px] uppercase tracking-[0.18em] px-3 py-1.5 rounded self-start"
+                style={{ background: "transparent", color: "#888", border: "1px solid #333" }}
+              >
+                Disconnect
+              </button>
             </div>
-            <button
-              onClick={() => disconnect("whatsapp")}
-              className="font-mono text-[10px] uppercase tracking-[0.18em] px-3 py-1.5 rounded self-start"
-              style={{ background: "transparent", color: "#888", border: "1px solid #333" }}
-            >
-              Disconnect
-            </button>
           </div>
         )}
+
+        {/* Production upgrade notice */}
+        <div
+          className="rounded mt-2"
+          style={{ background: "#1a1a0d", border: `1px solid ${AMBER}55` }}
+        >
+          <button
+            onClick={() => setWaProdOpen((v) => !v)}
+            className="w-full text-left font-mono text-[11px] px-3 py-2 flex items-center justify-between"
+            style={{ color: AMBER }}
+          >
+            <span>⬆ GOING TO PRODUCTION?</span>
+            <span>{waProdOpen ? "▾" : "▸"}</span>
+          </button>
+          {waProdOpen && (
+            <div className="px-3 pb-3 font-mono text-[11px]" style={{ color: "#888" }}>
+              <div>Sandbox limits: messages only to verified opt-in numbers.</div>
+              <div className="mt-2">To message anyone:</div>
+              <div className="ml-3">
+                1. Upgrade Twilio account (pay-as-you-go from{" "}
+                <span style={{ color: "#ddd" }}>$0.005/msg</span>)
+              </div>
+              <div className="ml-3">2. Apply for WhatsApp Business API approval (1–3 days)</div>
+              <div className="ml-3">3. Update Twilio number to an approved WA Business number</div>
+              <div className="mt-2" style={{ color: AMBER }}>
+                twilio.com/whatsapp → full docs
+              </div>
+            </div>
+          )}
+        </div>
       </Card>
     </div>
   );
