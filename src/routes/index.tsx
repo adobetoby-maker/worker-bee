@@ -8,6 +8,8 @@ import { ChatTabsBar, type ChatTab } from "@/components/ChatTabsBar";
 import { ToolsPanel } from "@/components/ToolsPanel";
 import { ResourceBar } from "@/components/ResourceBar";
 import { ConcurrencyBanner } from "@/components/ConcurrencyBanner";
+import { TabControls } from "@/components/TabControls";
+import { SystemPromptEditor } from "@/components/SystemPromptEditor";
 import { computeResources } from "@/lib/resource-estimate";
 import { INITIAL_LOG, nowTs, type LogLine } from "@/lib/agent-state";
 
@@ -47,6 +49,8 @@ function Index() {
   const [model, setModel] = useState<string | null>("llama3.1:8b");
   const [connected, setConnected] = useState(false);
   const [bannerDismissedAt, setBannerDismissedAt] = useState(0);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [editingPromptTabId, setEditingPromptTabId] = useState<string | null>(null);
 
   const appendLog = useCallback((line: LogLine) => {
     setLog((prev) => [...prev, line]);
@@ -211,27 +215,58 @@ function Index() {
             {active === "chat" && (
               <>
                 <ResourceBar resources={resources} />
+                <TabControls
+                  tabName={activeTab.name}
+                  model={activeTab.model}
+                  availableModels={availableModels}
+                  onModelChange={(m) => updateTab(activeTab.id, { model: m })}
+                  onOpenPrompt={() => setEditingPromptTabId(activeTab.id)}
+                  onClear={() => {
+                    handleMessagesChange(activeTab.id, () => []);
+                    appendLog({
+                      ts: nowTs(),
+                      level: "ARROW",
+                      msg: `${activeTab.name} history cleared`,
+                    });
+                  }}
+                />
                 <div className="relative flex flex-1 min-h-0">
-                  {tabs.map((t) => (
-                    <div
-                      key={t.id}
-                      className="absolute inset-0 flex flex-col"
-                      style={{ display: t.id === activeTabId ? "flex" : "none" }}
-                    >
-                      <ChatView
-                        endpoint={endpoint}
-                        model={t.model ?? model}
-                        connected={connected}
-                        enabledTools={ENABLED_TOOLS}
-                        systemPrompt={t.systemPrompt}
-                        messages={t.messages}
-                        onMessagesChange={(updater) => handleMessagesChange(t.id, updater)}
-                        appendLog={appendLog}
-                        onStreamingChange={(s) => updateTab(t.id, { isStreaming: s })}
-                        stopToken={t.stopToken}
-                      />
-                    </div>
-                  ))}
+                  {editingPromptTabId === activeTab.id ? (
+                    <SystemPromptEditor
+                      initial={activeTab.systemPrompt}
+                      onCancel={() => setEditingPromptTabId(null)}
+                      onSave={(next) => {
+                        updateTab(activeTab.id, { systemPrompt: next });
+                        setEditingPromptTabId(null);
+                        appendLog({
+                          ts: nowTs(),
+                          level: "OK",
+                          msg: `${activeTab.name} system prompt updated`,
+                        });
+                      }}
+                    />
+                  ) : (
+                    tabs.map((t) => (
+                      <div
+                        key={t.id}
+                        className="absolute inset-0 flex flex-col"
+                        style={{ display: t.id === activeTabId ? "flex" : "none" }}
+                      >
+                        <ChatView
+                          endpoint={endpoint}
+                          model={t.model ?? model}
+                          connected={connected}
+                          enabledTools={ENABLED_TOOLS}
+                          systemPrompt={t.systemPrompt}
+                          messages={t.messages}
+                          onMessagesChange={(updater) => handleMessagesChange(t.id, updater)}
+                          appendLog={appendLog}
+                          onStreamingChange={(s) => updateTab(t.id, { isStreaming: s })}
+                          stopToken={t.stopToken}
+                        />
+                      </div>
+                    ))
+                  )}
                 </div>
               </>
             )}
@@ -244,6 +279,7 @@ function Index() {
                 setModel={setModel}
                 setConnected={setConnected}
                 appendLog={appendLog}
+                onModelsLoaded={setAvailableModels}
               />
             )}
           </div>
