@@ -12,6 +12,9 @@ interface Props {
   model: string | null;
   connected: boolean;
   enabledTools: string[];
+  systemPrompt?: string;
+  messages: ChatMessage[];
+  onMessagesChange: (updater: (prev: ChatMessage[]) => ChatMessage[]) => void;
   appendLog: (line: LogLine) => void;
   onStreamingChange: (streaming: boolean) => void;
 }
@@ -21,16 +24,12 @@ export function ChatView({
   model,
   connected,
   enabledTools,
+  systemPrompt,
+  messages,
+  onMessagesChange,
   appendLog,
   onStreamingChange,
 }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content:
-        "⚡ OpenClaw online. Connect to your Ollama endpoint and select a model to begin. I can install tools to extend my capabilities on demand.",
-    },
-  ]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -45,7 +44,16 @@ export function ChatView({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  const systemPrompt = `You are OpenClaw, a powerful AI assistant running via Ollama. Available tools: ${enabledTools.join(", ") || "none"}.`;
+  // Stop streaming if user switches tabs (component re-keys on tab change)
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  const resolvedSystemPrompt =
+    systemPrompt ??
+    `You are OpenClaw, a powerful AI assistant running via Ollama. Available tools: ${enabledTools.join(", ") || "none"}.`;
 
   const stop = () => {
     abortRef.current?.abort();
@@ -62,7 +70,7 @@ export function ChatView({
     }
 
     const next: ChatMessage[] = [...messages, { role: "user", content: text }];
-    setMessages([...next, { role: "assistant", content: "" }]);
+    onMessagesChange(() => [...next, { role: "assistant", content: "" }]);
     setInput("");
     setStreaming(true);
     appendLog({ ts: nowTs(), level: "ARROW", msg: `chat send chars=${text.length}` });
@@ -77,7 +85,7 @@ export function ChatView({
         body: JSON.stringify({
           model,
           stream: true,
-          messages: [{ role: "system", content: systemPrompt }, ...next],
+          messages: [{ role: "system", content: resolvedSystemPrompt }, ...next],
         }),
         signal: controller.signal,
       });
@@ -103,7 +111,7 @@ export function ChatView({
             const tok = json.message?.content ?? "";
             if (tok) {
               assistantText += tok;
-              setMessages((prev) => {
+              onMessagesChange((prev) => {
                 const copy = prev.slice();
                 copy[copy.length - 1] = { role: "assistant", content: assistantText };
                 return copy;
