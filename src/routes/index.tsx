@@ -8,6 +8,8 @@ import { ChatTabsBar, type ChatTab } from "@/components/ChatTabsBar";
 import { ToolsPanel } from "@/components/ToolsPanel";
 import { ResourceBar } from "@/components/ResourceBar";
 import { ConcurrencyBanner } from "@/components/ConcurrencyBanner";
+import { TabControls } from "@/components/TabControls";
+import { SystemPromptEditor } from "@/components/SystemPromptEditor";
 import { computeResources } from "@/lib/resource-estimate";
 import { INITIAL_LOG, nowTs, type LogLine } from "@/lib/agent-state";
 
