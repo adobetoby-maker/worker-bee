@@ -33,11 +33,22 @@ export function buildEnrichedSystemPrompt(ctx: PromptContext): string {
   if (connected.length) lines.push(...connected);
   lines.push("");
 
-  lines.push(`INJECTED CREDENTIALS: ${ctx.injectedCredentials.length === 0 ? "none" : ""}`);
+  lines.push(
+    `INJECTED CREDENTIALS (by reference only): ${ctx.injectedCredentials.length === 0 ? "none" : ""}`,
+  );
   for (const name of ctx.injectedCredentials) {
-    lines.push(`  ${name}: available this session`);
+    // SECURITY: never include the actual username or password — only the
+    // proxy reference the app will resolve client-side.
+    lines.push(`  - ${name} — use tool: get_credential('${name}', 'username')`);
+    lines.push(`${" ".repeat(4 + name.length + 19)}get_credential('${name}', 'password')`);
   }
   lines.push("");
+  if (ctx.injectedCredentials.length > 0) {
+    lines.push(
+      "NOTE: Credential values are NEVER sent to you. Reference them by name; the host app resolves the value securely on your behalf.",
+    );
+    lines.push("");
+  }
 
   if (ctx.machineProfile) {
     const limits = computeLimits(ctx.machineProfile);
