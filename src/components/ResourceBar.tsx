@@ -66,8 +66,9 @@ function Pill({
 
 export function ResourceBar({ resources }: Props) {
   const { ramUsed, ramTotal, vramUsed, vramTotal, cpuPct } = resources;
-  const ramPct = (ramUsed / ramTotal) * 100;
-  const vramPct = (vramUsed / vramTotal) * 100;
+  const ramPct = ramTotal > 0 ? (ramUsed / ramTotal) * 100 : 0;
+  const hasGpu = vramTotal >= 1;
+  const vramPct = hasGpu ? (vramUsed / vramTotal) * 100 : 0;
   return (
     <div
       className="flex items-center gap-6 px-4 overflow-x-auto"
@@ -85,14 +86,23 @@ export function ResourceBar({ resources }: Props) {
         unit=" GB"
         pct={ramPct}
       />
-      <Pill
-        icon="⚡"
-        label="VRAM"
-        used={vramUsed.toFixed(1)}
-        total={`${vramTotal}`}
-        unit=" GB"
-        pct={vramPct}
-      />
+      {hasGpu ? (
+        <Pill
+          icon="⚡"
+          label="VRAM"
+          used={vramUsed.toFixed(1)}
+          total={`${vramTotal}`}
+          unit=" GB"
+          pct={vramPct}
+        />
+      ) : (
+        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground whitespace-nowrap">
+          <span className="text-sm leading-none">⚡</span>
+          <span className="text-foreground/60">VRAM</span>
+          <span className="text-muted-foreground/60">— no discrete GPU</span>
+          <span className="text-[9px]" style={{ color: "#444" }}>(estimated)</span>
+        </div>
+      )}
       <Pill icon="🔥" label="CPU" used={`${Math.round(cpuPct)}%`} pct={cpuPct} />
     </div>
   );
