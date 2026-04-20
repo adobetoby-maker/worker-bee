@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { estimateModelLoad } from "@/lib/resource-estimate";
+import { BrowserQuickCommands } from "./BrowserQuickCommands";
 
 export const SYSTEM_PROMPT_PRESETS: { id: string; icon: string; label: string; prompt: string }[] = [
   {
@@ -46,6 +47,7 @@ interface TabControlsProps {
   onModelChange: (m: string) => void;
   onOpenPrompt: () => void;
   onClear: () => void;
+  onInjectPrompt?: (text: string) => void;
 }
 
 export function TabControls({
@@ -55,8 +57,10 @@ export function TabControls({
   onModelChange,
   onOpenPrompt,
   onClear,
+  onInjectPrompt,
 }: TabControlsProps) {
   const [confirming, setConfirming] = useState(false);
+  const [browserOpen, setBrowserOpen] = useState(false);
   const load = estimateModelLoad(model);
   const hint = model ? `${model} · ~${load.ram} GB RAM` : "no model";
 
