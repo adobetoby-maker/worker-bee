@@ -1,7 +1,7 @@
 import { AgentLog } from "./AgentLog";
 import type { LogLine } from "@/lib/agent-state";
 
-export type View = "chat" | "tools" | "config";
+export type View = "chat" | "tools" | "vault" | "config";
 
 interface SidebarProps {
   active: View;
@@ -12,6 +12,7 @@ interface SidebarProps {
 const NAV: { id: View; label: string; icon: string }[] = [
   { id: "chat", label: "CHAT", icon: "💬" },
   { id: "tools", label: "TOOLS", icon: "🔧" },
+  { id: "vault", label: "KEY VAULT", icon: "🔐" },
   { id: "config", label: "CONFIG", icon: "⚙" },
 ];
 
