@@ -288,15 +288,23 @@ export function ChatView({
           <button
             type="button"
             onClick={streaming ? stop : send}
-            disabled={!streaming && !input.trim()}
+            disabled={!streaming && !input.trim() && !isQueued}
             className={`h-[72px] w-28 shrink-0 rounded-md font-mono text-xs uppercase tracking-[0.2em] transition-all ${
               streaming
                 ? "bg-destructive/20 text-destructive border border-destructive/60"
+                : isQueued
+                ? "border"
                 : "bg-gradient-to-br from-primary to-primary-glow text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[0_0_24px_-4px_var(--primary)]"
             }`}
-            style={streaming ? { animation: "var(--animate-pulse-neon)" } : undefined}
+            style={
+              streaming
+                ? { animation: "var(--animate-pulse-neon)" }
+                : isQueued
+                ? { borderColor: "#ffaa0066", background: "#1a1400", color: "#ffaa00" }
+                : undefined
+            }
           >
-            {streaming ? "◼ STOP" : "SEND ▶"}
+            {streaming ? "◼ STOP" : isQueued ? `QUEUED #${queuePosition}` : "SEND ▶"}
           </button>
         </div>
       </div>
