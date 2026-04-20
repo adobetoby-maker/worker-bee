@@ -145,6 +145,9 @@ function Index() {
   const [flashTurnTabId, setFlashTurnTabId] = useState<string | null>(null);
 
   useEffect(() => subscribeQueue(setQueueState), []);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [openProjectId, setOpenProjectId] = useState<string | null>(null);
+  useEffect(() => subscribeProjects(setProjects), []);
 
   useEffect(() => {
     if (typeof window !== "undefined" && isBrandNewUser()) setShowOnboarding(true);
@@ -617,6 +620,17 @@ function Index() {
                     });
                   }}
                   onInjectPrompt={(p) => setInputDraft(activeTab.id, p)}
+                  projects={projects.filter((p) => !p.archived).map((p) => ({ id: p.id, emoji: p.emoji, name: p.name }))}
+                  activeProjectId={projectForTab(activeTab.id)?.id ?? null}
+                  onProjectChange={(pid) => {
+                    bindTabToProject(activeTab.id, pid);
+                    const proj = pid ? projects.find((p) => p.id === pid) : null;
+                    appendLog({
+                      ts: nowTs(),
+                      level: "OK",
+                      msg: proj ? `${activeTab.name} → project '${proj.name}'` : `${activeTab.name} unbound from project`,
+                    });
+                  }}
                 />
                 <div className="relative flex flex-1 min-h-0">
                   {editingPromptTabId === activeTab.id ? (
@@ -673,6 +687,27 @@ function Index() {
                             }}
                             onSendStart={(text) => handleSendStart(t.id, t.name, t.model ?? model, text)}
                             onSendEnd={() => handleSendEnd(t.id, t.name)}
+                            projectName={projectForTab(t.id)?.name ?? null}
+                            onSaveCodeBlock={(lang, code, suggested) => {
+                              const proj = projectForTab(t.id);
+                              if (!proj) return;
+                              const language = languageFromFenceLabel(lang);
+                              const name = window.prompt(
+                                `Save to ${proj.name} as:`,
+                                guessFilenameFromCode(language, suggested),
+                              );
+                              if (!name) return;
+                              const f = addFile(proj.id, name, code);
+                              if (f) {
+                                toast(`💾 Saved ${name} to ${proj.name}`);
+                                appendLog({
+                                  ts: nowTs(),
+                                  level: "OK",
+                                  msg: `File saved: ${proj.name}/${name} (${formatBytes(f.size)})`,
+                                });
+                                emitActivity({ kind: "tool", icon: "💾", text: `${proj.name} · saved ${name}` });
+                              }
+                            }}
                           />
                         </div>
                       ))}
