@@ -1,7 +1,13 @@
 import { ClawLogo } from "./ClawLogo";
 import { StatusBadge } from "./StatusBadge";
 
-export function Header() {
+interface HeaderProps {
+  connected: boolean;
+  model: string | null;
+  toolCount: number;
+}
+
+export function Header({ connected, model, toolCount }: HeaderProps) {
   return (
     <header
       className="sticky top-0 z-40 flex items-center justify-between px-5 bg-background/85 backdrop-blur border-b border-primary/30"
@@ -9,7 +15,7 @@ export function Header() {
     >
       <div className="flex items-center gap-3">
         <span className="text-primary">
-          <ClawLogo size={28} active />
+          <ClawLogo size={28} active={connected} />
         </span>
         <span className="font-mono text-lg font-bold tracking-[0.28em] select-none">
           <span className="text-primary">OPEN</span>
@@ -21,11 +27,17 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2">
-        <StatusBadge variant="success" dot>
-          OLLAMA::CONNECTED
+        {connected ? (
+          <StatusBadge variant="success" dot>
+            OLLAMA::CONNECTED
+          </StatusBadge>
+        ) : (
+          <StatusBadge variant="destructive">OLLAMA::OFFLINE</StatusBadge>
+        )}
+        <StatusBadge variant="primary">
+          [ MODEL: {model ?? "none"} ]
         </StatusBadge>
-        <StatusBadge variant="primary">[ MODEL: llama3.1:8b ]</StatusBadge>
-        <StatusBadge variant="default">[ TOOLS: 4 ]</StatusBadge>
+        <StatusBadge variant="default">[ TOOLS: {toolCount} ]</StatusBadge>
       </div>
     </header>
   );

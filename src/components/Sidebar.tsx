@@ -1,10 +1,12 @@
 import { AgentLog } from "./AgentLog";
+import type { LogLine } from "@/lib/agent-state";
 
 export type View = "chat" | "tools" | "config";
 
 interface SidebarProps {
   active: View;
   onChange: (v: View) => void;
+  log: LogLine[];
 }
 
 const NAV: { id: View; label: string; icon: string }[] = [
@@ -13,7 +15,7 @@ const NAV: { id: View; label: string; icon: string }[] = [
   { id: "config", label: "CONFIG", icon: "⚙" },
 ];
 
-export function Sidebar({ active, onChange }: SidebarProps) {
+export function Sidebar({ active, onChange, log }: SidebarProps) {
   return (
     <aside
       className="flex flex-col border-r border-border bg-surface/40"
@@ -48,7 +50,7 @@ export function Sidebar({ active, onChange }: SidebarProps) {
         })}
       </nav>
 
-      <AgentLog />
+      <AgentLog lines={log} />
     </aside>
   );
 }

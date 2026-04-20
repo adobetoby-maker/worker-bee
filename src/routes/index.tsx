@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Header } from "@/components/Header";
 import { Sidebar, type View } from "@/components/Sidebar";
 import { ClawLogo } from "@/components/ClawLogo";
+import { ConfigPanel } from "@/components/ConfigPanel";
+import { INITIAL_LOG, type LogLine } from "@/lib/agent-state";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -39,7 +41,8 @@ function ChatView() {
           <BlinkingCursor />
         </div>
         <div className="mt-2 font-mono text-[11px] text-muted-foreground/70">
-          press <span className="text-foreground">/</span> to focus · <span className="text-foreground">⌘K</span> for tools
+          press <span className="text-foreground">/</span> to focus ·{" "}
+          <span className="text-foreground">⌘K</span> for tools
         </div>
       </div>
     </div>
@@ -55,9 +58,7 @@ function ToolsView() {
       <div className="font-mono text-xs uppercase tracking-[0.3em] text-muted-foreground">
         // registry
       </div>
-      <div className="mt-3 font-mono text-2xl text-primary">
-        4 tools registered
-      </div>
+      <div className="mt-3 font-mono text-2xl text-primary">4 tools registered</div>
       <div className="mt-2 font-mono text-[11px] text-muted-foreground">
         web_search · fs_read · shell · http_fetch
       </div>
@@ -65,37 +66,35 @@ function ToolsView() {
   );
 }
 
-function ConfigView() {
-  return (
-    <div
-      className="flex flex-1 flex-col items-center justify-center"
-      style={{ animation: "var(--animate-slide-down)" }}
-    >
-      <div className="font-mono text-xs uppercase tracking-[0.3em] text-muted-foreground">
-        // runtime configuration
-      </div>
-      <div className="mt-3 font-mono text-2xl text-success">
-        ollama :: localhost:11434
-      </div>
-      <div className="mt-2 font-mono text-[11px] text-muted-foreground">
-        model=llama3.1:8b · ctx=8192 · temp=0.7
-      </div>
-    </div>
-  );
-}
-
 function Index() {
   const [active, setActive] = useState<View>("chat");
+  const [log, setLog] = useState<LogLine[]>(INITIAL_LOG);
+  const [endpoint, setEndpoint] = useState("http://localhost:11434");
+  const [model, setModel] = useState<string | null>("llama3.1:8b");
+  const [connected, setConnected] = useState(false);
+
+  const appendLog = useCallback((line: LogLine) => {
+    setLog((prev) => [...prev, line]);
+  }, []);
 
   return (
     <div className="flex flex-col h-screen w-full bg-background text-foreground">
-      <Header />
+      <Header connected={connected} model={model} toolCount={4} />
       <div className="flex flex-1 min-h-0">
-        <Sidebar active={active} onChange={setActive} />
+        <Sidebar active={active} onChange={setActive} log={log} />
         <main key={active} className="flex flex-1 min-h-0 flex-col">
           {active === "chat" && <ChatView />}
           {active === "tools" && <ToolsView />}
-          {active === "config" && <ConfigView />}
+          {active === "config" && (
+            <ConfigPanel
+              endpoint={endpoint}
+              setEndpoint={setEndpoint}
+              model={model}
+              setModel={setModel}
+              setConnected={setConnected}
+              appendLog={appendLog}
+            />
+          )}
         </main>
       </div>
     </div>
