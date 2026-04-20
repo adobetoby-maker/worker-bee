@@ -731,6 +731,14 @@ function Index() {
         </main>
       </div>
 
+      <QueuePanel
+        open={queueOpen}
+        onClose={() => setQueueOpen(false)}
+        onStopActive={(tabId) => {
+          updateTab(tabId, { stopToken: (tabs.find((t) => t.id === tabId)?.stopToken ?? 0) + 1 });
+        }}
+      />
+
       <GlobalSearch
         open={searchOpen}
         onClose={() => setSearchOpen(false)}
