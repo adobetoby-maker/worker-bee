@@ -10,7 +10,15 @@ import { ResourceBar } from "@/components/ResourceBar";
 import { ConcurrencyBanner } from "@/components/ConcurrencyBanner";
 import { TabControls } from "@/components/TabControls";
 import { SystemPromptEditor } from "@/components/SystemPromptEditor";
+import { MachineLimitAdvisor } from "@/components/MachineLimitAdvisor";
 import { computeResources } from "@/lib/resource-estimate";
+import {
+  loadStoredProfile,
+  saveStoredProfile,
+  isAdvisorShown,
+  markAdvisorShown,
+  type MachineProfile,
+} from "@/lib/machine-profile";
 import { INITIAL_LOG, nowTs, type LogLine } from "@/lib/agent-state";
 
 export const Route = createFileRoute("/")({
@@ -51,6 +59,10 @@ function Index() {
   const [bannerDismissedAt, setBannerDismissedAt] = useState(0);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [editingPromptTabId, setEditingPromptTabId] = useState<string | null>(null);
+  const [machineProfile, setMachineProfile] = useState<MachineProfile | null>(() =>
+    loadStoredProfile(),
+  );
+  const [showAdvisor, setShowAdvisor] = useState(false);
 
   const appendLog = useCallback((line: LogLine) => {
     setLog((prev) => [...prev, line]);
@@ -75,9 +87,21 @@ function Index() {
   const streamingCount = streamingTabs.length;
   const anyStreaming = streamingCount > 0;
 
+  const totals = useMemo(
+    () => ({
+      ramGb: machineProfile?.ramGb ?? 8,
+      vramGb: machineProfile
+        ? machineProfile.unified
+          ? machineProfile.ramGb
+          : machineProfile.vramGb
+        : 4,
+    }),
+    [machineProfile],
+  );
+
   const resources = useMemo(
-    () => computeResources(streamingTabs.map((t) => t.model)),
-    [streamingTabs],
+    () => computeResources(streamingTabs.map((t) => t.model), 12, totals),
+    [streamingTabs, totals],
   );
 
   const updateTab = useCallback((id: string, patch: Partial<TabState>) => {
@@ -112,9 +136,14 @@ function Index() {
         level: "ARROW",
         msg: `${newTab.name} session opened (${model ?? "no model"})`,
       });
-      return [...prev, newTab];
+      const next = [...prev, newTab];
+      // Trigger advisor when reaching the 3rd tab if no profile saved yet
+      if (next.length >= 3 && !machineProfile) {
+        setShowAdvisor(true);
+      }
+      return next;
     });
-  }, [model, appendLog]);
+  }, [model, appendLog, machineProfile]);
 
   const handleCloseTab = useCallback(
     (id: string) => {
@@ -173,6 +202,29 @@ function Index() {
     return () => window.removeEventListener("keydown", onKey);
   }, [active, activeTabId, handleNewTab, handleCloseTab]);
 
+  // Show advisor on first successful connect (if no profile + not previously shown)
+  useEffect(() => {
+    if (connected && !machineProfile && !isAdvisorShown()) {
+      setShowAdvisor(true);
+    }
+  }, [connected, machineProfile]);
+
+  const handleSaveProfile = useCallback(
+    (p: MachineProfile) => {
+      setMachineProfile(p);
+      saveStoredProfile(p);
+      markAdvisorShown();
+      setShowAdvisor(false);
+      appendLog({ ts: nowTs(), level: "OK", msg: `Machine profile saved: ${p.name}` });
+    },
+    [appendLog],
+  );
+
+  const handleSkipProfile = useCallback(() => {
+    markAdvisorShown();
+    setShowAdvisor(false);
+  }, []);
+
   // Reset dismissal when streaming count drops below threshold
   useEffect(() => {
     if (streamingCount < 2) setBannerDismissedAt(0);
@@ -184,6 +236,13 @@ function Index() {
 
   return (
     <div className="flex flex-col h-screen w-full bg-background text-foreground">
+      {showAdvisor && (
+        <MachineLimitAdvisor
+          initialProfile={machineProfile}
+          onSave={handleSaveProfile}
+          onSkip={handleSkipProfile}
+        />
+      )}
       <Header
         connected={connected}
         model={activeTab.model ?? model}
