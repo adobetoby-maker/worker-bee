@@ -10,7 +10,15 @@ import { ResourceBar } from "@/components/ResourceBar";
 import { ConcurrencyBanner } from "@/components/ConcurrencyBanner";
 import { TabControls } from "@/components/TabControls";
 import { SystemPromptEditor } from "@/components/SystemPromptEditor";
+import { MachineLimitAdvisor } from "@/components/MachineLimitAdvisor";
 import { computeResources } from "@/lib/resource-estimate";
+import {
+  loadStoredProfile,
+  saveStoredProfile,
+  isAdvisorShown,
+  markAdvisorShown,
+  type MachineProfile,
+} from "@/lib/machine-profile";
 import { INITIAL_LOG, nowTs, type LogLine } from "@/lib/agent-state";
 
 export const Route = createFileRoute("/")({
