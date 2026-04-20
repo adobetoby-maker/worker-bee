@@ -17,6 +17,7 @@ interface ConfigPanelProps {
   setConnected: (c: boolean) => void;
   appendLog: (line: LogLine) => void;
   onModelsLoaded?: (models: string[]) => void;
+  onConnected?: () => void;
 }
 
 const MODES: { id: Mode; label: string; icon: string }[] = [
@@ -48,6 +49,7 @@ export function ConfigPanel({
   setConnected,
   appendLog,
   onModelsLoaded,
+  onConnected,
 }: ConfigPanelProps) {
   const [mode, setMode] = useState<Mode>("localhost");
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "err">("idle");
@@ -89,6 +91,7 @@ export function ConfigPanel({
         level: "OK",
         msg: `connected · ${list.length} model${list.length === 1 ? "" : "s"}`,
       });
+      onConnected?.();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "unknown error";
       setStatus("err");
@@ -158,6 +161,15 @@ export function ConfigPanel({
             spellCheck={false}
             className="w-full border border-border bg-surface px-3 py-2.5 font-mono text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/40"
           />
+          <a
+            href="https://worker-bee.lovable.app/install"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-block font-mono"
+            style={{ color: "#555", fontSize: "11px" }}
+          >
+            Need to install the agent server? → Install Guide
+          </a>
         </section>
 
         {/* Tip box */}
