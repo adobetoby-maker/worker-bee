@@ -154,11 +154,15 @@ export function ToolsPanel({ appendLog, connections }: Props) {
                     </div>
                   </div>
                 </div>
-                {s.installed && (
+                {tool.connectionTool ? (
+                  <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-success border border-success/40 bg-success/10 px-2 py-0.5 rounded">
+                    ● LIVE
+                  </span>
+                ) : s.installed ? (
                   <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-success border border-success/40 bg-success/10 px-2 py-0.5 rounded">
                     INSTALLED
                   </span>
-                )}
+                ) : null}
               </div>
 
               <p className="mt-3 font-sans text-sm text-muted-foreground flex-1">
@@ -166,7 +170,16 @@ export function ToolsPanel({ appendLog, connections }: Props) {
               </p>
 
               <div className="mt-4 flex items-center justify-between gap-3">
-                {!s.installed ? (
+                {tool.connectionTool ? (
+                  <div
+                    className="flex-1 flex items-center justify-between rounded-md border border-primary/60 bg-primary/10 text-primary px-3 py-2 font-mono text-xs uppercase tracking-[0.18em]"
+                  >
+                    <span>Connected</span>
+                    <span className="text-[10px] text-muted-foreground normal-case tracking-normal">
+                      via 🔗 Connections
+                    </span>
+                  </div>
+                ) : !s.installed ? (
                   <button
                     type="button"
                     onClick={() => install(tool)}
