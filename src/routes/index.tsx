@@ -570,7 +570,7 @@ function Index() {
         "OK",
         `Machine profile loaded: ${
           machineProfile
-            ? `${machineProfile.label} · ${machineProfile.ramGb} GB RAM · ${machineProfile.unified ? "unified" : `${machineProfile.vramGb} GB VRAM`}`
+            ? `${machineProfile.icon} ${machineProfile.name} · ${machineProfile.ramGb} GB RAM · ${machineProfile.unified ? "unified" : `${machineProfile.vramGb} GB VRAM`}`
             : "none"
         }`,
       );
