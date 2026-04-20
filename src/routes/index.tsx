@@ -94,6 +94,11 @@ function Index() {
   const [showAdvisor, setShowAdvisor] = useState(false);
   const [savedFlash, setSavedFlash] = useState(0);
   const [connections, setConnections] = useState<ConnectionsState>(() => loadConnections());
+  const [inputDrafts, setInputDrafts] = useState<Record<string, string>>({});
+
+  const setInputDraft = useCallback((tabId: string, v: string) => {
+    setInputDrafts((p) => ({ ...p, [tabId]: v }));
+  }, []);
 
   const updateConnections = useCallback((next: ConnectionsState) => {
     setConnections(next);
