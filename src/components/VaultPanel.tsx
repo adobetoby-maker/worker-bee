@@ -99,9 +99,11 @@ export function VaultPanel({ onInject, activeTabId, tabName }: Props) {
 
 function LockScreen({
   exists,
+  autoLockedBanner = false,
   onUnlocked,
 }: {
   exists: boolean;
+  autoLockedBanner?: boolean;
   onUnlocked: (s: VaultSession) => void;
 }) {
   const [pw, setPw] = useState("");
