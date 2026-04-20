@@ -109,6 +109,31 @@ export function Header({ connected, model, toolCount, streaming = false, error =
           </div>
         )}
         <div className="flex items-center gap-1 ml-1 pl-2 border-l border-border">
+          <button
+            type="button"
+            onClick={onQueueOpen}
+            title={`Agent queue${queueDepth ? ` · ${queueDepth} waiting` : ""}${parallelMode ? " · parallel mode ON" : ""}`}
+            className="relative text-base leading-none px-1.5 py-0.5 rounded hover:bg-surface-2/40 transition"
+            style={{ filter: queueDepth ? "drop-shadow(0 0 6px #ffaa0099)" : undefined }}
+          >
+            📋
+            {queueDepth > 0 && (
+              <span
+                className="absolute -top-1 -right-1 font-mono text-[9px] px-1 rounded-full"
+                style={{ background: "#ffaa00", color: "#000", lineHeight: "12px" }}
+              >
+                {queueDepth}
+              </span>
+            )}
+            {parallelMode && (
+              <span
+                className="absolute -bottom-1 -right-1 font-mono text-[8px] px-1 rounded"
+                style={{ background: "#ff3b3b", color: "#000", lineHeight: "10px" }}
+              >
+                ⚡
+              </span>
+            )}
+          </button>
           <ActivityFeed />
           <button
             type="button"
