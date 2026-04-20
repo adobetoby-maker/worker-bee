@@ -10,7 +10,18 @@ interface Tool {
   installCmd: string;
   /** When true, this tool is gated by a live connection and cannot be installed/uninstalled. */
   connectionTool?: boolean;
+  /** When true, this tool is the always-on Playwright/Chromium core. */
+  coreTool?: boolean;
 }
+
+const PLAYWRIGHT_TOOL: Tool = {
+  id: "playwright_chromium",
+  icon: "🎭",
+  name: "Playwright + Chromium",
+  desc: "Headless browser engine. Scrape, screenshot, fill forms, test websites. Chromium auto-installed on first launch.",
+  installCmd: "core: playwright + chromium",
+  coreTool: true,
+};
 
 const BASE_TOOLS: Tool[] = [
   { id: "web_search", icon: "🌐", name: "Web Search", desc: "DuckDuckGo / Brave API", installCmd: "pip install duckduckgo-search" },
@@ -20,7 +31,6 @@ const BASE_TOOLS: Tool[] = [
   { id: "vector_db", icon: "🧠", name: "Vector Memory", desc: "ChromaDB embedding store", installCmd: "pip install chromadb" },
   { id: "shell", icon: "🐚", name: "Shell Runner", desc: "Execute bash with approval", installCmd: "built-in" },
   { id: "git", icon: "🌿", name: "Git Tools", desc: "Clone, diff, commit", installCmd: "pip install gitpython" },
-  { id: "scraper", icon: "🕷", name: "Web Scraper", desc: "Playwright headless browser", installCmd: "pip install playwright && playwright install" },
   { id: "pdf_reader", icon: "📄", name: "PDF Reader", desc: "Extract & chunk PDFs", installCmd: "pip install pypdf" },
   { id: "sql_tools", icon: "🗄", name: "SQL Agent", desc: "Query SQLite / Postgres", installCmd: "pip install sqlalchemy" },
 ];
