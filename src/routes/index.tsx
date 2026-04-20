@@ -136,9 +136,14 @@ function Index() {
         level: "ARROW",
         msg: `${newTab.name} session opened (${model ?? "no model"})`,
       });
-      return [...prev, newTab];
+      const next = [...prev, newTab];
+      // Trigger advisor when reaching the 3rd tab if no profile saved yet
+      if (next.length >= 3 && !machineProfile) {
+        setShowAdvisor(true);
+      }
+      return next;
     });
-  }, [model, appendLog]);
+  }, [model, appendLog, machineProfile]);
 
   const handleCloseTab = useCallback(
     (id: string) => {
@@ -196,6 +201,29 @@ function Index() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [active, activeTabId, handleNewTab, handleCloseTab]);
+
+  // Show advisor on first successful connect (if no profile + not previously shown)
+  useEffect(() => {
+    if (connected && !machineProfile && !isAdvisorShown()) {
+      setShowAdvisor(true);
+    }
+  }, [connected, machineProfile]);
+
+  const handleSaveProfile = useCallback(
+    (p: MachineProfile) => {
+      setMachineProfile(p);
+      saveStoredProfile(p);
+      markAdvisorShown();
+      setShowAdvisor(false);
+      appendLog({ ts: nowTs(), level: "OK", msg: `Machine profile saved: ${p.name}` });
+    },
+    [appendLog],
+  );
+
+  const handleSkipProfile = useCallback(() => {
+    markAdvisorShown();
+    setShowAdvisor(false);
+  }, []);
 
   // Reset dismissal when streaming count drops below threshold
   useEffect(() => {
