@@ -39,15 +39,55 @@ interface Props {
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const jitter = () => 600 + Math.floor(Math.random() * 200);
 
-export function ToolsPanel({ appendLog }: Props) {
+export function ToolsPanel({ appendLog, connections }: Props) {
+  const TOOLS = useMemo<Tool[]>(() => {
+    const conn: Tool[] = [];
+    if (connections?.gmail) {
+      conn.push({
+        id: "gmail.send",
+        icon: "📧",
+        name: "Gmail Send",
+        desc: `Send email as ${connections.gmail.email}. Reads from connected Gmail.`,
+        installCmd: "connection: gmail",
+        connectionTool: true,
+      });
+    }
+    if (connections?.slack) {
+      conn.push({
+        id: "slack.post_message",
+        icon: "💬",
+        name: "Slack Post Message",
+        desc: `Post to channels in ${connections.slack.workspace} as @${connections.slack.botUser}.`,
+        installCmd: "connection: slack",
+        connectionTool: true,
+      });
+    }
+    if (connections?.whatsapp) {
+      conn.push({
+        id: "whatsapp.send",
+        icon: "📱",
+        name: "WhatsApp Send",
+        desc: `Send WhatsApp messages via Meta Cloud API (phone ${connections.whatsapp.phoneNumberId}).`,
+        installCmd: "connection: whatsapp",
+        connectionTool: true,
+      });
+    }
+    return [...conn, ...BASE_TOOLS];
+  }, [connections]);
+
   const [state, setState] = useState<Record<string, ToolState>>(() =>
     Object.fromEntries(
-      TOOLS.map((t) => [
+      BASE_TOOLS.map((t) => [
         t.id,
         { installed: t.id === "shell", enabled: t.id === "shell", installing: false },
       ]),
     ),
   );
+
+  const getToolState = (tool: Tool): ToolState =>
+    tool.connectionTool
+      ? { installed: true, enabled: true, installing: false }
+      : (state[tool.id] ?? { installed: false, enabled: false, installing: false });
 
   const update = (id: string, patch: Partial<ToolState>) =>
     setState((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
@@ -84,13 +124,14 @@ export function ToolsPanel({ appendLog }: Props) {
         </h1>
         <p className="mt-2 font-sans text-sm text-muted-foreground max-w-2xl">
           Tools extend Worker Bee's capabilities. Enabled tools are injected into the system
-          prompt so the agent knows what it can call during a session.
+          prompt so the agent knows what it can call during a session. Connection-backed tools
+          appear automatically when the matching service is linked in 🔗 Connections.
         </p>
       </div>
 
       <div className="grid gap-4 p-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
         {TOOLS.map((tool) => {
-          const s = state[tool.id];
+          const s = getToolState(tool);
           const glow = s.enabled
             ? "border-primary shadow-[0_0_24px_-6px_var(--primary)]"
             : "border-border";
