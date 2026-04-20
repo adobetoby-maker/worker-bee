@@ -59,6 +59,10 @@ function Index() {
   const [bannerDismissedAt, setBannerDismissedAt] = useState(0);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [editingPromptTabId, setEditingPromptTabId] = useState<string | null>(null);
+  const [machineProfile, setMachineProfile] = useState<MachineProfile | null>(() =>
+    loadStoredProfile(),
+  );
+  const [showAdvisor, setShowAdvisor] = useState(false);
 
   const appendLog = useCallback((line: LogLine) => {
     setLog((prev) => [...prev, line]);
@@ -83,9 +87,21 @@ function Index() {
   const streamingCount = streamingTabs.length;
   const anyStreaming = streamingCount > 0;
 
+  const totals = useMemo(
+    () => ({
+      ramGb: machineProfile?.ramGb ?? 8,
+      vramGb: machineProfile
+        ? machineProfile.unified
+          ? machineProfile.ramGb
+          : machineProfile.vramGb
+        : 4,
+    }),
+    [machineProfile],
+  );
+
   const resources = useMemo(
-    () => computeResources(streamingTabs.map((t) => t.model)),
-    [streamingTabs],
+    () => computeResources(streamingTabs.map((t) => t.model), 12, totals),
+    [streamingTabs, totals],
   );
 
   const updateTab = useCallback((id: string, patch: Partial<TabState>) => {
