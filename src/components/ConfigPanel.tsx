@@ -16,6 +16,7 @@ interface ConfigPanelProps {
   setModel: (m: string | null) => void;
   setConnected: (c: boolean) => void;
   appendLog: (line: LogLine) => void;
+  onModelsLoaded?: (models: string[]) => void;
 }
 
 const MODES: { id: Mode; label: string; icon: string }[] = [
@@ -46,6 +47,7 @@ export function ConfigPanel({
   setModel,
   setConnected,
   appendLog,
+  onModelsLoaded,
 }: ConfigPanelProps) {
   const [mode, setMode] = useState<Mode>("localhost");
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "err">("idle");
@@ -81,6 +83,7 @@ export function ConfigPanel({
       setConnected(true);
       const first = list[0]?.name ?? null;
       if (first && !model) setModel(first);
+      onModelsLoaded?.(list.map((m) => m.name));
       appendLog({
         ts: nowTs(),
         level: "OK",
