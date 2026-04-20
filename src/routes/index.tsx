@@ -24,6 +24,12 @@ import {
 } from "@/lib/machine-profile";
 import { INITIAL_LOG, nowTs, type LogLine } from "@/lib/agent-state";
 import { runBootSequence } from "@/lib/boot-sequence";
+import { GlobalSearch } from "@/components/GlobalSearch";
+import { OnboardingWizard } from "@/components/OnboardingWizard";
+import { isBrandNewUser } from "@/lib/onboarding";
+import { emitActivity, subscribeActivity } from "@/lib/activity-feed";
+import { subscribeVaultSnapshot, type PotSnapshot } from "@/lib/vault-snapshot";
+import { buildEnrichedSystemPrompt } from "@/lib/system-prompt";
 
 export const Route = createFileRoute("/")({
   component: Index,
