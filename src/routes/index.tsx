@@ -60,6 +60,7 @@ import {
 } from "@/lib/projects";
 import { diffLines } from "@/lib/diff";
 import { ejectAllForTab } from "@/lib/injection-registry";
+import { openAgentWS, closeAgentWS, sendPing } from "@/lib/agent-ws";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -234,6 +235,16 @@ function Index() {
   }, [tabs]);
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
+
+  // ===== WebSocket lifecycle: one socket per tab =====
+  // Open sockets for any tabs that don't have one (initial mount + new tabs).
+  // Re-open all sockets if the endpoint changes.
+  useEffect(() => {
+    if (!endpoint) return;
+    tabs.forEach((t) => openAgentWS(t.id, endpoint, appendLog));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endpoint, tabs.length]);
+
   const streamingTabs = tabs.filter((t) => t.isStreaming);
   const streamingCount = streamingTabs.length;
   const anyStreaming = streamingCount > 0;
@@ -342,6 +353,8 @@ function Index() {
         const remaining = prev.filter((t) => t.id !== id);
         // Auto-eject all credentials injected into the closed tab.
         const ejected = ejectAllForTab(id);
+        // Close the WebSocket for this tab.
+        closeAgentWS(id);
         setInjectedByTab((p) => {
           if (!p[id]) return p;
           const { [id]: _, ...rest } = p;
@@ -730,6 +743,7 @@ function Index() {
                           style={{ display: t.id === activeTabId ? "flex" : "none" }}
                         >
                           <ChatView
+                            tabId={t.id}
                             endpoint={endpoint}
                             model={t.model ?? model}
                             connected={connected}
@@ -937,6 +951,13 @@ function Index() {
                 setConnected={setConnected}
                 appendLog={appendLog}
                 onModelsLoaded={setAvailableModels}
+                onConnected={() => {
+                  // Re-open and ping every tab's WebSocket against the new endpoint.
+                  tabs.forEach((t) => {
+                    openAgentWS(t.id, endpoint, appendLog);
+                    sendPing(t.id);
+                  });
+                }}
               />
             )}
           </div>
