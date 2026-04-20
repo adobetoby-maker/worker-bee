@@ -266,6 +266,8 @@ export function ChatView({
                     showCursor={showCursor}
                     projectName={projectName}
                     onSaveCodeBlock={onSaveCodeBlock}
+                    matchProjectFile={matchProjectFile}
+                    onCompareCodeBlock={onCompareCodeBlock}
                   />
                 )}
               </div>
@@ -362,9 +364,11 @@ interface AssistantContentProps {
   showCursor: boolean;
   projectName: string | null;
   onSaveCodeBlock?: (language: string, code: string, suggestedName: string) => void;
+  matchProjectFile?: (language: string, code: string, suggestedName: string) => string | null;
+  onCompareCodeBlock?: (filePath: string, newContent: string) => void;
 }
 
-function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock }: AssistantContentProps) {
+function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, matchProjectFile, onCompareCodeBlock }: AssistantContentProps) {
   // Split on fenced ```lang\n...\n``` code blocks
   const parts: Array<{ type: "text" | "code"; lang?: string; text: string }> = [];
   const re = /```([a-zA-Z0-9]*)\n([\s\S]*?)```/g;
