@@ -101,17 +101,38 @@ function Index() {
   const [savedFlash, setSavedFlash] = useState(0);
   const [connections, setConnections] = useState<ConnectionsState>(() => loadConnections());
   const [inputDrafts, setInputDrafts] = useState<Record<string, string>>({});
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [injectedByTab, setInjectedByTab] = useState<Record<string, string[]>>({});
+  const [vaultPots, setVaultPots] = useState<PotSnapshot[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && isBrandNewUser()) setShowOnboarding(true);
+  }, []);
+
+  useEffect(() => subscribeVaultSnapshot(setVaultPots), []);
+  useEffect(() => subscribeActivity(() => {}), []); // ensure module evaluated
 
   const setInputDraft = useCallback((tabId: string, v: string) => {
     setInputDrafts((p) => ({ ...p, [tabId]: v }));
   }, []);
 
   const updateConnections = useCallback((next: ConnectionsState) => {
+    const before = connections;
     setConnections(next);
     if (typeof window !== "undefined") {
       window.localStorage.setItem("workerbee_connections_v1", JSON.stringify(next));
     }
-  }, []);
+    (["gmail", "slack", "whatsapp"] as const).forEach((k) => {
+      if (!before[k] && next[k]) {
+        const icon = k === "gmail" ? "📧" : k === "slack" ? "💬" : "📱";
+        emitActivity({ kind: "connection", icon, text: `${k} · connected` });
+      } else if (before[k] && !next[k]) {
+        const icon = k === "gmail" ? "📧" : k === "slack" ? "💬" : "📱";
+        emitActivity({ kind: "connection", icon, text: `${k} · disconnected` });
+      }
+    });
+  }, [connections]);
 
   const appendLog = useCallback((line: LogLine) => {
     setLog((prev) => [...prev, line]);
