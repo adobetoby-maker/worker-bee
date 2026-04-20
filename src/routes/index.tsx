@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { VaultPanel } from "@/components/VaultPanel";
 import { ConnectionsPanel } from "@/components/ConnectionsPanel";
 import { Sidebar, type View } from "@/components/Sidebar";
-import { loadConnections, type ConnectionsState } from "@/lib/connections";
+import { loadConnections, saveConnections, type ConnectionsState } from "@/lib/connections";
 import { ConfigPanel } from "@/components/ConfigPanel";
 import { ChatView, type ChatMessage } from "@/components/ChatView";
 import { ChatTabsBar, type ChatTab } from "@/components/ChatTabsBar";
@@ -173,9 +173,8 @@ function Index() {
   const updateConnections = useCallback((next: ConnectionsState) => {
     const before = connections;
     setConnections(next);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("workerbee_connections_v1", JSON.stringify(next));
-    }
+    // Persist via saveConnections — strips raw tokens (security policy).
+    saveConnections(next);
     (["gmail", "slack", "whatsapp"] as const).forEach((k) => {
       if (!before[k] && next[k]) {
         const icon = k === "gmail" ? "📧" : k === "slack" ? "💬" : "📱";
