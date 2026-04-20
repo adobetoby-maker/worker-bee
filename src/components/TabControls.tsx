@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { estimateModelLoad } from "@/lib/resource-estimate";
+import { BrowserQuickCommands } from "./BrowserQuickCommands";
 
 export const SYSTEM_PROMPT_PRESETS: { id: string; icon: string; label: string; prompt: string }[] = [
   {
@@ -46,6 +47,7 @@ interface TabControlsProps {
   onModelChange: (m: string) => void;
   onOpenPrompt: () => void;
   onClear: () => void;
+  onInjectPrompt?: (text: string) => void;
 }
 
 export function TabControls({
@@ -55,8 +57,10 @@ export function TabControls({
   onModelChange,
   onOpenPrompt,
   onClear,
+  onInjectPrompt,
 }: TabControlsProps) {
   const [confirming, setConfirming] = useState(false);
+  const [browserOpen, setBrowserOpen] = useState(false);
   const load = estimateModelLoad(model);
   const hint = model ? `${model} · ~${load.ram} GB RAM` : "no model";
 
@@ -97,6 +101,29 @@ export function TabControls({
       </div>
 
       <div className="ml-auto flex items-center gap-2 relative">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setBrowserOpen((b) => !b)}
+            className={`px-3 py-1 rounded border text-[10px] uppercase tracking-[0.15em] transition-colors ${
+              browserOpen
+                ? "border-primary/60 text-primary bg-primary/10"
+                : "border-border text-muted-foreground hover:text-primary hover:border-primary/60"
+            }`}
+            title="Browser quick commands"
+          >
+            🎭 BROWSER
+          </button>
+          {browserOpen && (
+            <BrowserQuickCommands
+              onClose={() => setBrowserOpen(false)}
+              onInject={(p) => {
+                onInjectPrompt?.(p);
+                setBrowserOpen(false);
+              }}
+            />
+          )}
+        </div>
         <button
           type="button"
           onClick={onOpenPrompt}

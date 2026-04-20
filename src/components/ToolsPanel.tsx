@@ -10,7 +10,18 @@ interface Tool {
   installCmd: string;
   /** When true, this tool is gated by a live connection and cannot be installed/uninstalled. */
   connectionTool?: boolean;
+  /** When true, this tool is the always-on Playwright/Chromium core. */
+  coreTool?: boolean;
 }
+
+const PLAYWRIGHT_TOOL: Tool = {
+  id: "playwright_chromium",
+  icon: "🎭",
+  name: "Playwright + Chromium",
+  desc: "Headless browser engine. Scrape, screenshot, fill forms, test websites. Chromium auto-installed on first launch.",
+  installCmd: "core: playwright + chromium",
+  coreTool: true,
+};
 
 const BASE_TOOLS: Tool[] = [
   { id: "web_search", icon: "🌐", name: "Web Search", desc: "DuckDuckGo / Brave API", installCmd: "pip install duckduckgo-search" },
@@ -20,7 +31,6 @@ const BASE_TOOLS: Tool[] = [
   { id: "vector_db", icon: "🧠", name: "Vector Memory", desc: "ChromaDB embedding store", installCmd: "pip install chromadb" },
   { id: "shell", icon: "🐚", name: "Shell Runner", desc: "Execute bash with approval", installCmd: "built-in" },
   { id: "git", icon: "🌿", name: "Git Tools", desc: "Clone, diff, commit", installCmd: "pip install gitpython" },
-  { id: "scraper", icon: "🕷", name: "Web Scraper", desc: "Playwright headless browser", installCmd: "pip install playwright && playwright install" },
   { id: "pdf_reader", icon: "📄", name: "PDF Reader", desc: "Extract & chunk PDFs", installCmd: "pip install pypdf" },
   { id: "sql_tools", icon: "🗄", name: "SQL Agent", desc: "Query SQLite / Postgres", installCmd: "pip install sqlalchemy" },
 ];
@@ -72,7 +82,7 @@ export function ToolsPanel({ appendLog, connections }: Props) {
         connectionTool: true,
       });
     }
-    return [...conn, ...BASE_TOOLS];
+    return [PLAYWRIGHT_TOOL, ...conn, ...BASE_TOOLS];
   }, [connections]);
 
   const [state, setState] = useState<Record<string, ToolState>>(() =>
@@ -85,7 +95,7 @@ export function ToolsPanel({ appendLog, connections }: Props) {
   );
 
   const getToolState = (tool: Tool): ToolState =>
-    tool.connectionTool
+    tool.connectionTool || tool.coreTool
       ? { installed: true, enabled: true, installing: false }
       : (state[tool.id] ?? { installed: false, enabled: false, installing: false });
 
@@ -132,9 +142,11 @@ export function ToolsPanel({ appendLog, connections }: Props) {
       <div className="grid gap-4 p-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
         {TOOLS.map((tool) => {
           const s = getToolState(tool);
-          const glow = s.enabled
-            ? "border-primary shadow-[0_0_24px_-6px_var(--primary)]"
-            : "border-border";
+          const glow = tool.coreTool
+            ? "border-[#ffaa00] shadow-[0_0_28px_-4px_#ffaa00aa]"
+            : s.enabled
+              ? "border-primary shadow-[0_0_24px_-6px_var(--primary)]"
+              : "border-border";
           return (
             <div
               key={tool.id}
@@ -142,7 +154,10 @@ export function ToolsPanel({ appendLog, connections }: Props) {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-background border border-border text-xl">
+                  <div
+                    className="flex h-10 w-10 items-center justify-center rounded-md bg-background border border-border text-xl"
+                    style={tool.coreTool ? { borderColor: "#ffaa00aa" } : undefined}
+                  >
                     {tool.icon}
                   </div>
                   <div>
@@ -154,7 +169,14 @@ export function ToolsPanel({ appendLog, connections }: Props) {
                     </div>
                   </div>
                 </div>
-                {tool.connectionTool ? (
+                {tool.coreTool ? (
+                  <span
+                    className="font-mono text-[10px] uppercase tracking-[0.15em] px-2 py-0.5 rounded font-bold"
+                    style={{ background: "#ffaa00", color: "#000" }}
+                  >
+                    🔒 CORE — ALWAYS ON
+                  </span>
+                ) : tool.connectionTool ? (
                   <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-success border border-success/40 bg-success/10 px-2 py-0.5 rounded">
                     ● LIVE
                   </span>
@@ -170,10 +192,19 @@ export function ToolsPanel({ appendLog, connections }: Props) {
               </p>
 
               <div className="mt-4 flex items-center justify-between gap-3">
-                {tool.connectionTool ? (
+                {tool.coreTool ? (
                   <div
-                    className="flex-1 flex items-center justify-between rounded-md border border-primary/60 bg-primary/10 text-primary px-3 py-2 font-mono text-xs uppercase tracking-[0.18em]"
+                    className="flex-1 rounded-md px-3 py-2 font-mono text-xs"
+                    style={{
+                      background: "#0d0d0d",
+                      border: "1px solid #ffaa0055",
+                      color: "#39ff14",
+                    }}
                   >
+                    🟢 Chromium PID 48291 · Port 9222 · 0 pages open
+                  </div>
+                ) : tool.connectionTool ? (
+                  <div className="flex-1 flex items-center justify-between rounded-md border border-primary/60 bg-primary/10 text-primary px-3 py-2 font-mono text-xs uppercase tracking-[0.18em]">
                     <span>Connected</span>
                     <span className="text-[10px] text-muted-foreground normal-case tracking-normal">
                       via 🔗 Connections

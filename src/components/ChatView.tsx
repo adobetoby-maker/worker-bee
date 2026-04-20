@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { nowTs, type LogLine } from "@/lib/agent-state";
+import { BrowserTaskCard, detectBrowserAction } from "./BrowserTaskCard";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -18,6 +19,8 @@ interface Props {
   appendLog: (line: LogLine) => void;
   onStreamingChange: (streaming: boolean) => void;
   stopToken?: number;
+  inputDraft?: string;
+  onInputDraftChange?: (v: string) => void;
 }
 
 export function ChatView({
@@ -31,8 +34,15 @@ export function ChatView({
   appendLog,
   onStreamingChange,
   stopToken = 0,
+  inputDraft,
+  onInputDraftChange,
 }: Props) {
-  const [input, setInput] = useState("");
+  const [localInput, setLocalInput] = useState("");
+  const input = inputDraft !== undefined ? inputDraft : localInput;
+  const setInput = (v: string) => {
+    if (onInputDraftChange) onInputDraftChange(v);
+    else setLocalInput(v);
+  };
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -209,6 +219,14 @@ export function ChatView({
           );
         })}
       </div>
+
+      {streaming && (() => {
+        const last = messages[messages.length - 1];
+        if (!last || last.role !== "assistant") return null;
+        const action = detectBrowserAction(last.content);
+        if (!action) return null;
+        return <BrowserTaskCard action={action} onStop={stop} />;
+      })()}
 
       <div className="border-t border-border bg-surface/40 px-4 py-3">
         <div className="flex items-end gap-3">

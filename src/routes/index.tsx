@@ -23,6 +23,7 @@ import {
   type MachineProfile,
 } from "@/lib/machine-profile";
 import { INITIAL_LOG, nowTs, type LogLine } from "@/lib/agent-state";
+import { runBootSequence } from "@/lib/boot-sequence";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -93,6 +94,11 @@ function Index() {
   const [showAdvisor, setShowAdvisor] = useState(false);
   const [savedFlash, setSavedFlash] = useState(0);
   const [connections, setConnections] = useState<ConnectionsState>(() => loadConnections());
+  const [inputDrafts, setInputDrafts] = useState<Record<string, string>>({});
+
+  const setInputDraft = useCallback((tabId: string, v: string) => {
+    setInputDrafts((p) => ({ ...p, [tabId]: v }));
+  }, []);
 
   const updateConnections = useCallback((next: ConnectionsState) => {
     setConnections(next);
@@ -203,6 +209,7 @@ function Index() {
         level: "ARROW",
         msg: `${newTab.name} session opened (${model ?? "no model"})`,
       });
+      runBootSequence(newTab.name, appendLog);
       const next = [...prev, newTab];
       if (next.length >= 3 && !machineProfile) {
         setShowAdvisor(true);
@@ -407,6 +414,7 @@ function Index() {
                       msg: `${activeTab.name} history cleared`,
                     });
                   }}
+                  onInjectPrompt={(p) => setInputDraft(activeTab.id, p)}
                 />
                 <div className="relative flex flex-1 min-h-0">
                   {editingPromptTabId === activeTab.id ? (
@@ -444,6 +452,8 @@ function Index() {
                               updateTab(t.id, { isStreaming: s, ...(s ? { hasError: false } : {}) });
                             }}
                             stopToken={t.stopToken}
+                            inputDraft={inputDrafts[t.id] ?? ""}
+                            onInputDraftChange={(v) => setInputDraft(t.id, v)}
                           />
                         </div>
                       ))}
