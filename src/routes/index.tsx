@@ -480,7 +480,20 @@ function Index() {
                 }}
               />
             )}
-            {active === "config" && (
+            {active === "connections" && (
+              <ConnectionsPanel
+                state={connections}
+                onChange={updateConnections}
+                appendLog={appendLog}
+                onSaveToVault={(label) => {
+                  appendLog({
+                    ts: nowTs(),
+                    level: "OK",
+                    msg: `[${label}] flagged for Hive Vault — unlock vault to add as Honey Pot`,
+                  });
+                }}
+              />
+            )}
               <ConfigPanel
                 endpoint={endpoint}
                 setEndpoint={setEndpoint}
