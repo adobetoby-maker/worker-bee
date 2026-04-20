@@ -23,6 +23,7 @@ import {
   type MachineProfile,
 } from "@/lib/machine-profile";
 import { INITIAL_LOG, nowTs, type LogLine } from "@/lib/agent-state";
+import { runBootSequence } from "@/lib/boot-sequence";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -203,6 +204,7 @@ function Index() {
         level: "ARROW",
         msg: `${newTab.name} session opened (${model ?? "no model"})`,
       });
+      runBootSequence(newTab.name, appendLog);
       const next = [...prev, newTab];
       if (next.length >= 3 && !machineProfile) {
         setShowAdvisor(true);
