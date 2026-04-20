@@ -11,22 +11,6 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-function ToolsView() {
-  return (
-    <div
-      className="flex flex-1 flex-col items-center justify-center"
-      style={{ animation: "var(--animate-slide-down)" }}
-    >
-      <div className="font-mono text-xs uppercase tracking-[0.3em] text-muted-foreground">
-        // registry
-      </div>
-      <div className="mt-3 font-mono text-2xl text-primary">4 tools registered</div>
-      <div className="mt-2 font-mono text-[11px] text-muted-foreground">
-        web_search · fs_read · shell · http_fetch
-      </div>
-    </div>
-  );
-}
 
 const ENABLED_TOOLS = ["web_search", "fs_read", "shell", "http_fetch"];
 
