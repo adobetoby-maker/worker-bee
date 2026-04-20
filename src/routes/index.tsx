@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Header } from "@/components/Header";
+import { VaultPanel } from "@/components/VaultPanel";
 import { Sidebar, type View } from "@/components/Sidebar";
 import { ConfigPanel } from "@/components/ConfigPanel";
 import { ChatView, type ChatMessage } from "@/components/ChatView";
@@ -452,6 +453,17 @@ function Index() {
               </>
             )}
             {active === "tools" && <ToolsPanel appendLog={appendLog} />}
+            {active === "vault" && (
+              <VaultPanel
+                onInject={(label) => {
+                  appendLog({
+                    ts: nowTs(),
+                    level: "OK",
+                    msg: `${activeTab.name}: credential [${label}] injected`,
+                  });
+                }}
+              />
+            )}
             {active === "config" && (
               <ConfigPanel
                 endpoint={endpoint}
