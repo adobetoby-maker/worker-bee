@@ -107,6 +107,26 @@ export function TabControls({
         </span>
       </div>
 
+      {onProjectChange && (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-[0.15em]" style={{ color: "#555" }}>
+            📂 PROJECT:
+          </span>
+          <select
+            value={activeProjectId ?? ""}
+            onChange={(e) => onProjectChange(e.target.value || null)}
+            className="bg-background border border-border px-2 py-1 text-[11px] text-foreground rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
+          >
+            <option value="">— None —</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.emoji} {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="ml-auto flex items-center gap-2 relative">
         <div className="relative">
           <button
