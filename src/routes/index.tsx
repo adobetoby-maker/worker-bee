@@ -237,6 +237,7 @@ function Index() {
         msg: `${newTab.name} session opened (${model ?? "no model"})`,
       });
       runBootSequence(newTab.name, appendLog);
+      emitActivity({ kind: "agent", icon: "🐝", text: `${newTab.name} · spawned` });
       const next = [...prev, newTab];
       if (next.length >= 3 && !machineProfile) {
         setShowAdvisor(true);
