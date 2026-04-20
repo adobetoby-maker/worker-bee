@@ -54,7 +54,7 @@ export function MachineLimitAdvisor({ onSave, onSkip, initialProfile }: Props) {
             ⚙ WHAT MACHINE IS RUNNING OLLAMA?
           </h2>
           <p className="mt-1 font-sans text-sm text-muted-foreground">
-            OpenClaw will warn you before you exceed safe limits.
+            Worker Bee will warn you before you exceed safe limits.
           </p>
         </div>
 

@@ -79,7 +79,7 @@ export function ToolsPanel({ appendLog }: Props) {
           🔧 TOOL ARSENAL
         </h1>
         <p className="mt-2 font-sans text-sm text-muted-foreground max-w-2xl">
-          Tools extend OpenClaw's capabilities. Enabled tools are injected into the system
+          Tools extend Worker Bee's capabilities. Enabled tools are injected into the system
           prompt so the agent knows what it can call during a session.
         </p>
       </div>

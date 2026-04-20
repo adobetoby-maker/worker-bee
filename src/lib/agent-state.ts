@@ -7,7 +7,7 @@ export interface LogLine {
 }
 
 export const INITIAL_LOG: LogLine[] = [
-  { ts: "00:00:00", level: "OK", msg: "OpenClaw agent runtime v0.1.0 started" },
+  { ts: "00:00:00", level: "OK", msg: "Worker Bee agent runtime v0.1.0 started" },
   { ts: "00:00:00", level: "OK", msg: "Shell tool loaded (built-in)" },
   { ts: "00:00:01", level: "ARROW", msg: "Connect to Ollama to continue..." },
 ];

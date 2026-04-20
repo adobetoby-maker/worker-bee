@@ -26,19 +26,19 @@ export const Route = createFileRoute("/")({
 });
 
 const ENABLED_TOOLS = ["web_search", "fs_read", "shell", "http_fetch"];
-const TAB_COLORS = ["#ff6b00", "#39ff14", "#00bfff", "#ff3bff", "#ffcc00"];
+const TAB_COLORS = ["#ffaa00", "#39ff14", "#00bfff", "#ff3bff", "#ffcc00"];
 const TABS_STORAGE_KEY = "openclaw_tabs";
 
 const BOOT_MESSAGE: ChatMessage = {
   role: "assistant",
   content:
-    "⚡ OpenClaw online. Connect to your Ollama endpoint and select a model to begin. I can install tools to extend my capabilities on demand.",
+    "🐝 Worker Bee online. Connect to your Ollama endpoint and select a model to begin. I can install tools to extend my capabilities on demand.",
 };
 
 const NEW_TAB_MESSAGE: ChatMessage = {
   role: "assistant",
   content:
-    "⚡ New agent session started. I share the Ollama endpoint but have my own memory. What should I work on?",
+    "🐝 New worker bee buzzing. I share the Ollama endpoint but have my own memory. What should I build?",
 };
 
 interface TabState extends ChatTab {
@@ -50,7 +50,7 @@ interface TabState extends ChatTab {
 }
 
 const defaultSystemPrompt = (tools: string[]) =>
-  `You are OpenClaw, a powerful AI assistant running via Ollama. Available tools: ${tools.join(", ") || "none"}.`;
+  `You are Worker Bee, a website-building AI agent running via Ollama. Available tools: ${tools.join(", ") || "none"}.`;
 
 function loadStoredTabs(): TabState[] | null {
   if (typeof window === "undefined") return null;

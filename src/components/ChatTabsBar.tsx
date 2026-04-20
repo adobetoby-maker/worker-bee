@@ -173,9 +173,9 @@ export function ChatTabsBar({
                   width: 170,
                   border: isActive ? "1px solid transparent" : "1px solid #222",
                   borderLeftWidth: 3,
-                  borderLeftColor: isActive ? "#ff6b00" : "#222",
-                  background: isActive ? "#ff6b0012" : "transparent",
-                  color: isActive ? "#ff6b00" : "#555",
+                  borderLeftColor: isActive ? "#ffaa00" : "#222",
+                  background: isActive ? "#ffaa0014" : "transparent",
+                  color: isActive ? "#ffaa00" : "#555",
                   opacity: isDragging ? 0.4 : 1,
                 }}
               >
@@ -223,14 +223,14 @@ export function ChatTabsBar({
                         {tab.name}
                         <span
                           className="ml-1.5 text-[9px]"
-                          style={{ color: isActive ? "#ff6b0080" : "#3a3a3a" }}
+                          style={{ color: isActive ? "#ffaa0080" : "#3a3a3a" }}
                         >
                           · {tab.messageCount ?? 0} msg{(tab.messageCount ?? 0) === 1 ? "" : "s"}
                         </span>
                       </div>
                       <div
                         className="truncate text-[9px] uppercase tracking-[0.1em] mt-0.5"
-                        style={{ color: isActive ? "#ff6b0099" : "#444" }}
+                        style={{ color: isActive ? "#ffaa0099" : "#444" }}
                       >
                         {tab.model ?? "no model"}
                       </div>
