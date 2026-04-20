@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { nowTs, type LogLine } from "@/lib/agent-state";
+import { BrowserTaskCard, detectBrowserAction } from "./BrowserTaskCard";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
