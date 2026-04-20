@@ -32,6 +32,19 @@ import { isBrandNewUser } from "@/lib/onboarding";
 import { emitActivity, subscribeActivity } from "@/lib/activity-feed";
 import { subscribeVaultSnapshot, type PotSnapshot } from "@/lib/vault-snapshot";
 import { buildEnrichedSystemPrompt } from "@/lib/system-prompt";
+import { QueuePanel } from "@/components/QueuePanel";
+import {
+  subscribeQueue,
+  canStartImmediately,
+  enqueue,
+  markActive,
+  finishActive,
+  cancelQueued,
+  moveToFront,
+  queuePositionFor,
+  estimatedWaitSeconds,
+  type QueueState,
+} from "@/lib/agent-queue";
 
 export const Route = createFileRoute("/")({
   component: Index,
