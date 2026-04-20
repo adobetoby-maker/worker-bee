@@ -43,6 +43,8 @@ interface Props {
   // for a given code block; if a match exists a "↔ Compare" button appears.
   matchProjectFile?: (language: string, code: string, suggestedName: string) => string | null;
   onCompareCodeBlock?: (filePath: string, newContent: string) => void;
+  // Hidden developer smoke test — triggered by typing exactly "🐝🐝🐝".
+  onSmokeTest?: () => void;
 }
 
 export function ChatView({
@@ -73,7 +75,7 @@ export function ChatView({
   onSaveCodeBlock,
   matchProjectFile,
   onCompareCodeBlock,
-}: Props) {
+  onSmokeTest,
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
   const setInput = (v: string) => {
