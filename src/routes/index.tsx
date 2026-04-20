@@ -355,16 +355,49 @@ function Index() {
     streamingCount >= 3 ? "critical" : streamingCount >= 2 ? "warn" : null;
   const showBanner = bannerLevel !== null && bannerDismissedAt < streamingCount;
 
-  // Wrap appendLog to detect chat errors per-tab
+  // Wrap appendLog to detect chat errors per-tab + emit activity
   const makeTabLogger = useCallback(
-    (tabId: string) => (line: LogLine) => {
+    (tabId: string, tabName: string) => (line: LogLine) => {
       appendLog(line);
       if (line.level === "ERR" && line.msg.startsWith("chat:")) {
         updateTab(tabId, { hasError: true });
       }
+      if (line.level === "ARROW" && line.msg.startsWith("chat send")) {
+        emitActivity({ kind: "agent", icon: "🐝", text: `${tabName} · sent message` });
+      }
+      if (line.level === "OK" && line.msg.startsWith("response complete")) {
+        emitActivity({ kind: "agent", icon: "🐝", text: `${tabName} · replied` });
+      }
     },
     [appendLog, updateTab],
   );
+
+  const buildPrompt = useCallback(
+    (tabId: string, basePrompt: string) => {
+      const enriched = buildEnrichedSystemPrompt({
+        enabledTools: ENABLED_TOOLS,
+        connections,
+        injectedCredentials: injectedByTab[tabId] ?? [],
+        machineProfile,
+      });
+      // Honor per-tab custom prompt by appending it after the enriched context.
+      const isDefault = basePrompt.startsWith("You are Worker Bee, a website-building AI agent");
+      return isDefault ? enriched : `${enriched}\n\nADDITIONAL INSTRUCTIONS:\n${basePrompt}`;
+    },
+    [connections, injectedByTab, machineProfile],
+  );
+
+  // Global ⌘K search
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <div className="flex flex-col h-screen w-full bg-background text-foreground">
@@ -472,10 +505,10 @@ function Index() {
                             model={t.model ?? model}
                             connected={connected}
                             enabledTools={ENABLED_TOOLS}
-                            systemPrompt={t.systemPrompt}
+                            systemPrompt={buildPrompt(t.id, t.systemPrompt)}
                             messages={t.messages}
                             onMessagesChange={(updater) => handleMessagesChange(t.id, updater)}
-                            appendLog={makeTabLogger(t.id)}
+                            appendLog={makeTabLogger(t.id, t.name)}
                             onStreamingChange={(s) => {
                               updateTab(t.id, { isStreaming: s, ...(s ? { hasError: false } : {}) });
                             }}
@@ -514,6 +547,11 @@ function Index() {
                     ts: nowTs(),
                     level: "OK",
                     msg: `${activeTab.name}: credential [${label}] injected`,
+                  });
+                  setInjectedByTab((p) => {
+                    const cur = p[activeTab.id] ?? [];
+                    if (cur.includes(label)) return p;
+                    return { ...p, [activeTab.id]: [...cur, label] };
                   });
                 }}
               />
