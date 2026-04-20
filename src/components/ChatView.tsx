@@ -21,6 +21,21 @@ interface Props {
   stopToken?: number;
   inputDraft?: string;
   onInputDraftChange?: (v: string) => void;
+  // Sequential queue gating
+  isQueued?: boolean;
+  queuePosition?: number;
+  agentsAhead?: number;
+  estimatedWaitSec?: number;
+  // When set (truthy + changed), ChatView starts streaming this text immediately,
+  // bypassing the normal click flow. Used by the queue when it's this tab's turn.
+  autoSendToken?: number;
+  autoSendText?: string;
+  // Hooks for queue integration
+  onRequestSend?: (text: string) => "start" | "queued";
+  onCancelQueued?: () => void;
+  onMoveToFront?: () => void;
+  onSendStart?: (text: string) => void;
+  onSendEnd?: () => void;
 }
 
 export function ChatView({
