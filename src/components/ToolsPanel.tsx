@@ -76,9 +76,9 @@ export function ToolsPanel({ appendLog, connections }: Props) {
       conn.push({
         id: "whatsapp.send",
         icon: "📱",
-        name: "WhatsApp Send",
-        desc: `Send WhatsApp messages via Meta Cloud API (phone ${connections.whatsapp.phoneNumberId}).`,
-        installCmd: "connection: whatsapp",
+        name: "WhatsApp Send (Twilio)",
+        desc: `Send WhatsApp messages via Twilio Sandbox from ${connections.whatsapp.twilioNumber} to ${connections.whatsapp.yourNumber}.`,
+        installCmd: "connection: whatsapp (twilio)",
         connectionTool: true,
       });
     }
