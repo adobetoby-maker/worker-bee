@@ -211,19 +211,28 @@ function Index() {
             {active === "chat" && (
               <>
                 <ResourceBar resources={resources} />
-                <ChatView
-                  key={activeTab.id}
-                  endpoint={endpoint}
-                  model={activeTab.model ?? model}
-                  connected={connected}
-                  enabledTools={ENABLED_TOOLS}
-                  systemPrompt={activeTab.systemPrompt}
-                  messages={activeTab.messages}
-                  onMessagesChange={(updater) => handleMessagesChange(activeTab.id, updater)}
-                  appendLog={appendLog}
-                  onStreamingChange={(s) => updateTab(activeTab.id, { isStreaming: s })}
-                  stopToken={activeTab.stopToken}
-                />
+                <div className="relative flex flex-1 min-h-0">
+                  {tabs.map((t) => (
+                    <div
+                      key={t.id}
+                      className="absolute inset-0 flex flex-col"
+                      style={{ display: t.id === activeTabId ? "flex" : "none" }}
+                    >
+                      <ChatView
+                        endpoint={endpoint}
+                        model={t.model ?? model}
+                        connected={connected}
+                        enabledTools={ENABLED_TOOLS}
+                        systemPrompt={t.systemPrompt}
+                        messages={t.messages}
+                        onMessagesChange={(updater) => handleMessagesChange(t.id, updater)}
+                        appendLog={appendLog}
+                        onStreamingChange={(s) => updateTab(t.id, { isStreaming: s })}
+                        stopToken={t.stopToken}
+                      />
+                    </div>
+                  ))}
+                </div>
               </>
             )}
             {active === "tools" && <ToolsPanel appendLog={appendLog} />}
