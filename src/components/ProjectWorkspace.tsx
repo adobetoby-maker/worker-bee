@@ -18,15 +18,18 @@ interface Props {
   projectId: string;
   onBack: () => void;
   onEditInAgent: (filename: string, content: string) => void;
+  onCompareFile?: (filePath: string, before: string, after: string) => void;
   appendLog: (msg: string) => void;
 }
 
-export function ProjectWorkspace({ projectId, onBack, onEditInAgent, appendLog }: Props) {
+export function ProjectWorkspace({ projectId, onBack, onEditInAgent, onCompareFile, appendLog }: Props) {
   const [project, setProject] = useState<Project | undefined>(() => getProject(projectId));
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [addingFile, setAddingFile] = useState(false);
   const [newFileName, setNewFileName] = useState("");
   const [tab, setTab] = useState<"files" | "code" | "screens">("code");
+  const [diffPasteOpen, setDiffPasteOpen] = useState(false);
+  const [diffPasteText, setDiffPasteText] = useState("");
 
   useEffect(() => {
     return subscribeProjects(() => setProject(getProject(projectId)));
