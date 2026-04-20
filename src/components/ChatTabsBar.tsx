@@ -9,6 +9,8 @@ export interface ChatTab {
   hasError?: boolean;
   messageCount?: number;
   hasInteracted?: boolean;
+  isQueued?: boolean;
+  flashTurn?: boolean;
 }
 
 interface Props {
@@ -150,8 +152,10 @@ export function ChatTabsBar({
           const isDragging = dragId === tab.id;
           const streaming = !!tab.isStreaming;
           const errored = !!tab.hasError;
-          const idle = !streaming && !errored && (tab.hasInteracted ?? false);
-          const dotColor = errored ? "#ff3b3b" : tab.color;
+          const queued = !!tab.isQueued;
+          const flashTurn = !!tab.flashTurn;
+          const idle = !streaming && !errored && !queued && (tab.hasInteracted ?? false);
+          const dotColor = errored ? "#ff3b3b" : queued ? "#ffaa00" : tab.color;
           return (
             <div key={tab.id} className="relative flex items-center">
               {isDragOver && dragId !== tab.id && (
@@ -181,28 +185,50 @@ export function ChatTabsBar({
               >
                 {/* Activity indicator */}
                 <span className="relative inline-flex items-center justify-center shrink-0" style={{ width: 14, height: 14 }}>
-                  {streaming && (
+                  {queued ? (
                     <span
-                      className="absolute inset-0 rounded-full"
+                      className="font-mono text-[11px]"
                       style={{
-                        border: `1.5px solid ${dotColor}`,
-                        borderTopColor: "transparent",
-                        animation: "tab-spin 0.9s linear infinite",
+                        color: "#ffaa00",
+                        animation: "tab-pulse-ring 1.2s ease-out infinite",
                       }}
-                    />
+                    >
+                      ⏳
+                    </span>
+                  ) : (
+                    <>
+                      {streaming && (
+                        <span
+                          className="absolute inset-0 rounded-full"
+                          style={{
+                            border: `1.5px solid ${dotColor}`,
+                            borderTopColor: "transparent",
+                            animation: "tab-spin 0.9s linear infinite",
+                          }}
+                        />
+                      )}
+                      <span
+                        className="inline-block rounded-full"
+                        style={{
+                          width: 8,
+                          height: 8,
+                          background: flashTurn ? "#39ff14" : dotColor,
+                          opacity: streaming || errored || flashTurn ? 1 : idle ? 0.6 : 0.3,
+                          boxShadow:
+                            flashTurn
+                              ? "0 0 10px #39ff14"
+                              : streaming || errored
+                              ? `0 0 6px ${dotColor}`
+                              : "none",
+                          animation: flashTurn
+                            ? "tab-pulse-ring 0.5s ease-out infinite"
+                            : streaming
+                            ? "tab-pulse-ring 1.2s ease-out infinite"
+                            : undefined,
+                        }}
+                      />
+                    </>
                   )}
-                  <span
-                    className="inline-block rounded-full"
-                    style={{
-                      width: 8,
-                      height: 8,
-                      background: dotColor,
-                      opacity: streaming || errored ? 1 : idle ? 0.6 : 0.3,
-                      boxShadow: streaming || errored ? `0 0 6px ${dotColor}` : "none",
-                      color: dotColor,
-                      animation: streaming ? "tab-pulse-ring 1.2s ease-out infinite" : undefined,
-                    }}
-                  />
                 </span>
 
                 <div className="flex-1 min-w-0">

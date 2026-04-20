@@ -32,6 +32,19 @@ import { isBrandNewUser } from "@/lib/onboarding";
 import { emitActivity, subscribeActivity } from "@/lib/activity-feed";
 import { subscribeVaultSnapshot, type PotSnapshot } from "@/lib/vault-snapshot";
 import { buildEnrichedSystemPrompt } from "@/lib/system-prompt";
+import { QueuePanel } from "@/components/QueuePanel";
+import {
+  subscribeQueue,
+  canStartImmediately,
+  enqueue,
+  markActive,
+  finishActive,
+  cancelQueued,
+  moveToFront,
+  queuePositionFor,
+  estimatedWaitSeconds,
+  type QueueState,
+} from "@/lib/agent-queue";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -107,6 +120,19 @@ function Index() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [injectedByTab, setInjectedByTab] = useState<Record<string, string[]>>({});
   const [vaultPots, setVaultPots] = useState<PotSnapshot[]>([]);
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [queueState, setQueueState] = useState<QueueState>({
+    activeTabId: null,
+    activeStartedAt: null,
+    activePreview: "",
+    activeModel: null,
+    queue: [],
+    parallelMode: false,
+  });
+  const [autoSendByTab, setAutoSendByTab] = useState<Record<string, { token: number; text: string }>>({});
+  const [flashTurnTabId, setFlashTurnTabId] = useState<string | null>(null);
+
+  useEffect(() => subscribeQueue(setQueueState), []);
 
   useEffect(() => {
     if (typeof window !== "undefined" && isBrandNewUser()) setShowOnboarding(true);
@@ -418,6 +444,72 @@ function Index() {
     [connections, injectedByTab, machineProfile],
   );
 
+  // ===== Sequential agent queue wiring =====
+  const handleRequestSend = useCallback(
+    (tabId: string, tabName: string, tabColor: string, tabModel: string | null, text: string): "start" | "queued" => {
+      if (canStartImmediately(tabId)) {
+        return "start";
+      }
+      const preview = text.length > 60 ? text.slice(0, 59) + "…" : text;
+      enqueue({ tabId, tabName, tabColor, text, model: tabModel, messagePreview: preview });
+      appendLog({
+        ts: nowTs(),
+        level: "ARROW",
+        msg: `Queue: ${tabName} queued (position #${queuePositionFor(tabId)})`,
+      });
+      emitActivity({ kind: "agent", icon: "⏳", text: `${tabName} · queued` });
+      return "queued";
+    },
+    [appendLog],
+  );
+
+  const handleSendStart = useCallback(
+    (tabId: string, tabName: string, tabModel: string | null, text: string) => {
+      const preview = text.length > 60 ? text.slice(0, 59) + "…" : text;
+      markActive(tabId, preview, tabModel);
+      // Clear any prior auto-send token / flash
+      setAutoSendByTab((p) => {
+        if (!p[tabId]) return p;
+        const { [tabId]: _, ...rest } = p;
+        return rest;
+      });
+    },
+    [],
+  );
+
+  const handleSendEnd = useCallback(
+    (tabId: string, tabName: string) => {
+      const next = finishActive(tabId);
+      if (next) {
+        // Promote next queued tab: trigger autoSend in that ChatView
+        setAutoSendByTab((p) => ({
+          ...p,
+          [next.tabId]: { token: Date.now(), text: next.text },
+        }));
+        setFlashTurnTabId(next.tabId);
+        setTimeout(() => {
+          setFlashTurnTabId((cur) => (cur === next.tabId ? null : cur));
+        }, 1500);
+        const remainingNames = getQueueNamesAfterPromotion();
+        appendLog({
+          ts: nowTs(),
+          level: "OK",
+          msg: `Queue: ${next.tabName} started${remainingNames ? ` · ${remainingNames} waiting` : ""}`,
+        });
+        emitActivity({ kind: "agent", icon: "▶", text: `${next.tabName} · your turn` });
+      }
+    },
+    [appendLog],
+  );
+
+  // Helper: snapshot remaining queue names AFTER current promotion (called inside handleSendEnd's setState callback timing).
+  const getQueueNamesAfterPromotion = (): string => {
+    // queueState is the previous render's snapshot, but finishActive already mutated the store.
+    // Use subscribeQueue snapshot via a quick read: we re-derive from queueState minus the just-popped head.
+    const remaining = queueState.queue.slice(1);
+    return remaining.map((q) => q.tabName).join(", ");
+  };
+
   // Global ⌘K search
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -451,6 +543,9 @@ function Index() {
         }}
         onServiceClick={() => setActive("connections")}
         onSearchOpen={() => setSearchOpen(true)}
+        onQueueOpen={() => setQueueOpen((v) => !v)}
+        queueDepth={queueState.queue.length}
+        parallelMode={queueState.parallelMode}
       />
       {active === "chat" && (
         <ChatTabsBar
@@ -463,6 +558,8 @@ function Index() {
             hasError: t.hasError,
             messageCount: t.messages.length,
             hasInteracted: t.messages.some((m) => m.role === "user"),
+            isQueued: queueState.queue.some((q) => q.tabId === t.id),
+            flashTurn: flashTurnTabId === t.id,
           }))}
           activeId={activeTabId}
           onSelect={(id) => {
@@ -547,6 +644,23 @@ function Index() {
                             stopToken={t.stopToken}
                             inputDraft={inputDrafts[t.id] ?? ""}
                             onInputDraftChange={(v) => setInputDraft(t.id, v)}
+                            isQueued={queueState.queue.some((q) => q.tabId === t.id)}
+                            queuePosition={queuePositionFor(t.id)}
+                            agentsAhead={Math.max(0, queuePositionFor(t.id) - 1) + (queueState.activeTabId && queueState.activeTabId !== t.id ? 1 : 0)}
+                            estimatedWaitSec={estimatedWaitSeconds(t.id)}
+                            autoSendToken={autoSendByTab[t.id]?.token ?? 0}
+                            autoSendText={autoSendByTab[t.id]?.text ?? ""}
+                            onRequestSend={(text) => handleRequestSend(t.id, t.name, t.color, t.model ?? model, text)}
+                            onCancelQueued={() => {
+                              cancelQueued(t.id);
+                              appendLog({ ts: nowTs(), level: "ARROW", msg: `${t.name} removed from queue` });
+                            }}
+                            onMoveToFront={() => {
+                              moveToFront(t.id);
+                              appendLog({ ts: nowTs(), level: "ARROW", msg: `${t.name} moved to front of queue` });
+                            }}
+                            onSendStart={(text) => handleSendStart(t.id, t.name, t.model ?? model, text)}
+                            onSendEnd={() => handleSendEnd(t.id, t.name)}
                           />
                         </div>
                       ))}
@@ -616,6 +730,14 @@ function Index() {
           </div>
         </main>
       </div>
+
+      <QueuePanel
+        open={queueOpen}
+        onClose={() => setQueueOpen(false)}
+        onStopActive={(tabId) => {
+          updateTab(tabId, { stopToken: (tabs.find((t) => t.id === tabId)?.stopToken ?? 0) + 1 });
+        }}
+      />
 
       <GlobalSearch
         open={searchOpen}

@@ -21,6 +21,21 @@ interface Props {
   stopToken?: number;
   inputDraft?: string;
   onInputDraftChange?: (v: string) => void;
+  // Sequential queue gating
+  isQueued?: boolean;
+  queuePosition?: number;
+  agentsAhead?: number;
+  estimatedWaitSec?: number;
+  // When set (truthy + changed), ChatView starts streaming this text immediately,
+  // bypassing the normal click flow. Used by the queue when it's this tab's turn.
+  autoSendToken?: number;
+  autoSendText?: string;
+  // Hooks for queue integration
+  onRequestSend?: (text: string) => "start" | "queued";
+  onCancelQueued?: () => void;
+  onMoveToFront?: () => void;
+  onSendStart?: (text: string) => void;
+  onSendEnd?: () => void;
 }
 
 export function ChatView({
@@ -36,6 +51,17 @@ export function ChatView({
   stopToken = 0,
   inputDraft,
   onInputDraftChange,
+  isQueued = false,
+  queuePosition = 0,
+  agentsAhead = 0,
+  estimatedWaitSec = 0,
+  autoSendToken = 0,
+  autoSendText = "",
+  onRequestSend,
+  onCancelQueued,
+  onMoveToFront,
+  onSendStart,
+  onSendEnd,
 }: Props) {
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
@@ -56,14 +82,12 @@ export function ChatView({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  // Stop streaming if user switches tabs (component re-keys on tab change)
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
     };
   }, []);
 
-  // External stop signal (e.g. from concurrency banner)
   useEffect(() => {
     if (stopToken > 0) {
       abortRef.current?.abort();
@@ -80,18 +104,15 @@ export function ChatView({
     setStreaming(false);
   };
 
-  const send = async () => {
-    const text = input.trim();
-    if (!text || streaming) return;
+  const startStream = async (text: string) => {
     if (!connected || !model) {
       appendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
       return;
     }
-
     const next: ChatMessage[] = [...messages, { role: "user", content: text }];
     onMessagesChange(() => [...next, { role: "assistant", content: "" }]);
-    setInput("");
     setStreaming(true);
+    onSendStart?.(text);
     appendLog({ ts: nowTs(), level: "ARROW", msg: `chat send chars=${text.length}` });
 
     const controller = new AbortController();
@@ -153,7 +174,33 @@ export function ChatView({
     } finally {
       setStreaming(false);
       abortRef.current = null;
+      onSendEnd?.();
     }
+  };
+
+  const lastAutoTokenRef = useRef(0);
+  useEffect(() => {
+    if (autoSendToken > 0 && autoSendToken !== lastAutoTokenRef.current && autoSendText) {
+      lastAutoTokenRef.current = autoSendToken;
+      startStream(autoSendText);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSendToken, autoSendText]);
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || streaming) return;
+    if (!connected || !model) {
+      appendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
+      return;
+    }
+    const decision = onRequestSend ? onRequestSend(text) : "start";
+    if (decision === "queued") {
+      setInput("");
+      return;
+    }
+    setInput("");
+    await startStream(text);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -228,6 +275,39 @@ export function ChatView({
         return <BrowserTaskCard action={action} onStop={stop} />;
       })()}
 
+      {isQueued && (
+        <div
+          className="px-4 py-2 flex items-center justify-between gap-3 font-mono text-[11px]"
+          style={{
+            background: "#1a1400",
+            color: "#ffaa00",
+            borderTop: "1px solid #ffaa0040",
+          }}
+        >
+          <span>
+            ⏳ Queued — {agentsAhead} agent{agentsAhead === 1 ? "" : "s"} ahead of you. Estimated wait: ~{estimatedWaitSec}s
+          </span>
+          <span className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onMoveToFront?.()}
+              className="px-2 py-0.5 rounded border"
+              style={{ borderColor: "#ffaa0066", color: "#ffaa00" }}
+            >
+              MOVE TO FRONT
+            </button>
+            <button
+              type="button"
+              onClick={() => onCancelQueued?.()}
+              className="px-2 py-0.5 rounded border"
+              style={{ borderColor: "#ff3b3b66", color: "#ff8a8a" }}
+            >
+              CANCEL
+            </button>
+          </span>
+        </div>
+      )}
+
       <div className="border-t border-border bg-surface/40 px-4 py-3">
         <div className="flex items-end gap-3">
           <Textarea
@@ -241,15 +321,23 @@ export function ChatView({
           <button
             type="button"
             onClick={streaming ? stop : send}
-            disabled={!streaming && !input.trim()}
+            disabled={!streaming && !input.trim() && !isQueued}
             className={`h-[72px] w-28 shrink-0 rounded-md font-mono text-xs uppercase tracking-[0.2em] transition-all ${
               streaming
                 ? "bg-destructive/20 text-destructive border border-destructive/60"
+                : isQueued
+                ? "border"
                 : "bg-gradient-to-br from-primary to-primary-glow text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[0_0_24px_-4px_var(--primary)]"
             }`}
-            style={streaming ? { animation: "var(--animate-pulse-neon)" } : undefined}
+            style={
+              streaming
+                ? { animation: "var(--animate-pulse-neon)" }
+                : isQueued
+                ? { borderColor: "#ffaa0066", background: "#1a1400", color: "#ffaa00" }
+                : undefined
+            }
           >
-            {streaming ? "◼ STOP" : "SEND ▶"}
+            {streaming ? "◼ STOP" : isQueued ? `QUEUED #${queuePosition}` : "SEND ▶"}
           </button>
         </div>
       </div>
