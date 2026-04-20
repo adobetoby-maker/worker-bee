@@ -8,6 +8,8 @@ interface HeaderProps {
   toolCount: number;
   streaming?: boolean;
   error?: boolean;
+  services?: { gmail: boolean; slack: boolean; whatsapp: boolean };
+  onServiceClick?: () => void;
 }
 
 const TAGLINES = [
@@ -17,7 +19,7 @@ const TAGLINES = [
   "Fueled by Ollama. Guided by you.",
 ];
 
-export function Header({ connected, model, toolCount, streaming = false, error = false }: HeaderProps) {
+export function Header({ connected, model, toolCount, streaming = false, error = false, services, onServiceClick }: HeaderProps) {
   const [taglineIdx, setTaglineIdx] = useState(0);
 
   useEffect(() => {
