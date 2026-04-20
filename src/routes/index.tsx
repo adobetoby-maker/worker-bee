@@ -494,6 +494,7 @@ function Index() {
                 }}
               />
             )}
+            {active === "config" && (
               <ConfigPanel
                 endpoint={endpoint}
                 setEndpoint={setEndpoint}
