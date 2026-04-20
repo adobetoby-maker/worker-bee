@@ -8,6 +8,8 @@ interface HeaderProps {
   toolCount: number;
   streaming?: boolean;
   error?: boolean;
+  services?: { gmail: boolean; slack: boolean; whatsapp: boolean };
+  onServiceClick?: () => void;
 }
 
 const TAGLINES = [
@@ -17,7 +19,7 @@ const TAGLINES = [
   "Fueled by Ollama. Guided by you.",
 ];
 
-export function Header({ connected, model, toolCount, streaming = false, error = false }: HeaderProps) {
+export function Header({ connected, model, toolCount, streaming = false, error = false, services, onServiceClick }: HeaderProps) {
   const [taglineIdx, setTaglineIdx] = useState(0);
 
   useEffect(() => {
@@ -78,6 +80,29 @@ export function Header({ connected, model, toolCount, streaming = false, error =
           [ MODEL: {model ?? "none"} ]
         </StatusBadge>
         <StatusBadge variant="success">🔧 {toolCount} tools active</StatusBadge>
+        {services && (
+          <div className="flex items-center gap-1 ml-1 pl-2 border-l border-border">
+            {(["gmail", "slack", "whatsapp"] as const).map((s) => {
+              const icon = s === "gmail" ? "📧" : s === "slack" ? "💬" : "📱";
+              const on = services[s];
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={onServiceClick}
+                  title={`${s}: ${on ? "connected" : "not connected"}`}
+                  className="text-base leading-none px-1 py-0.5 rounded hover:bg-surface-2/40 transition"
+                  style={{
+                    opacity: on ? 1 : 0.35,
+                    filter: on ? "drop-shadow(0 0 6px #39ff1499)" : "grayscale(0.6)",
+                  }}
+                >
+                  {icon}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </header>
   );

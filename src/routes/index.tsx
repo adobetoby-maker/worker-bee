@@ -2,7 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Header } from "@/components/Header";
 import { VaultPanel } from "@/components/VaultPanel";
+import { ConnectionsPanel } from "@/components/ConnectionsPanel";
 import { Sidebar, type View } from "@/components/Sidebar";
+import { loadConnections, type ConnectionsState } from "@/lib/connections";
 import { ConfigPanel } from "@/components/ConfigPanel";
 import { ChatView, type ChatMessage } from "@/components/ChatView";
 import { ChatTabsBar, type ChatTab } from "@/components/ChatTabsBar";
@@ -90,6 +92,14 @@ function Index() {
   );
   const [showAdvisor, setShowAdvisor] = useState(false);
   const [savedFlash, setSavedFlash] = useState(0);
+  const [connections, setConnections] = useState<ConnectionsState>(() => loadConnections());
+
+  const updateConnections = useCallback((next: ConnectionsState) => {
+    setConnections(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("workerbee_connections_v1", JSON.stringify(next));
+    }
+  }, []);
 
   const appendLog = useCallback((line: LogLine) => {
     setLog((prev) => [...prev, line]);
@@ -335,6 +345,12 @@ function Index() {
         model={activeTab.model ?? model}
         toolCount={ENABLED_TOOLS.length}
         streaming={anyStreaming}
+        services={{
+          gmail: !!connections.gmail,
+          slack: !!connections.slack,
+          whatsapp: !!connections.whatsapp,
+        }}
+        onServiceClick={() => setActive("connections")}
       />
       {active === "chat" && (
         <ChatTabsBar
@@ -460,6 +476,20 @@ function Index() {
                     ts: nowTs(),
                     level: "OK",
                     msg: `${activeTab.name}: credential [${label}] injected`,
+                  });
+                }}
+              />
+            )}
+            {active === "connections" && (
+              <ConnectionsPanel
+                state={connections}
+                onChange={updateConnections}
+                appendLog={appendLog}
+                onSaveToVault={(label) => {
+                  appendLog({
+                    ts: nowTs(),
+                    level: "OK",
+                    msg: `[${label}] flagged for Hive Vault — unlock vault to add as Honey Pot`,
                   });
                 }}
               />
