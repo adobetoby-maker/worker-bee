@@ -4,6 +4,7 @@ import { Header } from "@/components/Header";
 import { Sidebar, type View } from "@/components/Sidebar";
 import { ConfigPanel } from "@/components/ConfigPanel";
 import { ChatView } from "@/components/ChatView";
+import { ToolsPanel } from "@/components/ToolsPanel";
 import { INITIAL_LOG, type LogLine } from "@/lib/agent-state";
 
 export const Route = createFileRoute("/")({
@@ -63,7 +64,7 @@ function Index() {
                 onStreamingChange={setStreaming}
               />
             )}
-            {active === "tools" && <ToolsView />}
+            {active === "tools" && <ToolsPanel appendLog={appendLog} />}
             {active === "config" && (
               <ConfigPanel
                 endpoint={endpoint}
