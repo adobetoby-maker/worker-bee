@@ -12,6 +12,9 @@ interface HeaderProps {
   services?: { gmail: boolean; slack: boolean; whatsapp: boolean };
   onServiceClick?: () => void;
   onSearchOpen?: () => void;
+  onQueueOpen?: () => void;
+  queueDepth?: number;
+  parallelMode?: boolean;
 }
 
 const TAGLINES = [
@@ -21,7 +24,7 @@ const TAGLINES = [
   "Fueled by Ollama. Guided by you.",
 ];
 
-export function Header({ connected, model, toolCount, streaming = false, error = false, services, onServiceClick, onSearchOpen }: HeaderProps) {
+export function Header({ connected, model, toolCount, streaming = false, error = false, services, onServiceClick, onSearchOpen, onQueueOpen, queueDepth = 0, parallelMode = false }: HeaderProps) {
   const [taglineIdx, setTaglineIdx] = useState(0);
 
   useEffect(() => {
