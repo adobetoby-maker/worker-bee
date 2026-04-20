@@ -400,6 +400,7 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
         }
         const lang = p.lang ?? "text";
         const guess = guessName(lang);
+        const matchedPath = matchProjectFile?.(lang, p.text, guess) ?? null;
         return (
           <div key={i} className="rounded overflow-hidden" style={{ border: "1px solid #1a1a1a" }}>
             <div
@@ -408,6 +409,17 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
             >
               <span style={{ color: "#ffaa00" }}>{lang}</span>
               <div className="ml-auto flex gap-1">
+                {matchedPath && onCompareCodeBlock && (
+                  <button
+                    type="button"
+                    onClick={() => onCompareCodeBlock(matchedPath, p.text)}
+                    className="px-2 py-0.5 rounded text-[10px] tracking-[0.1em]"
+                    style={{ background: "#39ff14", color: "#001a00" }}
+                    title={`Compare with ${matchedPath}`}
+                  >
+                    ↔ Compare
+                  </button>
+                )}
                 {projectName && onSaveCodeBlock && (
                   <button
                     type="button"
@@ -418,7 +430,6 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
                   >
                     💾 Save to Project
                   </button>
-                )}
                 <button
                   type="button"
                   onClick={() => navigator.clipboard.writeText(p.text)}
