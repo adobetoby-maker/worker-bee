@@ -252,15 +252,16 @@ export function ChatView({
                   borderRadius: isUser ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
                 }}
               >
-                <div className="whitespace-pre-wrap break-words">
-                  {m.content}
-                  {showCursor && (
-                    <span
-                      className="inline-block w-2 h-4 align-middle bg-primary ml-1"
-                      style={{ animation: "var(--animate-blink)" }}
-                    />
-                  )}
-                </div>
+                {isUser ? (
+                  <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                ) : (
+                  <AssistantContent
+                    content={m.content}
+                    showCursor={showCursor}
+                    projectName={projectName}
+                    onSaveCodeBlock={onSaveCodeBlock}
+                  />
+                )}
               </div>
               {isUser && (
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/40 bg-primary/10 text-base">
