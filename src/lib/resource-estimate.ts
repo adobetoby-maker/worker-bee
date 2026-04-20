@@ -36,6 +36,7 @@ export const TOTAL_VRAM_GB = 4;
 export function computeResources(
   streamingModels: (string | null)[],
   idleCpuPct = 12,
+  totals: { ramGb: number; vramGb: number } = { ramGb: TOTAL_RAM_GB, vramGb: TOTAL_VRAM_GB },
 ): ResourceEstimate {
   let ram = 0;
   let vram = 0;
@@ -44,15 +45,14 @@ export function computeResources(
     ram += load.ram;
     vram += load.vram;
   }
-  // Add a small idle baseline so the bar isn't empty
-  ram = Math.min(TOTAL_RAM_GB, ram + 0.6);
-  vram = Math.min(TOTAL_VRAM_GB, vram);
+  ram = Math.min(totals.ramGb, ram + 0.6);
+  vram = Math.min(totals.vramGb || 0.0001, vram);
   const cpu = Math.min(100, idleCpuPct + streamingModels.length * 28);
   return {
     ramUsed: ram,
-    ramTotal: TOTAL_RAM_GB,
+    ramTotal: totals.ramGb,
     vramUsed: vram,
-    vramTotal: TOTAL_VRAM_GB,
+    vramTotal: totals.vramGb,
     cpuPct: cpu,
   };
 }
