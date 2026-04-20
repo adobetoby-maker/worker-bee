@@ -9,6 +9,8 @@ export interface ChatTab {
   hasError?: boolean;
   messageCount?: number;
   hasInteracted?: boolean;
+  isQueued?: boolean;
+  flashTurn?: boolean;
 }
 
 interface Props {
@@ -150,8 +152,10 @@ export function ChatTabsBar({
           const isDragging = dragId === tab.id;
           const streaming = !!tab.isStreaming;
           const errored = !!tab.hasError;
-          const idle = !streaming && !errored && (tab.hasInteracted ?? false);
-          const dotColor = errored ? "#ff3b3b" : tab.color;
+          const queued = !!tab.isQueued;
+          const flashTurn = !!tab.flashTurn;
+          const idle = !streaming && !errored && !queued && (tab.hasInteracted ?? false);
+          const dotColor = errored ? "#ff3b3b" : queued ? "#ffaa00" : tab.color;
           return (
             <div key={tab.id} className="relative flex items-center">
               {isDragOver && dragId !== tab.id && (
