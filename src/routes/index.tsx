@@ -200,10 +200,39 @@ function Index() {
     [machineProfile],
   );
 
-  const resources = useMemo(
-    () => computeResources(streamingTabs.map((t) => t.model), 12, totals),
-    [streamingTabs, totals],
+  const handlePsChange = useCallback(
+    (snap: PsSnapshot) => {
+      if (snap.status === "unreachable") {
+        appendLog({ ts: nowTs(), level: "ERR", msg: "Ollama: /api/ps unreachable" });
+        return;
+      }
+      if (snap.status === "idle") {
+        appendLog({ ts: nowTs(), level: "ARROW", msg: "Ollama: idle · 0 models loaded" });
+        return;
+      }
+      const names = snap.models.map((m) => m.name).join(", ");
+      appendLog({
+        ts: nowTs(),
+        level: "ARROW",
+        msg: `Ollama: ${names} loaded · ${snap.ramGb.toFixed(1)} GB RAM · ${snap.vramGb.toFixed(1)} GB VRAM`,
+      });
+    },
+    [appendLog],
   );
+
+  const handleExpirySoon = useCallback((model: string, secondsLeft: number) => {
+    toast(`⏱ ${model} unloading in ${secondsLeft}s — send a message to keep it alive`, {
+      duration: 8000,
+      style: { background: "#1a1400", color: "#ffaa00", border: "1px solid #ffaa0055" },
+    });
+  }, []);
+
+  const psSnap = useOllamaPs({
+    endpoint,
+    enabled: connected,
+    onChange: handlePsChange,
+    onExpirySoon: handleExpirySoon,
+  });
 
   const updateTab = useCallback((id: string, patch: Partial<TabState>) => {
     setTabs((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
@@ -463,7 +492,7 @@ function Index() {
           <div key={active} className="flex flex-1 min-h-0 flex-col">
             {active === "chat" && (
               <>
-                <ResourceBar resources={resources} />
+                <ResourceBar snap={psSnap} profile={machineProfile} fallback={totals} />
                 <TabControls
                   tabName={activeTab.name}
                   model={activeTab.model}
