@@ -430,6 +430,7 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
                   >
                     💾 Save to Project
                   </button>
+                )}
                 <button
                   type="button"
                   onClick={() => navigator.clipboard.writeText(p.text)}
