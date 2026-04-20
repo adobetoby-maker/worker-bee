@@ -197,6 +197,11 @@ function Dashboard({
   const [adding, setAdding] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    setVaultSnapshot(pots.map((p) => ({ id: p.id, emoji: p.emoji, service: p.service })));
+  }, [pots]);
+  useEffect(() => () => setVaultSnapshot([]), []);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return pots;
