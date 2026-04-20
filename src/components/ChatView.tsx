@@ -39,6 +39,10 @@ interface Props {
   // Project binding — when set, code blocks render save/copy/download toolbar
   projectName?: string | null;
   onSaveCodeBlock?: (language: string, code: string, suggestedName: string) => void;
+  // When provided, returns the matching project file path (e.g. "index.html")
+  // for a given code block; if a match exists a "↔ Compare" button appears.
+  matchProjectFile?: (language: string, code: string, suggestedName: string) => string | null;
+  onCompareCodeBlock?: (filePath: string, newContent: string) => void;
 }
 
 export function ChatView({
@@ -67,6 +71,8 @@ export function ChatView({
   onSendEnd,
   projectName = null,
   onSaveCodeBlock,
+  matchProjectFile,
+  onCompareCodeBlock,
 }: Props) {
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
