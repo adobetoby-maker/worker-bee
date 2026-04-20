@@ -14,6 +14,8 @@ import {
   type HoneyPot,
   type VaultSession,
 } from "@/lib/vault";
+import { setVaultSnapshot } from "@/lib/vault-snapshot";
+import { emitActivity } from "@/lib/activity-feed";
 
 const EMOJIS = ["🐝","🍯","🔑","🗝","🛡","⚡","🌐","📧","💬","🐙","🦊","🦁","🐺","🎭","🎪","🚀","🔮","🧪","🦋","🌶"];
 const CATEGORIES: Category[] = ["EMAIL", "SOCIAL", "HOSTING", "API", "DATABASE", "OTHER"];
@@ -195,6 +197,11 @@ function Dashboard({
   const [adding, setAdding] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    setVaultSnapshot(pots.map((p) => ({ id: p.id, emoji: p.emoji, service: p.service })));
+  }, [pots]);
+  useEffect(() => () => setVaultSnapshot([]), []);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return pots;
@@ -318,7 +325,10 @@ function Dashboard({
                 pot={pot}
                 onEdit={() => setEditing(pot)}
                 onDelete={() => handleDelete(pot)}
-                onInject={() => onInject(pot.service)}
+                onInject={() => {
+                  emitActivity({ kind: "vault", icon: "🍯", text: `${pot.service} · injected` });
+                  onInject(pot.service);
+                }}
               />
             ))}
           </div>

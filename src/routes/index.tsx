@@ -24,6 +24,12 @@ import {
 } from "@/lib/machine-profile";
 import { INITIAL_LOG, nowTs, type LogLine } from "@/lib/agent-state";
 import { runBootSequence } from "@/lib/boot-sequence";
+import { GlobalSearch } from "@/components/GlobalSearch";
+import { OnboardingWizard } from "@/components/OnboardingWizard";
+import { isBrandNewUser } from "@/lib/onboarding";
+import { emitActivity, subscribeActivity } from "@/lib/activity-feed";
+import { subscribeVaultSnapshot, type PotSnapshot } from "@/lib/vault-snapshot";
+import { buildEnrichedSystemPrompt } from "@/lib/system-prompt";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -95,17 +101,38 @@ function Index() {
   const [savedFlash, setSavedFlash] = useState(0);
   const [connections, setConnections] = useState<ConnectionsState>(() => loadConnections());
   const [inputDrafts, setInputDrafts] = useState<Record<string, string>>({});
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [injectedByTab, setInjectedByTab] = useState<Record<string, string[]>>({});
+  const [vaultPots, setVaultPots] = useState<PotSnapshot[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && isBrandNewUser()) setShowOnboarding(true);
+  }, []);
+
+  useEffect(() => subscribeVaultSnapshot(setVaultPots), []);
+  useEffect(() => subscribeActivity(() => {}), []); // ensure module evaluated
 
   const setInputDraft = useCallback((tabId: string, v: string) => {
     setInputDrafts((p) => ({ ...p, [tabId]: v }));
   }, []);
 
   const updateConnections = useCallback((next: ConnectionsState) => {
+    const before = connections;
     setConnections(next);
     if (typeof window !== "undefined") {
       window.localStorage.setItem("workerbee_connections_v1", JSON.stringify(next));
     }
-  }, []);
+    (["gmail", "slack", "whatsapp"] as const).forEach((k) => {
+      if (!before[k] && next[k]) {
+        const icon = k === "gmail" ? "📧" : k === "slack" ? "💬" : "📱";
+        emitActivity({ kind: "connection", icon, text: `${k} · connected` });
+      } else if (before[k] && !next[k]) {
+        const icon = k === "gmail" ? "📧" : k === "slack" ? "💬" : "📱";
+        emitActivity({ kind: "connection", icon, text: `${k} · disconnected` });
+      }
+    });
+  }, [connections]);
 
   const appendLog = useCallback((line: LogLine) => {
     setLog((prev) => [...prev, line]);
@@ -210,6 +237,7 @@ function Index() {
         msg: `${newTab.name} session opened (${model ?? "no model"})`,
       });
       runBootSequence(newTab.name, appendLog);
+      emitActivity({ kind: "agent", icon: "🐝", text: `${newTab.name} · spawned` });
       const next = [...prev, newTab];
       if (next.length >= 3 && !machineProfile) {
         setShowAdvisor(true);
@@ -327,16 +355,49 @@ function Index() {
     streamingCount >= 3 ? "critical" : streamingCount >= 2 ? "warn" : null;
   const showBanner = bannerLevel !== null && bannerDismissedAt < streamingCount;
 
-  // Wrap appendLog to detect chat errors per-tab
+  // Wrap appendLog to detect chat errors per-tab + emit activity
   const makeTabLogger = useCallback(
-    (tabId: string) => (line: LogLine) => {
+    (tabId: string, tabName: string) => (line: LogLine) => {
       appendLog(line);
       if (line.level === "ERR" && line.msg.startsWith("chat:")) {
         updateTab(tabId, { hasError: true });
       }
+      if (line.level === "ARROW" && line.msg.startsWith("chat send")) {
+        emitActivity({ kind: "agent", icon: "🐝", text: `${tabName} · sent message` });
+      }
+      if (line.level === "OK" && line.msg.startsWith("response complete")) {
+        emitActivity({ kind: "agent", icon: "🐝", text: `${tabName} · replied` });
+      }
     },
     [appendLog, updateTab],
   );
+
+  const buildPrompt = useCallback(
+    (tabId: string, basePrompt: string) => {
+      const enriched = buildEnrichedSystemPrompt({
+        enabledTools: ENABLED_TOOLS,
+        connections,
+        injectedCredentials: injectedByTab[tabId] ?? [],
+        machineProfile,
+      });
+      // Honor per-tab custom prompt by appending it after the enriched context.
+      const isDefault = basePrompt.startsWith("You are Worker Bee, a website-building AI agent");
+      return isDefault ? enriched : `${enriched}\n\nADDITIONAL INSTRUCTIONS:\n${basePrompt}`;
+    },
+    [connections, injectedByTab, machineProfile],
+  );
+
+  // Global ⌘K search
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <div className="flex flex-col h-screen w-full bg-background text-foreground">
@@ -358,6 +419,7 @@ function Index() {
           whatsapp: !!connections.whatsapp,
         }}
         onServiceClick={() => setActive("connections")}
+        onSearchOpen={() => setSearchOpen(true)}
       />
       {active === "chat" && (
         <ChatTabsBar
@@ -444,10 +506,10 @@ function Index() {
                             model={t.model ?? model}
                             connected={connected}
                             enabledTools={ENABLED_TOOLS}
-                            systemPrompt={t.systemPrompt}
+                            systemPrompt={buildPrompt(t.id, t.systemPrompt)}
                             messages={t.messages}
                             onMessagesChange={(updater) => handleMessagesChange(t.id, updater)}
-                            appendLog={makeTabLogger(t.id)}
+                            appendLog={makeTabLogger(t.id, t.name)}
                             onStreamingChange={(s) => {
                               updateTab(t.id, { isStreaming: s, ...(s ? { hasError: false } : {}) });
                             }}
@@ -487,6 +549,11 @@ function Index() {
                     level: "OK",
                     msg: `${activeTab.name}: credential [${label}] injected`,
                   });
+                  setInjectedByTab((p) => {
+                    const cur = p[activeTab.id] ?? [];
+                    if (cur.includes(label)) return p;
+                    return { ...p, [activeTab.id]: [...cur, label] };
+                  });
                 }}
               />
             )}
@@ -518,6 +585,61 @@ function Index() {
           </div>
         </main>
       </div>
+
+      <GlobalSearch
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        tabs={tabs.map((t) => ({ id: t.id, name: t.name, messages: t.messages }))}
+        tools={[
+          { id: "playwright_chromium", name: "Playwright + Chromium", icon: "🎭" },
+          { id: "web_search", name: "Web Search", icon: "🌐" },
+          { id: "code_exec", name: "Code Executor", icon: "⚡" },
+          { id: "file_ops", name: "File System", icon: "📁" },
+          { id: "vision", name: "Vision", icon: "👁" },
+          { id: "vector_db", name: "Vector Memory", icon: "🧠" },
+          { id: "shell", name: "Shell Runner", icon: "🐚" },
+          { id: "git", name: "Git Tools", icon: "🌿" },
+          { id: "pdf_reader", name: "PDF Reader", icon: "📄" },
+          { id: "sql_tools", name: "SQL Agent", icon: "🗄" },
+          ...(connections.gmail ? [{ id: "gmail.send", name: "Gmail Send", icon: "📧" }] : []),
+          ...(connections.slack ? [{ id: "slack.post_message", name: "Slack Post", icon: "💬" }] : []),
+          ...(connections.whatsapp ? [{ id: "whatsapp.send", name: "WhatsApp Send", icon: "📱" }] : []),
+        ]}
+        pots={vaultPots}
+        connections={connections}
+        onJumpAgent={(id) => {
+          setActive("chat");
+          setActiveTabId(id);
+        }}
+        onJumpTools={() => setActive("tools")}
+        onJumpVault={() => setActive("vault")}
+        onJumpConnections={() => setActive("connections")}
+      />
+
+      {showOnboarding && (
+        <OnboardingWizard
+          endpoint={endpoint}
+          setEndpoint={setEndpoint}
+          onConnect={async () => {
+            try {
+              const res = await fetch(`${endpoint.replace(/\/$/, "")}/api/tags`);
+              if (!res.ok) return false;
+              const data = (await res.json()) as { models?: { name: string }[] };
+              const list = data.models ?? [];
+              setAvailableModels(list.map((m) => m.name));
+              setConnected(true);
+              if (list[0]?.name) setModel(list[0].name);
+              return true;
+            } catch {
+              return false;
+            }
+          }}
+          onProfileSaved={(p) => {
+            setMachineProfile(p);
+          }}
+          onComplete={() => setShowOnboarding(false)}
+        />
+      )}
     </div>
   );
 }
