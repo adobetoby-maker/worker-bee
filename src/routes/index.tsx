@@ -543,6 +543,9 @@ function Index() {
         }}
         onServiceClick={() => setActive("connections")}
         onSearchOpen={() => setSearchOpen(true)}
+        onQueueOpen={() => setQueueOpen((v) => !v)}
+        queueDepth={queueState.queue.length}
+        parallelMode={queueState.parallelMode}
       />
       {active === "chat" && (
         <ChatTabsBar
@@ -641,6 +644,23 @@ function Index() {
                             stopToken={t.stopToken}
                             inputDraft={inputDrafts[t.id] ?? ""}
                             onInputDraftChange={(v) => setInputDraft(t.id, v)}
+                            isQueued={queueState.queue.some((q) => q.tabId === t.id)}
+                            queuePosition={queuePositionFor(t.id)}
+                            agentsAhead={Math.max(0, queuePositionFor(t.id) - 1) + (queueState.activeTabId && queueState.activeTabId !== t.id ? 1 : 0)}
+                            estimatedWaitSec={estimatedWaitSeconds(t.id)}
+                            autoSendToken={autoSendByTab[t.id]?.token ?? 0}
+                            autoSendText={autoSendByTab[t.id]?.text ?? ""}
+                            onRequestSend={(text) => handleRequestSend(t.id, t.name, t.color, t.model ?? model, text)}
+                            onCancelQueued={() => {
+                              cancelQueued(t.id);
+                              appendLog({ ts: nowTs(), level: "ARROW", msg: `${t.name} removed from queue` });
+                            }}
+                            onMoveToFront={() => {
+                              moveToFront(t.id);
+                              appendLog({ ts: nowTs(), level: "ARROW", msg: `${t.name} moved to front of queue` });
+                            }}
+                            onSendStart={(text) => handleSendStart(t.id, t.name, t.model ?? model, text)}
+                            onSendEnd={() => handleSendEnd(t.id, t.name)}
                           />
                         </div>
                       ))}
