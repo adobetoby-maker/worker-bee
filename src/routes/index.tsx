@@ -24,6 +24,8 @@ import {
 } from "@/lib/machine-profile";
 import { INITIAL_LOG, nowTs, type LogLine } from "@/lib/agent-state";
 import { runBootSequence } from "@/lib/boot-sequence";
+import { useOllamaPs, type PsSnapshot } from "@/lib/use-ollama-ps";
+import { toast } from "sonner";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { isBrandNewUser } from "@/lib/onboarding";
