@@ -585,6 +585,61 @@ function Index() {
           </div>
         </main>
       </div>
+
+      <GlobalSearch
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        tabs={tabs.map((t) => ({ id: t.id, name: t.name, messages: t.messages }))}
+        tools={[
+          { id: "playwright_chromium", name: "Playwright + Chromium", icon: "🎭" },
+          { id: "web_search", name: "Web Search", icon: "🌐" },
+          { id: "code_exec", name: "Code Executor", icon: "⚡" },
+          { id: "file_ops", name: "File System", icon: "📁" },
+          { id: "vision", name: "Vision", icon: "👁" },
+          { id: "vector_db", name: "Vector Memory", icon: "🧠" },
+          { id: "shell", name: "Shell Runner", icon: "🐚" },
+          { id: "git", name: "Git Tools", icon: "🌿" },
+          { id: "pdf_reader", name: "PDF Reader", icon: "📄" },
+          { id: "sql_tools", name: "SQL Agent", icon: "🗄" },
+          ...(connections.gmail ? [{ id: "gmail.send", name: "Gmail Send", icon: "📧" }] : []),
+          ...(connections.slack ? [{ id: "slack.post_message", name: "Slack Post", icon: "💬" }] : []),
+          ...(connections.whatsapp ? [{ id: "whatsapp.send", name: "WhatsApp Send", icon: "📱" }] : []),
+        ]}
+        pots={vaultPots}
+        connections={connections}
+        onJumpAgent={(id) => {
+          setActive("chat");
+          setActiveTabId(id);
+        }}
+        onJumpTools={() => setActive("tools")}
+        onJumpVault={() => setActive("vault")}
+        onJumpConnections={() => setActive("connections")}
+      />
+
+      {showOnboarding && (
+        <OnboardingWizard
+          endpoint={endpoint}
+          setEndpoint={setEndpoint}
+          onConnect={async () => {
+            try {
+              const res = await fetch(`${endpoint.replace(/\/$/, "")}/api/tags`);
+              if (!res.ok) return false;
+              const data = (await res.json()) as { models?: { name: string }[] };
+              const list = data.models ?? [];
+              setAvailableModels(list.map((m) => m.name));
+              setConnected(true);
+              if (list[0]?.name) setModel(list[0].name);
+              return true;
+            } catch {
+              return false;
+            }
+          }}
+          onProfileSaved={(p) => {
+            setMachineProfile(p);
+          }}
+          onComplete={() => setShowOnboarding(false)}
+        />
+      )}
     </div>
   );
 }
