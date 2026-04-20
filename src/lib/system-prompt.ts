@@ -1,0 +1,60 @@
+import type { ConnectionsState } from "./connections";
+import type { MachineProfile } from "./machine-profile";
+import { computeLimits } from "./machine-profile";
+
+export interface PromptContext {
+  enabledTools: string[];
+  connections: ConnectionsState;
+  injectedCredentials: string[];
+  machineProfile: MachineProfile | null;
+}
+
+export function buildEnrichedSystemPrompt(ctx: PromptContext): string {
+  const lines: string[] = [];
+  lines.push("You are Worker Bee, an expert website builder AI agent.");
+  lines.push("");
+  lines.push(
+    "BROWSER: Playwright + Chromium are always available. You can navigate, screenshot, scrape, and interact with any website.",
+  );
+  lines.push("");
+  lines.push(`ACTIVE TOOLS: ${ctx.enabledTools.join(", ") || "none"}`);
+  lines.push("");
+
+  const conn = ctx.connections;
+  const connected: string[] = [];
+  if (conn.gmail) connected.push(`  Gmail: ${conn.gmail.email} — you can send emails on request`);
+  if (conn.slack)
+    connected.push(
+      `  Slack: ${conn.slack.workspace} — you can post to ${conn.slack.defaultChannel}`,
+    );
+  if (conn.whatsapp)
+    connected.push(`  WhatsApp: ${conn.whatsapp.testRecipient} — you can send WhatsApp messages`);
+  lines.push(`CONNECTIONS: ${connected.length === 0 ? "none" : ""}`);
+  if (connected.length) lines.push(...connected);
+  lines.push("");
+
+  lines.push(`INJECTED CREDENTIALS: ${ctx.injectedCredentials.length === 0 ? "none" : ""}`);
+  for (const name of ctx.injectedCredentials) {
+    lines.push(`  ${name}: available this session`);
+  }
+  lines.push("");
+
+  if (ctx.machineProfile) {
+    const limits = computeLimits(ctx.machineProfile);
+    lines.push(`MACHINE PROFILE: ${ctx.machineProfile.name}`);
+    lines.push(
+      `  RAM: ${ctx.machineProfile.ramGb} GB · VRAM: ${limits.effectiveVramGb} GB${
+        ctx.machineProfile.unified ? " (unified)" : ""
+      }`,
+    );
+    lines.push(`  Safe concurrent agents: ${limits.maxAgents}`);
+  } else {
+    lines.push("MACHINE PROFILE: unknown");
+  }
+  lines.push("");
+  lines.push(
+    "IMPORTANT: You are running on a local machine. Respect hardware limits. Warn the user if a task requires more resources than available.",
+  );
+
+  return lines.join("\n");
+}
