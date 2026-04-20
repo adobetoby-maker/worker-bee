@@ -235,6 +235,16 @@ function Index() {
   }, [tabs]);
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
+
+  // ===== WebSocket lifecycle: one socket per tab =====
+  // Open sockets for any tabs that don't have one (initial mount + new tabs).
+  // Re-open all sockets if the endpoint changes.
+  useEffect(() => {
+    if (!endpoint) return;
+    tabs.forEach((t) => openAgentWS(t.id, endpoint, appendLog));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endpoint, tabs.length]);
+
   const streamingTabs = tabs.filter((t) => t.isStreaming);
   const streamingCount = streamingTabs.length;
   const anyStreaming = streamingCount > 0;
