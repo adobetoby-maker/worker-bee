@@ -444,6 +444,72 @@ function Index() {
     [connections, injectedByTab, machineProfile],
   );
 
+  // ===== Sequential agent queue wiring =====
+  const handleRequestSend = useCallback(
+    (tabId: string, tabName: string, tabColor: string, tabModel: string | null, text: string): "start" | "queued" => {
+      if (canStartImmediately(tabId)) {
+        return "start";
+      }
+      const preview = text.length > 60 ? text.slice(0, 59) + "…" : text;
+      enqueue({ tabId, tabName, tabColor, text, model: tabModel, messagePreview: preview });
+      appendLog({
+        ts: nowTs(),
+        level: "ARROW",
+        msg: `Queue: ${tabName} queued (position #${queuePositionFor(tabId)})`,
+      });
+      emitActivity({ kind: "agent", icon: "⏳", text: `${tabName} · queued` });
+      return "queued";
+    },
+    [appendLog],
+  );
+
+  const handleSendStart = useCallback(
+    (tabId: string, tabName: string, tabModel: string | null, text: string) => {
+      const preview = text.length > 60 ? text.slice(0, 59) + "…" : text;
+      markActive(tabId, preview, tabModel);
+      // Clear any prior auto-send token / flash
+      setAutoSendByTab((p) => {
+        if (!p[tabId]) return p;
+        const { [tabId]: _, ...rest } = p;
+        return rest;
+      });
+    },
+    [],
+  );
+
+  const handleSendEnd = useCallback(
+    (tabId: string, tabName: string) => {
+      const next = finishActive(tabId);
+      if (next) {
+        // Promote next queued tab: trigger autoSend in that ChatView
+        setAutoSendByTab((p) => ({
+          ...p,
+          [next.tabId]: { token: Date.now(), text: next.text },
+        }));
+        setFlashTurnTabId(next.tabId);
+        setTimeout(() => {
+          setFlashTurnTabId((cur) => (cur === next.tabId ? null : cur));
+        }, 1500);
+        const remainingNames = getQueueNamesAfterPromotion();
+        appendLog({
+          ts: nowTs(),
+          level: "OK",
+          msg: `Queue: ${next.tabName} started${remainingNames ? ` · ${remainingNames} waiting` : ""}`,
+        });
+        emitActivity({ kind: "agent", icon: "▶", text: `${next.tabName} · your turn` });
+      }
+    },
+    [appendLog],
+  );
+
+  // Helper: snapshot remaining queue names AFTER current promotion (called inside handleSendEnd's setState callback timing).
+  const getQueueNamesAfterPromotion = (): string => {
+    // queueState is the previous render's snapshot, but finishActive already mutated the store.
+    // Use subscribeQueue snapshot via a quick read: we re-derive from queueState minus the just-popped head.
+    const remaining = queueState.queue.slice(1);
+    return remaining.map((q) => q.tabName).join(", ");
+  };
+
   // Global ⌘K search
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
