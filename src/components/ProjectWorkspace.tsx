@@ -282,6 +282,19 @@ export function ProjectWorkspace({ projectId, onBack, onEditInAgent, onCompareFi
                   >
                     💾 DOWNLOAD
                   </button>
+                  {onCompareFile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDiffPasteOpen((v) => !v);
+                        setDiffPasteText("");
+                      }}
+                      className="px-2 py-1 rounded border text-[10px] tracking-[0.15em]"
+                      style={{ borderColor: "#39ff1455", color: "#39ff14" }}
+                    >
+                      ↔ DIFF
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => onEditInAgent(activeFile.path, activeFile.content)}
@@ -292,6 +305,57 @@ export function ProjectWorkspace({ projectId, onBack, onEditInAgent, onCompareFi
                   </button>
                 </div>
               </div>
+              {diffPasteOpen && onCompareFile && (
+                <div
+                  className="px-3 py-2"
+                  style={{ background: "#080808", borderBottom: "1px solid #1a1a1a" }}
+                >
+                  <div
+                    className="font-mono text-[10px] tracking-[0.15em] mb-1"
+                    style={{ color: "#39ff14" }}
+                  >
+                    ↔ PASTE NEW VERSION TO COMPARE WITH {activeFile.path}
+                  </div>
+                  <textarea
+                    rows={5}
+                    autoFocus
+                    value={diffPasteText}
+                    onChange={(e) => setDiffPasteText(e.target.value)}
+                    placeholder="Paste the updated file contents here..."
+                    className="w-full bg-background border border-border rounded px-2 py-1.5 text-[11px] font-mono resize-y"
+                  />
+                  <div className="flex justify-end gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDiffPasteOpen(false);
+                        setDiffPasteText("");
+                      }}
+                      className="px-2 py-1 rounded border font-mono text-[10px]"
+                      style={{ borderColor: "#333", color: "#888" }}
+                    >
+                      CANCEL
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!diffPasteText}
+                      onClick={() => {
+                        onCompareFile(activeFile.path, activeFile.content, diffPasteText);
+                        setDiffPasteOpen(false);
+                        setDiffPasteText("");
+                      }}
+                      className="px-2 py-1 rounded font-mono text-[10px] tracking-[0.15em]"
+                      style={{
+                        background: diffPasteText ? "#39ff14" : "#222",
+                        color: diffPasteText ? "#001a00" : "#555",
+                        cursor: diffPasteText ? "pointer" : "not-allowed",
+                      }}
+                    >
+                      ↔ OPEN DIFF
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="flex-1 min-h-0">
                 <CodeViewer code={activeFile.content || "(empty file)"} language={activeFile.language} />
               </div>
