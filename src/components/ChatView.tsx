@@ -17,6 +17,7 @@ interface Props {
   onMessagesChange: (updater: (prev: ChatMessage[]) => ChatMessage[]) => void;
   appendLog: (line: LogLine) => void;
   onStreamingChange: (streaming: boolean) => void;
+  stopToken?: number;
 }
 
 export function ChatView({
@@ -29,6 +30,7 @@ export function ChatView({
   onMessagesChange,
   appendLog,
   onStreamingChange,
+  stopToken = 0,
 }: Props) {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -50,6 +52,13 @@ export function ChatView({
       abortRef.current?.abort();
     };
   }, []);
+
+  // External stop signal (e.g. from concurrency banner)
+  useEffect(() => {
+    if (stopToken > 0) {
+      abortRef.current?.abort();
+    }
+  }, [stopToken]);
 
   const resolvedSystemPrompt =
     systemPrompt ??

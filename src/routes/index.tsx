@@ -1,11 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/Header";
 import { Sidebar, type View } from "@/components/Sidebar";
 import { ConfigPanel } from "@/components/ConfigPanel";
 import { ChatView, type ChatMessage } from "@/components/ChatView";
 import { ChatTabsBar, type ChatTab } from "@/components/ChatTabsBar";
 import { ToolsPanel } from "@/components/ToolsPanel";
+import { ResourceBar } from "@/components/ResourceBar";
+import { ConcurrencyBanner } from "@/components/ConcurrencyBanner";
+import { computeResources } from "@/lib/resource-estimate";
 import { INITIAL_LOG, nowTs, type LogLine } from "@/lib/agent-state";
 
 export const Route = createFileRoute("/")({
@@ -31,6 +34,7 @@ interface TabState extends ChatTab {
   messages: ChatMessage[];
   systemPrompt: string;
   isStreaming: boolean;
+  stopToken: number;
 }
 
 const defaultSystemPrompt = (tools: string[]) =>
@@ -42,6 +46,7 @@ function Index() {
   const [endpoint, setEndpoint] = useState("http://localhost:11434");
   const [model, setModel] = useState<string | null>("llama3.1:8b");
   const [connected, setConnected] = useState(false);
+  const [bannerDismissedAt, setBannerDismissedAt] = useState(0);
 
   const appendLog = useCallback((line: LogLine) => {
     setLog((prev) => [...prev, line]);
@@ -56,12 +61,20 @@ function Index() {
       messages: [BOOT_MESSAGE],
       systemPrompt: defaultSystemPrompt(ENABLED_TOOLS),
       isStreaming: false,
+      stopToken: 0,
     },
   ]);
   const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0].id);
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
-  const anyStreaming = tabs.some((t) => t.isStreaming);
+  const streamingTabs = tabs.filter((t) => t.isStreaming);
+  const streamingCount = streamingTabs.length;
+  const anyStreaming = streamingCount > 0;
+
+  const resources = useMemo(
+    () => computeResources(streamingTabs.map((t) => t.model)),
+    [streamingTabs],
+  );
 
   const updateTab = useCallback((id: string, patch: Partial<TabState>) => {
     setTabs((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
@@ -87,6 +100,7 @@ function Index() {
         messages: [NEW_TAB_MESSAGE],
         systemPrompt: defaultSystemPrompt(ENABLED_TOOLS),
         isStreaming: false,
+        stopToken: 0,
       };
       setActiveTabId(newTab.id);
       appendLog({
@@ -125,6 +139,19 @@ function Index() {
     [updateTab],
   );
 
+  // Bump stopToken on tabs other than `keepId` to abort their in-flight streams
+  const stopOthers = useCallback(
+    (keepId: string) => {
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.id === keepId || !t.isStreaming ? t : { ...t, stopToken: t.stopToken + 1 },
+        ),
+      );
+      appendLog({ ts: nowTs(), level: "ARROW", msg: `pausing other agents` });
+    },
+    [appendLog],
+  );
+
   // Keyboard shortcuts: ⌘T new, ⌘W close
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -141,6 +168,15 @@ function Index() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [active, activeTabId, handleNewTab, handleCloseTab]);
+
+  // Reset dismissal when streaming count drops below threshold
+  useEffect(() => {
+    if (streamingCount < 2) setBannerDismissedAt(0);
+  }, [streamingCount]);
+
+  const bannerLevel: "warn" | "critical" | null =
+    streamingCount >= 3 ? "critical" : streamingCount >= 2 ? "warn" : null;
+  const showBanner = bannerLevel !== null && bannerDismissedAt < streamingCount;
 
   return (
     <div className="flex flex-col h-screen w-full bg-background text-foreground">
@@ -160,23 +196,35 @@ function Index() {
           onNew={handleNewTab}
         />
       )}
+      {active === "chat" && showBanner && bannerLevel && (
+        <ConcurrencyBanner
+          level={bannerLevel}
+          count={streamingCount}
+          onPrimary={() => stopOthers(activeTabId)}
+          onDismiss={() => setBannerDismissedAt(streamingCount)}
+        />
+      )}
       <div className="flex flex-1 min-h-0">
         <Sidebar active={active} onChange={setActive} log={log} />
         <main className="flex flex-1 min-h-0 flex-col">
           <div key={active} className="flex flex-1 min-h-0 flex-col">
             {active === "chat" && (
-              <ChatView
-                key={activeTab.id}
-                endpoint={endpoint}
-                model={activeTab.model ?? model}
-                connected={connected}
-                enabledTools={ENABLED_TOOLS}
-                systemPrompt={activeTab.systemPrompt}
-                messages={activeTab.messages}
-                onMessagesChange={(updater) => handleMessagesChange(activeTab.id, updater)}
-                appendLog={appendLog}
-                onStreamingChange={(s) => updateTab(activeTab.id, { isStreaming: s })}
-              />
+              <>
+                <ResourceBar resources={resources} />
+                <ChatView
+                  key={activeTab.id}
+                  endpoint={endpoint}
+                  model={activeTab.model ?? model}
+                  connected={connected}
+                  enabledTools={ENABLED_TOOLS}
+                  systemPrompt={activeTab.systemPrompt}
+                  messages={activeTab.messages}
+                  onMessagesChange={(updater) => handleMessagesChange(activeTab.id, updater)}
+                  appendLog={appendLog}
+                  onStreamingChange={(s) => updateTab(activeTab.id, { isStreaming: s })}
+                  stopToken={activeTab.stopToken}
+                />
+              </>
             )}
             {active === "tools" && <ToolsPanel appendLog={appendLog} />}
             {active === "config" && (
