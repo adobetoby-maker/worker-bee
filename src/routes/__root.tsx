@@ -29,17 +29,17 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "OpenClaw — Local AI Agents" },
+      { title: "🐝 Worker Bee — Website Builder" },
       {
         name: "description",
         content:
-          "OpenClaw is a dark, terminal-flavored interface for running local AI agents on Ollama with tools, chat, and runtime config.",
+          "Worker Bee is a local website-builder agent powered by Ollama — multi-tab agents, tools, and runtime config.",
       },
-      { name: "author", content: "OpenClaw" },
-      { property: "og:title", content: "OpenClaw — Local AI Agents" },
+      { name: "author", content: "Worker Bee" },
+      { property: "og:title", content: "🐝 Worker Bee — Website Builder Agent" },
       {
         property: "og:description",
-        content: "Industrial cyberpunk control panel for Ollama-powered local agents.",
+        content: "Local website-builder agent powered by Ollama. Always buzzing. Never sleeping.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
