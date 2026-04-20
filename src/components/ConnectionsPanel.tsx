@@ -116,9 +116,7 @@ function Card({
   );
 }
 
-export function ConnectionsPanel({ appendLog, onSaveToVault }: Props) {
-  const [state, setState] = useState<ConnectionsState>(() => loadConnections());
-
+export function ConnectionsPanel({ state, onChange, appendLog, onSaveToVault }: Props) {
   // Form state
   const [gmailClientId, setGmailClientId] = useState("");
   const [gmailClientSecret, setGmailClientSecret] = useState("");
@@ -138,8 +136,7 @@ export function ConnectionsPanel({ appendLog, onSaveToVault }: Props) {
   } | null>(null);
 
   const persist = (next: ConnectionsState) => {
-    setState(next);
-    saveConnections(next);
+    onChange(next);
   };
 
   const connectGmail = () => {
