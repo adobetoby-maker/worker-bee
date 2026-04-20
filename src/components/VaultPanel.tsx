@@ -43,20 +43,38 @@ const STRENGTH_LABELS = ["EMPTY", "WEAK", "FAIR", "STRONG", "FORTRESS"];
 const STRENGTH_COLORS = ["#333", "#ff3b3b", "#ff8a00", "#ffaa00", "#39ff14"];
 
 interface Props {
-  onInject: (label: string) => void;
+  onInject: (label: string, prevTabId: string | null) => void;
+  activeTabId: string;
+  tabName: (id: string) => string;
 }
 
-export function VaultPanel({ onInject }: Props) {
+export function VaultPanel({ onInject, activeTabId, tabName }: Props) {
   const [session, setSession] = useState<VaultSession | null>(null);
   const [exists, setExists] = useState<boolean>(() => vaultExists());
+  const [autoLockedBanner, setAutoLockedBanner] = useState(false);
+
+  // Wire auto-lock: starts when session unlocks, fires onLock callback after idle.
+  useEffect(() => {
+    if (!session) return;
+    startAutoLock(() => {
+      setSession(null);
+      setAutoLockedBanner(true);
+      clearUnlockedPots();
+      stopAutoLock();
+    });
+    return () => stopAutoLock();
+  }, [session]);
 
   if (!session) {
     return (
       <LockScreen
         exists={exists}
+        autoLockedBanner={autoLockedBanner}
         onUnlocked={(s) => {
           setSession(s);
           setExists(true);
+          setAutoLockedBanner(false);
+          setUnlockedPots(s.pots);
         }}
       />
     );
@@ -65,7 +83,13 @@ export function VaultPanel({ onInject }: Props) {
   return (
     <Dashboard
       session={session}
-      onLock={() => setSession(null)}
+      activeTabId={activeTabId}
+      tabName={tabName}
+      onLock={() => {
+        setSession(null);
+        clearUnlockedPots();
+        stopAutoLock();
+      }}
       onInject={onInject}
     />
   );
