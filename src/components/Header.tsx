@@ -1,4 +1,5 @@
-import { ClawLogo } from "./ClawLogo";
+import { useEffect, useState } from "react";
+import { BeeLogo } from "./BeeLogo";
 import { StatusBadge } from "./StatusBadge";
 
 interface HeaderProps {
@@ -6,22 +7,60 @@ interface HeaderProps {
   model: string | null;
   toolCount: number;
   streaming?: boolean;
+  error?: boolean;
 }
 
-export function Header({ connected, model, toolCount, streaming = false }: HeaderProps) {
+const TAGLINES = [
+  "Building the web, one cell at a time",
+  "Always buzzing. Never sleeping.",
+  "Your hive. Your rules.",
+  "Fueled by Ollama. Guided by you.",
+];
+
+export function Header({ connected, model, toolCount, streaming = false, error = false }: HeaderProps) {
+  const [taglineIdx, setTaglineIdx] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setTaglineIdx((i) => (i + 1) % TAGLINES.length), 6000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <header
       className="sticky top-0 z-40 flex items-center justify-between px-5 bg-background/85 backdrop-blur border-b border-primary/30"
-      style={{ height: 58 }}
+      style={{ height: 72 }}
     >
       <div className="flex items-center gap-3">
-        <ClawLogo size={28} streaming={streaming} />
-        <span className="font-mono text-lg font-bold tracking-[0.28em] select-none">
-          <span className="text-primary">OPEN</span>
-          <span className="text-success">CLAW</span>
-        </span>
-        <span className="ml-3 hidden md:inline font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-          // local agent runtime
+        <BeeLogo size={44} streaming={streaming} error={error} />
+        <div className="flex flex-col leading-none">
+          <span
+            className="font-mono font-bold tracking-[0.18em] select-none"
+            style={{ fontSize: 18 }}
+          >
+            <span style={{ color: "#ffaa00" }}>WORKER</span>
+            <span style={{ color: "#39ff14", marginLeft: 4 }}>BEE</span>
+          </span>
+          <span
+            className="mt-1 font-mono uppercase select-none"
+            style={{ color: "#444", fontSize: 9, letterSpacing: "0.15em" }}
+          >
+            WEBSITE BUILDER AGENT
+          </span>
+        </div>
+      </div>
+
+      <div className="hidden md:flex flex-1 justify-center px-6 overflow-hidden">
+        <span
+          key={taglineIdx}
+          className="italic truncate"
+          style={{
+            color: "#444",
+            fontSize: 11,
+            fontFamily: 'var(--font-sans, "IBM Plex Sans"), sans-serif',
+            animation: "tagline-fade 6s ease-in-out",
+          }}
+        >
+          {TAGLINES[taglineIdx]}
         </span>
       </div>
 
