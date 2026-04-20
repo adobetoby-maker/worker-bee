@@ -49,7 +49,35 @@ export function loadConnections(): ConnectionsState {
   }
 }
 
+// Strip raw secret fields before persisting. Per security policy, raw
+// tokens / passwords / auth secrets must NEVER be stored in localStorage
+// unencrypted. We persist only the non-secret connection STATUS so the UI
+// can show "connected" on reload; secrets must be re-entered or pulled
+// from the encrypted Hive Vault.
 export function saveConnections(state: ConnectionsState) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(KEY, JSON.stringify(state));
+  const safe: ConnectionsState = {
+    gmail: state.gmail
+      ? { clientId: "", clientSecret: "", email: state.gmail.email }
+      : null,
+    slack: state.slack
+      ? {
+          botToken: "",
+          defaultChannel: state.slack.defaultChannel,
+          workspace: state.slack.workspace,
+          botUser: state.slack.botUser,
+        }
+      : null,
+    whatsapp: state.whatsapp
+      ? {
+          accountSid: state.whatsapp.accountSid,
+          authToken: "",
+          twilioNumber: state.whatsapp.twilioNumber,
+          yourNumber: state.whatsapp.yourNumber,
+          friendlyName: state.whatsapp.friendlyName,
+          messagesThisMonth: state.whatsapp.messagesThisMonth,
+        }
+      : null,
+  };
+  window.localStorage.setItem(KEY, JSON.stringify(safe));
 }
