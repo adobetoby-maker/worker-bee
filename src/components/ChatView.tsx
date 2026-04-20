@@ -275,6 +275,39 @@ export function ChatView({
         return <BrowserTaskCard action={action} onStop={stop} />;
       })()}
 
+      {isQueued && (
+        <div
+          className="px-4 py-2 flex items-center justify-between gap-3 font-mono text-[11px]"
+          style={{
+            background: "#1a1400",
+            color: "#ffaa00",
+            borderTop: "1px solid #ffaa0040",
+          }}
+        >
+          <span>
+            ⏳ Queued — {agentsAhead} agent{agentsAhead === 1 ? "" : "s"} ahead of you. Estimated wait: ~{estimatedWaitSec}s
+          </span>
+          <span className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onMoveToFront?.()}
+              className="px-2 py-0.5 rounded border"
+              style={{ borderColor: "#ffaa0066", color: "#ffaa00" }}
+            >
+              MOVE TO FRONT
+            </button>
+            <button
+              type="button"
+              onClick={() => onCancelQueued?.()}
+              className="px-2 py-0.5 rounded border"
+              style={{ borderColor: "#ff3b3b66", color: "#ff8a8a" }}
+            >
+              CANCEL
+            </button>
+          </span>
+        </div>
+      )}
+
       <div className="border-t border-border bg-surface/40 px-4 py-3">
         <div className="flex items-end gap-3">
           <Textarea
