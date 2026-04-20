@@ -240,16 +240,43 @@ function Dashboard({
   session,
   onLock,
   onInject,
+  activeTabId,
+  tabName,
 }: {
   session: VaultSession;
   onLock: () => void;
-  onInject: (label: string) => void;
+  onInject: (label: string, prevTabId: string | null) => void;
+  activeTabId: string;
+  tabName: (id: string) => string;
 }) {
   const [pots, setPots] = useState<HoneyPot[]>(session.pots);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<HoneyPot | null>(null);
   const [adding, setAdding] = useState(false);
+  const [accessLog, setAccessLog] = useState<AccessEvent[]>([]);
+  const [logOpen, setLogOpen] = useState(false);
+  const [lockMin, setLockMin] = useState<LockTimeout>(loadLockTimeoutMinutes());
+  const [moveConfirm, setMoveConfirm] = useState<{ potName: string; priorTabId: string } | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+
+  // Any user interaction in the dashboard resets the auto-lock timer.
+  useEffect(() => {
+    const handler = () => resetAutoLock();
+    const root = document.body;
+    root.addEventListener("click", handler);
+    root.addEventListener("keydown", handler);
+    return () => {
+      root.removeEventListener("click", handler);
+      root.removeEventListener("keydown", handler);
+    };
+  }, []);
+
+  useEffect(() => subscribeAccessLog(setAccessLog), []);
+
+  // Keep the credential proxy in sync with current decrypted pots.
+  useEffect(() => {
+    setUnlockedPots(pots);
+  }, [pots]);
 
   useEffect(() => {
     setVaultSnapshot(pots.map((p) => ({ id: p.id, emoji: p.emoji, service: p.service })));
