@@ -36,6 +36,9 @@ interface Props {
   onMoveToFront?: () => void;
   onSendStart?: (text: string) => void;
   onSendEnd?: () => void;
+  // Project binding — when set, code blocks render save/copy/download toolbar
+  projectName?: string | null;
+  onSaveCodeBlock?: (language: string, code: string, suggestedName: string) => void;
 }
 
 export function ChatView({
