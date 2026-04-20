@@ -32,7 +32,7 @@ function Index() {
         connected={connected}
         model={model}
         toolCount={ENABLED_TOOLS.length}
-        active={streaming || connected}
+        streaming={streaming}
       />
       <div className="flex flex-1 min-h-0">
         <Sidebar active={active} onChange={setActive} log={log} />

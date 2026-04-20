@@ -28,8 +28,16 @@ export function StatusBadge({
     >
       {dot && (
         <span
-          className="inline-block h-1.5 w-1.5 rounded-full bg-success"
-          style={{ animation: "pulse-dot 1.6s ease-in-out infinite" }}
+          className={`inline-block h-1.5 w-1.5 rounded-full ${
+            variant === "destructive" ? "bg-destructive" : "bg-success"
+          }`}
+          style={{
+            animation: "pulse-dot 1.6s ease-in-out infinite",
+            boxShadow:
+              variant === "destructive"
+                ? "0 0 6px var(--destructive)"
+                : "0 0 6px var(--success)",
+          }}
         />
       )}
       {children}

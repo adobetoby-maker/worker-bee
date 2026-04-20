@@ -24,7 +24,13 @@ export function ChatView({
   appendLog,
   onStreamingChange,
 }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      role: "assistant",
+      content:
+        "⚡ OpenClaw online. Connect to your Ollama endpoint and select a model to begin. I can install tools to extend my capabilities on demand.",
+    },
+  ]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -136,10 +142,10 @@ export function ChatView({
       style={{ animation: "var(--animate-slide-down)" }}
     >
       <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto px-6 py-6 space-y-4">
-        {messages.length === 0 && (
-          <div className="h-full flex items-center justify-center">
-            <div className="text-center font-mono text-xs uppercase tracking-[0.3em] text-muted-foreground">
-              // type a message to begin
+        {!connected && (
+          <div className="flex justify-center">
+            <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground border border-border bg-surface/40 px-4 py-2 rounded">
+              ⚠ Connect to Ollama in CONFIG to start chatting
             </div>
           </div>
         )}

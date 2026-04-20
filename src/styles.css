@@ -36,8 +36,8 @@
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --animate-blink: blink 1s steps(2, start) infinite;
   --animate-pulse-neon: pulse-neon 1.6s ease-in-out infinite;
-  --animate-slide-down: slide-down 200ms ease-out;
-  --animate-swing-claw: swing-claw 2.4s ease-in-out infinite;
+  --animate-slide-down: slide-down 220ms ease-out;
+  --animate-swing-claw: swing-claw-vertical 0.9s ease-in-out infinite;
 }
 
 :root {
@@ -96,6 +96,11 @@
   50%      { transform: rotate(15deg); }
 }
 
+@keyframes swing-claw-vertical {
+  0%, 100% { transform: translateY(-3px); }
+  50%      { transform: translateY(3px); }
+}
+
 @keyframes pulse-dot {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--success) 70%, transparent); }
   50%      { box-shadow: 0 0 0 6px color-mix(in oklab, var(--success) 0%, transparent); }
@@ -133,5 +138,25 @@
 
   code, kbd, samp, pre {
     font-family: var(--font-mono);
+  }
+
+  /* Custom scrollbars */
+  *::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  *::-webkit-scrollbar-track {
+    background: #0a0a0a;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 2px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: #3a3a3a;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2a2a2a #0a0a0a;
   }
 }
