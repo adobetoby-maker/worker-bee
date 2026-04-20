@@ -51,6 +51,17 @@ export function ChatView({
   stopToken = 0,
   inputDraft,
   onInputDraftChange,
+  isQueued = false,
+  queuePosition = 0,
+  agentsAhead = 0,
+  estimatedWaitSec = 0,
+  autoSendToken = 0,
+  autoSendText = "",
+  onRequestSend,
+  onCancelQueued,
+  onMoveToFront,
+  onSendStart,
+  onSendEnd,
 }: Props) {
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
@@ -71,14 +82,12 @@ export function ChatView({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  // Stop streaming if user switches tabs (component re-keys on tab change)
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
     };
   }, []);
 
-  // External stop signal (e.g. from concurrency banner)
   useEffect(() => {
     if (stopToken > 0) {
       abortRef.current?.abort();
@@ -95,18 +104,15 @@ export function ChatView({
     setStreaming(false);
   };
 
-  const send = async () => {
-    const text = input.trim();
-    if (!text || streaming) return;
+  const startStream = async (text: string) => {
     if (!connected || !model) {
       appendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
       return;
     }
-
     const next: ChatMessage[] = [...messages, { role: "user", content: text }];
     onMessagesChange(() => [...next, { role: "assistant", content: "" }]);
-    setInput("");
     setStreaming(true);
+    onSendStart?.(text);
     appendLog({ ts: nowTs(), level: "ARROW", msg: `chat send chars=${text.length}` });
 
     const controller = new AbortController();
@@ -168,7 +174,33 @@ export function ChatView({
     } finally {
       setStreaming(false);
       abortRef.current = null;
+      onSendEnd?.();
     }
+  };
+
+  const lastAutoTokenRef = useRef(0);
+  useEffect(() => {
+    if (autoSendToken > 0 && autoSendToken !== lastAutoTokenRef.current && autoSendText) {
+      lastAutoTokenRef.current = autoSendToken;
+      startStream(autoSendText);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSendToken, autoSendText]);
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || streaming) return;
+    if (!connected || !model) {
+      appendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
+      return;
+    }
+    const decision = onRequestSend ? onRequestSend(text) : "start";
+    if (decision === "queued") {
+      setInput("");
+      return;
+    }
+    setInput("");
+    await startStream(text);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
