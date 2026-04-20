@@ -59,6 +59,7 @@ import {
   type Project,
 } from "@/lib/projects";
 import { diffLines } from "@/lib/diff";
+import { ejectAllForTab } from "@/lib/injection-registry";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -340,6 +341,20 @@ function Index() {
           }
         }
         const remaining = prev.filter((t) => t.id !== id);
+        // Auto-eject all credentials injected into the closed tab.
+        const ejected = ejectAllForTab(id);
+        setInjectedByTab((p) => {
+          if (!p[id]) return p;
+          const { [id]: _, ...rest } = p;
+          return rest;
+        });
+        if (ejected.length) {
+          appendLog({
+            ts: nowTs(),
+            level: "OK",
+            msg: `Credentials ejected from closed ${closing.name} session`,
+          });
+        }
         appendLog({ ts: nowTs(), level: "ARROW", msg: `${closing.name} session closed` });
         if (id === activeTabId) {
           setActiveTabId(remaining[0].id);
@@ -827,16 +842,23 @@ function Index() {
             {active === "tools" && <ToolsPanel appendLog={appendLog} connections={connections} />}
             {active === "vault" && (
               <VaultPanel
-                onInject={(label) => {
+                activeTabId={activeTab.id}
+                tabName={(id) => tabs.find((t) => t.id === id)?.name ?? id}
+                onInject={(label, prevTabId) => {
                   appendLog({
                     ts: nowTs(),
                     level: "OK",
                     msg: `${activeTab.name}: credential [${label}] injected`,
                   });
                   setInjectedByTab((p) => {
-                    const cur = p[activeTab.id] ?? [];
-                    if (cur.includes(label)) return p;
-                    return { ...p, [activeTab.id]: [...cur, label] };
+                    const next = { ...p };
+                    if (prevTabId && prevTabId !== activeTab.id) {
+                      next[prevTabId] = (next[prevTabId] ?? []).filter((n) => n !== label);
+                      if (next[prevTabId].length === 0) delete next[prevTabId];
+                    }
+                    const cur = next[activeTab.id] ?? [];
+                    if (!cur.includes(label)) next[activeTab.id] = [...cur, label];
+                    return next;
                   });
                 }}
               />

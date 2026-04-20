@@ -16,6 +16,26 @@ import {
 } from "@/lib/vault";
 import { setVaultSnapshot } from "@/lib/vault-snapshot";
 import { emitActivity } from "@/lib/activity-feed";
+import {
+  setUnlockedPots,
+  clearUnlockedPots,
+  subscribeAccessLog,
+  clearAccessLog,
+  type AccessEvent,
+} from "@/lib/credential-proxy";
+import {
+  loadLockTimeoutMinutes,
+  saveLockTimeoutMinutes,
+  startAutoLock,
+  resetAutoLock,
+  stopAutoLock,
+  type LockTimeout,
+} from "@/lib/vault-autolock";
+import {
+  subscribeInjection,
+  injectPot,
+  getInjectionForPot,
+} from "@/lib/injection-registry";
 
 const EMOJIS = ["🐝","🍯","🔑","🗝","🛡","⚡","🌐","📧","💬","🐙","🦊","🦁","🐺","🎭","🎪","🚀","🔮","🧪","🦋","🌶"];
 const CATEGORIES: Category[] = ["EMAIL", "SOCIAL", "HOSTING", "API", "DATABASE", "OTHER"];
@@ -23,20 +43,38 @@ const STRENGTH_LABELS = ["EMPTY", "WEAK", "FAIR", "STRONG", "FORTRESS"];
 const STRENGTH_COLORS = ["#333", "#ff3b3b", "#ff8a00", "#ffaa00", "#39ff14"];
 
 interface Props {
-  onInject: (label: string) => void;
+  onInject: (label: string, prevTabId: string | null) => void;
+  activeTabId: string;
+  tabName: (id: string) => string;
 }
 
-export function VaultPanel({ onInject }: Props) {
+export function VaultPanel({ onInject, activeTabId, tabName }: Props) {
   const [session, setSession] = useState<VaultSession | null>(null);
   const [exists, setExists] = useState<boolean>(() => vaultExists());
+  const [autoLockedBanner, setAutoLockedBanner] = useState(false);
+
+  // Wire auto-lock: starts when session unlocks, fires onLock callback after idle.
+  useEffect(() => {
+    if (!session) return;
+    startAutoLock(() => {
+      setSession(null);
+      setAutoLockedBanner(true);
+      clearUnlockedPots();
+      stopAutoLock();
+    });
+    return () => stopAutoLock();
+  }, [session]);
 
   if (!session) {
     return (
       <LockScreen
         exists={exists}
+        autoLockedBanner={autoLockedBanner}
         onUnlocked={(s) => {
           setSession(s);
           setExists(true);
+          setAutoLockedBanner(false);
+          setUnlockedPots(s.pots);
         }}
       />
     );
@@ -45,7 +83,13 @@ export function VaultPanel({ onInject }: Props) {
   return (
     <Dashboard
       session={session}
-      onLock={() => setSession(null)}
+      activeTabId={activeTabId}
+      tabName={tabName}
+      onLock={() => {
+        setSession(null);
+        clearUnlockedPots();
+        stopAutoLock();
+      }}
       onInject={onInject}
     />
   );
@@ -55,9 +99,11 @@ export function VaultPanel({ onInject }: Props) {
 
 function LockScreen({
   exists,
+  autoLockedBanner = false,
   onUnlocked,
 }: {
   exists: boolean;
+  autoLockedBanner?: boolean;
   onUnlocked: (s: VaultSession) => void;
 }) {
   const [pw, setPw] = useState("");
@@ -111,6 +157,14 @@ function LockScreen({
         className="w-full max-w-md rounded-lg border border-primary/30 bg-surface/80 p-8 shadow-[0_0_60px_-20px_var(--primary)]"
         style={{ animation: "var(--animate-slide-down)" }}
       >
+        {autoLockedBanner && (
+          <div
+            className="mb-4 rounded px-3 py-2 font-mono text-[11px]"
+            style={{ background: "#1a1200", color: "#ffaa00", border: "1px solid #ffaa0066" }}
+          >
+            🔒 Vault auto-locked after inactivity. Re-enter master password to continue.
+          </div>
+        )}
         <div className="text-center mb-6">
           <div style={{ fontSize: 64, lineHeight: 1 }}>🔒</div>
           <h2 className="mt-4 font-mono text-lg uppercase tracking-[0.2em] text-primary">
@@ -186,16 +240,43 @@ function Dashboard({
   session,
   onLock,
   onInject,
+  activeTabId,
+  tabName,
 }: {
   session: VaultSession;
   onLock: () => void;
-  onInject: (label: string) => void;
+  onInject: (label: string, prevTabId: string | null) => void;
+  activeTabId: string;
+  tabName: (id: string) => string;
 }) {
   const [pots, setPots] = useState<HoneyPot[]>(session.pots);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<HoneyPot | null>(null);
   const [adding, setAdding] = useState(false);
+  const [accessLog, setAccessLog] = useState<AccessEvent[]>([]);
+  const [logOpen, setLogOpen] = useState(false);
+  const [lockMin, setLockMin] = useState<LockTimeout>(loadLockTimeoutMinutes());
+  const [moveConfirm, setMoveConfirm] = useState<{ potName: string; priorTabId: string } | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+
+  // Any user interaction in the dashboard resets the auto-lock timer.
+  useEffect(() => {
+    const handler = () => resetAutoLock();
+    const root = document.body;
+    root.addEventListener("click", handler);
+    root.addEventListener("keydown", handler);
+    return () => {
+      root.removeEventListener("click", handler);
+      root.removeEventListener("keydown", handler);
+    };
+  }, []);
+
+  useEffect(() => subscribeAccessLog(setAccessLog), []);
+
+  // Keep the credential proxy in sync with current decrypted pots.
+  useEffect(() => {
+    setUnlockedPots(pots);
+  }, [pots]);
 
   useEffect(() => {
     setVaultSnapshot(pots.map((p) => ({ id: p.id, emoji: p.emoji, service: p.service })));
@@ -326,13 +407,72 @@ function Dashboard({
                 onEdit={() => setEditing(pot)}
                 onDelete={() => handleDelete(pot)}
                 onInject={() => {
+                  // Single-tab enforcement: if injected elsewhere, ask first.
+                  const prior = getInjectionForPot(pot.service);
+                  if (prior && prior !== activeTabId) {
+                    setMoveConfirm({ potName: pot.service, priorTabId: prior });
+                    return;
+                  }
+                  injectPot(pot.service, activeTabId);
                   emitActivity({ kind: "vault", icon: "🍯", text: `${pot.service} · injected` });
-                  onInject(pot.service);
+                  onInject(pot.service, prior);
                 }}
               />
             ))}
           </div>
         )}
+
+        {/* 🔍 ACCESS LOG */}
+        <div className="mt-6 pt-3 border-t border-border">
+          <button
+            type="button"
+            onClick={() => setLogOpen((v) => !v)}
+            className="flex items-center gap-2 font-mono text-[11px] tracking-[0.15em] uppercase text-primary"
+          >
+            <span>{logOpen ? "▼" : "▶"}</span>
+            <span>🔍 Access Log</span>
+            <span className="text-muted-foreground">({accessLog.length})</span>
+          </button>
+          {logOpen && (
+            <div className="mt-2 rounded border border-border bg-background/40 p-2">
+              {accessLog.length === 0 ? (
+                <div className="font-mono text-[10px] py-2 px-1" style={{ color: "#444" }}>
+                  No credential accesses yet.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  {accessLog.map((ev) => (
+                    <div
+                      key={ev.id}
+                      className="font-mono text-[10px] flex items-center gap-2"
+                      style={{ color: "#bbb" }}
+                    >
+                      <span style={{ color: "#ffaa00" }}>🔑</span>
+                      <span style={{ color: "#eee" }}>{ev.potName}</span>
+                      <span style={{ color: "#666" }}>·</span>
+                      <span style={{ color: "#00bfff" }}>{ev.field}</span>
+                      <span style={{ color: "#666" }}>·</span>
+                      <span style={{ color: "#39ff14" }}>{ev.agentName}</span>
+                      <span className="ml-auto" style={{ color: "#555" }}>
+                        {relativeTimeShort(ev.ts)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => clearAccessLog()}
+                  disabled={accessLog.length === 0}
+                  className="px-2 py-1 border border-border rounded font-mono text-[10px] tracking-[0.15em] text-muted-foreground hover:text-foreground hover:border-foreground/40 disabled:opacity-40"
+                >
+                  CLEAR LOG
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="mt-8 pt-4 border-t border-border font-mono text-[10px] text-muted-foreground/70 leading-relaxed">
           🔐 AES-256-GCM encrypted · Stored locally · Never transmitted
@@ -365,6 +505,28 @@ function Dashboard({
               }}
             />
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="uppercase tracking-[0.15em]">Auto-lock after:</span>
+            {([5, 15, 30, 60, 0] as LockTimeout[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setLockMin(m);
+                  saveLockTimeoutMinutes(m);
+                  resetAutoLock();
+                }}
+                className="px-2 py-0.5 rounded border font-mono text-[10px] tracking-[0.15em]"
+                style={{
+                  borderColor: lockMin === m ? "#ffaa00" : "#333",
+                  color: lockMin === m ? "#ffaa00" : "#888",
+                  background: lockMin === m ? "#ffaa0014" : "transparent",
+                }}
+              >
+                {m === 0 ? "Never" : m === 60 ? "1 hour" : `${m} min`}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -378,9 +540,75 @@ function Dashboard({
           onSave={handleSave}
         />
       )}
+
+      {moveConfirm && (
+        <div
+          className="fixed inset-0 z-[65] flex items-center justify-center"
+          style={{ background: "#000000cc", backdropFilter: "blur(4px)" }}
+          onClick={() => setMoveConfirm(null)}
+        >
+          <div
+            className="rounded-lg p-5 w-[420px] max-w-[92vw]"
+            style={{ background: "#0a0a0a", border: "1px solid #ffaa00" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="font-mono text-[12px] tracking-[0.15em] mb-3"
+              style={{ color: "#ffaa00" }}
+            >
+              ⚠ HONEY POT ALREADY INJECTED
+            </div>
+            <p className="font-sans text-[12px] mb-4" style={{ color: "#ccc" }}>
+              <span style={{ color: "#ffaa00" }}>{moveConfirm.potName}</span> is already
+              injected into <span style={{ color: "#39ff14" }}>{tabName(moveConfirm.priorTabId)}</span>.
+              Injecting into <span style={{ color: "#39ff14" }}>{tabName(activeTabId)}</span>{" "}
+              will remove it from {tabName(moveConfirm.priorTabId)}.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setMoveConfirm(null)}
+                className="px-3 py-1.5 rounded border font-mono text-[11px] tracking-[0.15em]"
+                style={{ borderColor: "#333", color: "#888" }}
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const prior = moveConfirm.priorTabId;
+                  const name = moveConfirm.potName;
+                  injectPot(name, activeTabId);
+                  emitActivity({ kind: "vault", icon: "🍯", text: `${name} · moved to ${tabName(activeTabId)}` });
+                  onInject(name, prior);
+                  setMoveConfirm(null);
+                }}
+                className="px-3 py-1.5 rounded font-mono text-[11px] tracking-[0.15em]"
+                style={{ background: "#ffaa00", color: "#000" }}
+              >
+                MOVE INJECTION
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+function relativeTimeShort(ts: number): string {
+  const diff = Math.max(0, Date.now() - ts);
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+// Subscribe to injection registry once at module load (debug aid; no-op).
+subscribeInjection(() => {});
 
 // ---------- POT CARD ----------
 
