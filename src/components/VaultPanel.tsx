@@ -325,7 +325,10 @@ function Dashboard({
                 pot={pot}
                 onEdit={() => setEditing(pot)}
                 onDelete={() => handleDelete(pot)}
-                onInject={() => onInject(pot.service)}
+                onInject={() => {
+                  emitActivity({ kind: "vault", icon: "🍯", text: `${pot.service} · injected` });
+                  onInject(pot.service);
+                }}
               />
             ))}
           </div>
