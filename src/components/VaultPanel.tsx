@@ -16,6 +16,26 @@ import {
 } from "@/lib/vault";
 import { setVaultSnapshot } from "@/lib/vault-snapshot";
 import { emitActivity } from "@/lib/activity-feed";
+import {
+  setUnlockedPots,
+  clearUnlockedPots,
+  subscribeAccessLog,
+  clearAccessLog,
+  type AccessEvent,
+} from "@/lib/credential-proxy";
+import {
+  loadLockTimeoutMinutes,
+  saveLockTimeoutMinutes,
+  startAutoLock,
+  resetAutoLock,
+  stopAutoLock,
+  type LockTimeout,
+} from "@/lib/vault-autolock";
+import {
+  subscribeInjection,
+  injectPot,
+  getInjectionForPot,
+} from "@/lib/injection-registry";
 
 const EMOJIS = ["🐝","🍯","🔑","🗝","🛡","⚡","🌐","📧","💬","🐙","🦊","🦁","🐺","🎭","🎪","🚀","🔮","🧪","🦋","🌶"];
 const CATEGORIES: Category[] = ["EMAIL", "SOCIAL", "HOSTING", "API", "DATABASE", "OTHER"];
