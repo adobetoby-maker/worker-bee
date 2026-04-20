@@ -28,7 +28,9 @@ export function buildEnrichedSystemPrompt(ctx: PromptContext): string {
       `  Slack: ${conn.slack.workspace} — you can post to ${conn.slack.defaultChannel}`,
     );
   if (conn.whatsapp)
-    connected.push(`  WhatsApp: ${conn.whatsapp.testRecipient} — you can send WhatsApp messages`);
+    connected.push(
+      `  WhatsApp (Twilio Sandbox): ${conn.whatsapp.yourNumber} — you can send WhatsApp messages from ${conn.whatsapp.twilioNumber}`,
+    );
   lines.push(`CONNECTIONS: ${connected.length === 0 ? "none" : ""}`);
   if (connected.length) lines.push(...connected);
   lines.push("");
