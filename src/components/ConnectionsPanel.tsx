@@ -1,13 +1,10 @@
 import { useState, type ReactNode } from "react";
-import {
-  loadConnections,
-  saveConnections,
-  type ConnectionsState,
-  type ServiceId,
-} from "@/lib/connections";
+import { type ConnectionsState, type ServiceId } from "@/lib/connections";
 import { nowTs, type LogLine } from "@/lib/agent-state";
 
 interface Props {
+  state: ConnectionsState;
+  onChange: (next: ConnectionsState) => void;
   appendLog: (line: LogLine) => void;
   onSaveToVault?: (label: string, value: string, category: "EMAIL" | "SOCIAL") => void;
 }
