@@ -118,6 +118,7 @@ export function ChatView({
   const stop = () => {
     abortRef.current?.abort();
     abortRef.current = null;
+    sendStop(tabId);
     setStreaming(false);
   };
 
@@ -132,67 +133,63 @@ export function ChatView({
     onSendStart?.(text);
     appendLog({ ts: nowTs(), level: "ARROW", msg: `chat send chars=${text.length}` });
 
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    try {
-      const res = await fetch(`${endpoint.replace(/\/$/, "")}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          stream: true,
-          messages: [{ role: "system", content: resolvedSystemPrompt }, ...next],
-        }),
-        signal: controller.signal,
+    if (!isWSOpen(tabId)) {
+      appendLog({ ts: nowTs(), level: "ERR", msg: "chat: WebSocket not open — is agent running?" });
+      onMessagesChange((prev) => {
+        const copy = prev.slice();
+        copy[copy.length - 1] = { role: "assistant", content: "⚠ WebSocket not connected to agent. Start the Worker Bee agent server and reconnect in CONFIG." };
+        return copy;
       });
+      setStreaming(false);
+      onSendEnd?.();
+      return;
+    }
 
-      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let assistantText = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          try {
-            const json = JSON.parse(trimmed);
-            const tok = json.message?.content ?? "";
-            if (tok) {
-              assistantText += tok;
-              onMessagesChange((prev) => {
-                const copy = prev.slice();
-                copy[copy.length - 1] = { role: "assistant", content: assistantText };
-                return copy;
-              });
-            }
-          } catch {
-            // ignore malformed line
-          }
-        }
-      }
-
-      appendLog({ ts: nowTs(), level: "OK", msg: `response complete chars=${assistantText.length}` });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "stream error";
-      if (msg !== "AbortError" && !msg.includes("aborted")) {
-        appendLog({ ts: nowTs(), level: "ERR", msg: `chat: ${msg}` });
+    let assistantText = "";
+    let finished = false;
+    const finish = (errorText?: string) => {
+      if (finished) return;
+      finished = true;
+      unsub?.();
+      if (errorText) {
+        onMessagesChange((prev) => {
+          const copy = prev.slice();
+          copy[copy.length - 1] = { role: "assistant", content: `⚠ ${errorText}` };
+          return copy;
+        });
+        appendLog({ ts: nowTs(), level: "ERR", msg: `chat: ${errorText}` });
       } else {
-        appendLog({ ts: nowTs(), level: "ARROW", msg: "stream aborted" });
+        appendLog({ ts: nowTs(), level: "OK", msg: `response complete chars=${assistantText.length}` });
       }
-    } finally {
       setStreaming(false);
       abortRef.current = null;
       onSendEnd?.();
-    }
+    };
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    controller.signal.addEventListener("abort", () => {
+      appendLog({ ts: nowTs(), level: "ARROW", msg: "stream aborted" });
+      finish();
+    });
+
+    const unsub = subscribeAgentWS(tabId, {
+      onToken: (tok) => {
+        if (!tok) return;
+        assistantText += tok;
+        onMessagesChange((prev) => {
+          const copy = prev.slice();
+          copy[copy.length - 1] = { role: "assistant", content: assistantText };
+          return copy;
+        });
+      },
+      onDone: () => finish(),
+      onError: (msg) => finish(msg || "agent error"),
+      onClose: () => finish("WebSocket closed during stream"),
+    });
+
+    const ok = sendChat(tabId, text, model);
+    if (!ok) finish("failed to send over WebSocket");
   };
 
   const lastAutoTokenRef = useRef(0);

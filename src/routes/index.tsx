@@ -60,6 +60,7 @@ import {
 } from "@/lib/projects";
 import { diffLines } from "@/lib/diff";
 import { ejectAllForTab } from "@/lib/injection-registry";
+import { openAgentWS, closeAgentWS, sendPing } from "@/lib/agent-ws";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -730,6 +731,7 @@ function Index() {
                           style={{ display: t.id === activeTabId ? "flex" : "none" }}
                         >
                           <ChatView
+                            tabId={t.id}
                             endpoint={endpoint}
                             model={t.model ?? model}
                             connected={connected}
