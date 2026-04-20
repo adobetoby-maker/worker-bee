@@ -4,28 +4,13 @@ import { Header } from "@/components/Header";
 import { Sidebar, type View } from "@/components/Sidebar";
 import { ConfigPanel } from "@/components/ConfigPanel";
 import { ChatView } from "@/components/ChatView";
+import { ToolsPanel } from "@/components/ToolsPanel";
 import { INITIAL_LOG, type LogLine } from "@/lib/agent-state";
 
 export const Route = createFileRoute("/")({
   component: Index,
 });
 
-function ToolsView() {
-  return (
-    <div
-      className="flex flex-1 flex-col items-center justify-center"
-      style={{ animation: "var(--animate-slide-down)" }}
-    >
-      <div className="font-mono text-xs uppercase tracking-[0.3em] text-muted-foreground">
-        // registry
-      </div>
-      <div className="mt-3 font-mono text-2xl text-primary">4 tools registered</div>
-      <div className="mt-2 font-mono text-[11px] text-muted-foreground">
-        web_search · fs_read · shell · http_fetch
-      </div>
-    </div>
-  );
-}
 
 const ENABLED_TOOLS = ["web_search", "fs_read", "shell", "http_fetch"];
 
@@ -63,7 +48,7 @@ function Index() {
                 onStreamingChange={setStreaming}
               />
             )}
-            {active === "tools" && <ToolsView />}
+            {active === "tools" && <ToolsPanel appendLog={appendLog} />}
             {active === "config" && (
               <ConfigPanel
                 endpoint={endpoint}
