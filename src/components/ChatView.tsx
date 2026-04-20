@@ -36,6 +36,9 @@ interface Props {
   onMoveToFront?: () => void;
   onSendStart?: (text: string) => void;
   onSendEnd?: () => void;
+  // Project binding — when set, code blocks render save/copy/download toolbar
+  projectName?: string | null;
+  onSaveCodeBlock?: (language: string, code: string, suggestedName: string) => void;
 }
 
 export function ChatView({
@@ -62,6 +65,8 @@ export function ChatView({
   onMoveToFront,
   onSendStart,
   onSendEnd,
+  projectName = null,
+  onSaveCodeBlock,
 }: Props) {
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
@@ -247,15 +252,16 @@ export function ChatView({
                   borderRadius: isUser ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
                 }}
               >
-                <div className="whitespace-pre-wrap break-words">
-                  {m.content}
-                  {showCursor && (
-                    <span
-                      className="inline-block w-2 h-4 align-middle bg-primary ml-1"
-                      style={{ animation: "var(--animate-blink)" }}
-                    />
-                  )}
-                </div>
+                {isUser ? (
+                  <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                ) : (
+                  <AssistantContent
+                    content={m.content}
+                    showCursor={showCursor}
+                    projectName={projectName}
+                    onSaveCodeBlock={onSaveCodeBlock}
+                  />
+                )}
               </div>
               {isUser && (
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/40 bg-primary/10 text-base">
@@ -344,3 +350,113 @@ export function ChatView({
     </div>
   );
 }
+
+interface AssistantContentProps {
+  content: string;
+  showCursor: boolean;
+  projectName: string | null;
+  onSaveCodeBlock?: (language: string, code: string, suggestedName: string) => void;
+}
+
+function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock }: AssistantContentProps) {
+  // Split on fenced ```lang\n...\n``` code blocks
+  const parts: Array<{ type: "text" | "code"; lang?: string; text: string }> = [];
+  const re = /```([a-zA-Z0-9]*)\n([\s\S]*?)```/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content))) {
+    if (m.index > last) parts.push({ type: "text", text: content.slice(last, m.index) });
+    parts.push({ type: "code", lang: m[1] || "text", text: m[2] });
+    last = m.index + m[0].length;
+  }
+  if (last < content.length) parts.push({ type: "text", text: content.slice(last) });
+  if (parts.length === 0) parts.push({ type: "text", text: content });
+
+  return (
+    <div className="space-y-2">
+      {parts.map((p, i) => {
+        if (p.type === "text") {
+          return (
+            <div key={i} className="whitespace-pre-wrap break-words">
+              {p.text}
+              {showCursor && i === parts.length - 1 && (
+                <span
+                  className="inline-block w-2 h-4 align-middle bg-primary ml-1"
+                  style={{ animation: "var(--animate-blink)" }}
+                />
+              )}
+            </div>
+          );
+        }
+        const lang = p.lang ?? "text";
+        const guess = guessName(lang);
+        return (
+          <div key={i} className="rounded overflow-hidden" style={{ border: "1px solid #1a1a1a" }}>
+            <div
+              className="flex items-center gap-2 px-2 py-1 font-mono text-[10px]"
+              style={{ background: "#0a0a0a", color: "#888", borderBottom: "1px solid #1a1a1a" }}
+            >
+              <span style={{ color: "#ffaa00" }}>{lang}</span>
+              <div className="ml-auto flex gap-1">
+                {projectName && onSaveCodeBlock && (
+                  <button
+                    type="button"
+                    onClick={() => onSaveCodeBlock(lang, p.text, guess)}
+                    className="px-2 py-0.5 rounded text-[10px] tracking-[0.1em]"
+                    style={{ background: "#ffaa00", color: "#000" }}
+                    title={`Save to ${projectName}`}
+                  >
+                    💾 Save to Project
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(p.text)}
+                  className="px-2 py-0.5 rounded border text-[10px]"
+                  style={{ borderColor: "#333", color: "#aaa" }}
+                >
+                  📋 Copy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const blob = new Blob([p.text], { type: "text/plain" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = guess;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="px-2 py-0.5 rounded border text-[10px]"
+                  style={{ borderColor: "#333", color: "#aaa" }}
+                >
+                  ⬇ Download
+                </button>
+              </div>
+            </div>
+            <pre
+              className="px-3 py-2 overflow-x-auto font-mono text-[12px]"
+              style={{ background: "#080808", color: "#ccc" }}
+            >
+              {p.text}
+            </pre>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function guessName(lang: string): string {
+  switch (lang) {
+    case "html": return "index.html";
+    case "css": return "styles.css";
+    case "js": case "javascript": return "script.js";
+    case "ts": case "typescript": return "script.ts";
+    case "json": return "data.json";
+    case "md": case "markdown": return "README.md";
+    default: return "snippet.txt";
+  }
+}
+
