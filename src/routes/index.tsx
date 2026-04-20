@@ -236,6 +236,13 @@ function Index() {
 
   return (
     <div className="flex flex-col h-screen w-full bg-background text-foreground">
+      {showAdvisor && (
+        <MachineLimitAdvisor
+          initialProfile={machineProfile}
+          onSave={handleSaveProfile}
+          onSkip={handleSkipProfile}
+        />
+      )}
       <Header
         connected={connected}
         model={activeTab.model ?? model}
