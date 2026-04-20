@@ -62,7 +62,7 @@ export function ChatView({
 
   const resolvedSystemPrompt =
     systemPrompt ??
-    `You are OpenClaw, a powerful AI assistant running via Ollama. Available tools: ${enabledTools.join(", ") || "none"}.`;
+    `You are Worker Bee, a website-building AI agent running via Ollama. Available tools: ${enabledTools.join(", ") || "none"}.`;
 
   const stop = () => {
     abortRef.current?.abort();
@@ -217,7 +217,7 @@ export function ChatView({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder={connected ? "Message OpenClaw…  (Enter to send · Shift+Enter newline)" : "Connect to Ollama in CONFIG first"}
+            placeholder={connected ? "Message Worker Bee…  (Enter to send · Shift+Enter newline)" : "Connect to Ollama in CONFIG first"}
             className="flex-1 resize-none font-mono text-[13px] bg-background border-border focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--primary)_25%,transparent)]"
           />
           <button

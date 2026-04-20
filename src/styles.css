@@ -51,7 +51,7 @@
   --card-foreground: oklch(0.92 0 0);
   --popover: oklch(0.16 0 0);
   --popover-foreground: oklch(0.92 0 0);
-  --primary: oklch(0.72 0.21 47);         /* neon orange #ff6b00 */
+  --primary: oklch(0.80 0.17 78);         /* amber #ffaa00 */
   --primary-foreground: oklch(0.12 0 0);
   --secondary: oklch(0.22 0 0);
   --secondary-foreground: oklch(0.92 0 0);
@@ -65,7 +65,7 @@
   --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(0.26 0 0);              /* ~#1f1f1f */
   --input: oklch(0.26 0 0);
-  --ring: oklch(0.72 0.21 47);
+  --ring: oklch(0.80 0.17 78);
 }
 
 @keyframes blink {
@@ -121,6 +121,29 @@
   20%  { opacity: 1; transform: translateY(0); }
   80%  { opacity: 1; }
   100% { opacity: 0; }
+}
+
+@keyframes bee-bob {
+  0%, 100% { transform: translateY(-3px); }
+  50%      { transform: translateY(3px); }
+}
+
+@keyframes bee-wing {
+  0%, 100% { transform: scaleX(1); }
+  50%      { transform: scaleX(1.35); }
+}
+
+@keyframes bee-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-3px); }
+  40%      { transform: translateX(3px); }
+  60%      { transform: translateX(-2px); }
+  80%      { transform: translateX(2px); }
+}
+
+@keyframes tagline-fade {
+  0%, 100% { opacity: 0; }
+  10%, 90% { opacity: 1; }
 }
 
 @layer base {
