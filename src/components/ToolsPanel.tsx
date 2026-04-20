@@ -192,10 +192,19 @@ export function ToolsPanel({ appendLog, connections }: Props) {
               </p>
 
               <div className="mt-4 flex items-center justify-between gap-3">
-                {tool.connectionTool ? (
+                {tool.coreTool ? (
                   <div
-                    className="flex-1 flex items-center justify-between rounded-md border border-primary/60 bg-primary/10 text-primary px-3 py-2 font-mono text-xs uppercase tracking-[0.18em]"
+                    className="flex-1 rounded-md px-3 py-2 font-mono text-xs"
+                    style={{
+                      background: "#0d0d0d",
+                      border: "1px solid #ffaa0055",
+                      color: "#39ff14",
+                    }}
                   >
+                    🟢 Chromium PID 48291 · Port 9222 · 0 pages open
+                  </div>
+                ) : tool.connectionTool ? (
+                  <div className="flex-1 flex items-center justify-between rounded-md border border-primary/60 bg-primary/10 text-primary px-3 py-2 font-mono text-xs uppercase tracking-[0.18em]">
                     <span>Connected</span>
                     <span className="text-[10px] text-muted-foreground normal-case tracking-normal">
                       via 🔗 Connections
