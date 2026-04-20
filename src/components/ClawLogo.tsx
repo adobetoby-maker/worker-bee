@@ -1,10 +1,11 @@
 interface ClawLogoProps {
   size?: number;
-  active?: boolean;
+  streaming?: boolean;
   className?: string;
 }
 
-export function ClawLogo({ size = 28, active = true, className = "" }: ClawLogoProps) {
+export function ClawLogo({ size = 28, streaming = false, className = "" }: ClawLogoProps) {
+  const color = streaming ? "var(--success)" : "var(--primary)";
   return (
     <svg
       width={size}
@@ -14,14 +15,16 @@ export function ClawLogo({ size = 28, active = true, className = "" }: ClawLogoP
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       style={{
-        transformOrigin: "24px 8px",
-        animation: active ? "var(--animate-swing-claw)" : undefined,
+        color,
+        animation: streaming ? "var(--animate-swing-claw)" : undefined,
+        filter: streaming
+          ? "drop-shadow(0 0 6px var(--success)) drop-shadow(0 0 12px color-mix(in oklab, var(--success) 60%, transparent))"
+          : undefined,
+        transition: "color 200ms ease, filter 200ms ease",
       }}
       aria-hidden="true"
     >
-      {/* Pivot */}
       <circle cx="24" cy="8" r="2.5" fill="currentColor" />
-      {/* Three prongs */}
       <path
         d="M24 10 L12 36 L16 40"
         stroke="currentColor"
@@ -43,7 +46,6 @@ export function ClawLogo({ size = 28, active = true, className = "" }: ClawLogoP
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Inner accent */}
       <path
         d="M20 22 L24 28 L28 22"
         stroke="currentColor"
