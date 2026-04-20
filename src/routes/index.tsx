@@ -120,6 +120,19 @@ function Index() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [injectedByTab, setInjectedByTab] = useState<Record<string, string[]>>({});
   const [vaultPots, setVaultPots] = useState<PotSnapshot[]>([]);
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [queueState, setQueueState] = useState<QueueState>({
+    activeTabId: null,
+    activeStartedAt: null,
+    activePreview: "",
+    activeModel: null,
+    queue: [],
+    parallelMode: false,
+  });
+  const [autoSendByTab, setAutoSendByTab] = useState<Record<string, { token: number; text: string }>>({});
+  const [flashTurnTabId, setFlashTurnTabId] = useState<string | null>(null);
+
+  useEffect(() => subscribeQueue(setQueueState), []);
 
   useEffect(() => {
     if (typeof window !== "undefined" && isBrandNewUser()) setShowOnboarding(true);
