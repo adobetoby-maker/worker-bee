@@ -1,4 +1,4 @@
-import { useMemo, useRef, forwardRef } from "react";
+import { forwardRef, useMemo, useRef } from "react";
 import { diffLines, type DiffRow, type WordSeg } from "@/lib/diff";
 
 interface Props {
@@ -149,7 +149,6 @@ const DiffColumn = forwardRef<HTMLDivElement, ColumnProps>(function DiffCol(
 });
 
 function DiffRowCell({ row, side }: { row: DiffRow; side: "left" | "right" }) {
-  // Decide background, gutter color/marker, and line text per side & op.
   let bg = "transparent";
   let gutterColor = "#333";
   let marker = " ";
@@ -173,7 +172,7 @@ function DiffRowCell({ row, side }: { row: DiffRow; side: "left" | "right" }) {
       marker = "~";
       textColor = "#ff9b9b";
     } else if (row.op === "add") {
-      bg = "#001a0044"; // faint green tint on left for added rows
+      bg = "#001a0044";
       text = "";
       lineNo = undefined;
     }
@@ -192,7 +191,7 @@ function DiffRowCell({ row, side }: { row: DiffRow; side: "left" | "right" }) {
       marker = "~";
       textColor = "#9bff9b";
     } else if (row.op === "remove") {
-      bg = "#1a000044"; // faint red tint on right for removed rows
+      bg = "#1a000044";
       text = "";
       lineNo = undefined;
     }
