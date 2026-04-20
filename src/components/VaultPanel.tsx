@@ -422,6 +422,58 @@ function Dashboard({
           </div>
         )}
 
+        {/* 🔍 ACCESS LOG */}
+        <div className="mt-6 pt-3 border-t border-border">
+          <button
+            type="button"
+            onClick={() => setLogOpen((v) => !v)}
+            className="flex items-center gap-2 font-mono text-[11px] tracking-[0.15em] uppercase text-primary"
+          >
+            <span>{logOpen ? "▼" : "▶"}</span>
+            <span>🔍 Access Log</span>
+            <span className="text-muted-foreground">({accessLog.length})</span>
+          </button>
+          {logOpen && (
+            <div className="mt-2 rounded border border-border bg-background/40 p-2">
+              {accessLog.length === 0 ? (
+                <div className="font-mono text-[10px] py-2 px-1" style={{ color: "#444" }}>
+                  No credential accesses yet.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  {accessLog.map((ev) => (
+                    <div
+                      key={ev.id}
+                      className="font-mono text-[10px] flex items-center gap-2"
+                      style={{ color: "#bbb" }}
+                    >
+                      <span style={{ color: "#ffaa00" }}>🔑</span>
+                      <span style={{ color: "#eee" }}>{ev.potName}</span>
+                      <span style={{ color: "#666" }}>·</span>
+                      <span style={{ color: "#00bfff" }}>{ev.field}</span>
+                      <span style={{ color: "#666" }}>·</span>
+                      <span style={{ color: "#39ff14" }}>{ev.agentName}</span>
+                      <span className="ml-auto" style={{ color: "#555" }}>
+                        {relativeTimeShort(ev.ts)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => clearAccessLog()}
+                  disabled={accessLog.length === 0}
+                  className="px-2 py-1 border border-border rounded font-mono text-[10px] tracking-[0.15em] text-muted-foreground hover:text-foreground hover:border-foreground/40 disabled:opacity-40"
+                >
+                  CLEAR LOG
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="mt-8 pt-4 border-t border-border font-mono text-[10px] text-muted-foreground/70 leading-relaxed">
           🔐 AES-256-GCM encrypted · Stored locally · Never transmitted
           <br />
