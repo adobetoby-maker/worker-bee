@@ -756,6 +756,7 @@ function Index() {
                               });
                               setActive("projects");
                             }}
+                            onSmokeTest={() => runSmokeTest(t.name)}
                           />
                         </div>
                       ))}
