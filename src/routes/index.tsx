@@ -732,6 +732,28 @@ function Index() {
                 </div>
               </>
             )}
+            {active === "projects" && (
+              openProjectId ? (
+                <ProjectWorkspace
+                  projectId={openProjectId}
+                  onBack={() => setOpenProjectId(null)}
+                  onEditInAgent={(filename, content) => {
+                    setActive("chat");
+                    setInputDraft(
+                      activeTabId,
+                      `Here is the current ${filename}. Please \n\n\`\`\`\n${content}\n\`\`\``,
+                    );
+                  }}
+                  appendLog={(msg) => appendLog({ ts: nowTs(), level: "OK", msg })}
+                />
+              ) : (
+                <ProjectsDashboard
+                  tabs={tabs.map((t) => ({ id: t.id, name: t.name }))}
+                  onOpenProject={(id) => setOpenProjectId(id)}
+                  appendLog={(msg) => appendLog({ ts: nowTs(), level: "OK", msg })}
+                />
+              )
+            )}
             {active === "tools" && <ToolsPanel appendLog={appendLog} connections={connections} />}
             {active === "vault" && (
               <VaultPanel
