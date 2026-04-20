@@ -200,3 +200,16 @@
     scrollbar-color: #2a2a2a #0a0a0a;
   }
 }
+
+@keyframes wizard-slide-in-right {
+  from { transform: translateX(40px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes wizard-slide-in-left {
+  from { transform: translateX(-40px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes tagline-fade {
+  0%, 100% { opacity: 0; }
+  10%, 90% { opacity: 1; }
+}
