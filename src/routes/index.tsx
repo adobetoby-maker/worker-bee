@@ -468,7 +468,7 @@ function Index() {
                 </div>
               </>
             )}
-            {active === "tools" && <ToolsPanel appendLog={appendLog} />}
+            {active === "tools" && <ToolsPanel appendLog={appendLog} connections={connections} />}
             {active === "vault" && (
               <VaultPanel
                 onInject={(label) => {
