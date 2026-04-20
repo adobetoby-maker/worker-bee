@@ -82,7 +82,7 @@ export function ToolsPanel({ appendLog, connections }: Props) {
         connectionTool: true,
       });
     }
-    return [...conn, ...BASE_TOOLS];
+    return [PLAYWRIGHT_TOOL, ...conn, ...BASE_TOOLS];
   }, [connections]);
 
   const [state, setState] = useState<Record<string, ToolState>>(() =>
@@ -95,7 +95,7 @@ export function ToolsPanel({ appendLog, connections }: Props) {
   );
 
   const getToolState = (tool: Tool): ToolState =>
-    tool.connectionTool
+    tool.connectionTool || tool.coreTool
       ? { installed: true, enabled: true, installing: false }
       : (state[tool.id] ?? { installed: false, enabled: false, installing: false });
 
