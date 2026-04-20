@@ -505,6 +505,28 @@ function Dashboard({
               }}
             />
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="uppercase tracking-[0.15em]">Auto-lock after:</span>
+            {([5, 15, 30, 60, 0] as LockTimeout[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setLockMin(m);
+                  saveLockTimeoutMinutes(m);
+                  resetAutoLock();
+                }}
+                className="px-2 py-0.5 rounded border font-mono text-[10px] tracking-[0.15em]"
+                style={{
+                  borderColor: lockMin === m ? "#ffaa00" : "#333",
+                  color: lockMin === m ? "#ffaa00" : "#888",
+                  background: lockMin === m ? "#ffaa0014" : "transparent",
+                }}
+              >
+                {m === 0 ? "Never" : m === 60 ? "1 hour" : `${m} min`}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -518,9 +540,75 @@ function Dashboard({
           onSave={handleSave}
         />
       )}
+
+      {moveConfirm && (
+        <div
+          className="fixed inset-0 z-[65] flex items-center justify-center"
+          style={{ background: "#000000cc", backdropFilter: "blur(4px)" }}
+          onClick={() => setMoveConfirm(null)}
+        >
+          <div
+            className="rounded-lg p-5 w-[420px] max-w-[92vw]"
+            style={{ background: "#0a0a0a", border: "1px solid #ffaa00" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="font-mono text-[12px] tracking-[0.15em] mb-3"
+              style={{ color: "#ffaa00" }}
+            >
+              ⚠ HONEY POT ALREADY INJECTED
+            </div>
+            <p className="font-sans text-[12px] mb-4" style={{ color: "#ccc" }}>
+              <span style={{ color: "#ffaa00" }}>{moveConfirm.potName}</span> is already
+              injected into <span style={{ color: "#39ff14" }}>{tabName(moveConfirm.priorTabId)}</span>.
+              Injecting into <span style={{ color: "#39ff14" }}>{tabName(activeTabId)}</span>{" "}
+              will remove it from {tabName(moveConfirm.priorTabId)}.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setMoveConfirm(null)}
+                className="px-3 py-1.5 rounded border font-mono text-[11px] tracking-[0.15em]"
+                style={{ borderColor: "#333", color: "#888" }}
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const prior = moveConfirm.priorTabId;
+                  const name = moveConfirm.potName;
+                  injectPot(name, activeTabId);
+                  emitActivity({ kind: "vault", icon: "🍯", text: `${name} · moved to ${tabName(activeTabId)}` });
+                  onInject(name, prior);
+                  setMoveConfirm(null);
+                }}
+                className="px-3 py-1.5 rounded font-mono text-[11px] tracking-[0.15em]"
+                style={{ background: "#ffaa00", color: "#000" }}
+              >
+                MOVE INJECTION
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+function relativeTimeShort(ts: number): string {
+  const diff = Math.max(0, Date.now() - ts);
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+// Subscribe to injection registry once at module load (debug aid; no-op).
+subscribeInjection(() => {});
 
 // ---------- POT CARD ----------
 
