@@ -414,6 +414,7 @@ function Index() {
                       msg: `${activeTab.name} history cleared`,
                     });
                   }}
+                  onInjectPrompt={(p) => setInputDraft(activeTab.id, p)}
                 />
                 <div className="relative flex flex-1 min-h-0">
                   {editingPromptTabId === activeTab.id ? (
@@ -451,6 +452,8 @@ function Index() {
                               updateTab(t.id, { isStreaming: s, ...(s ? { hasError: false } : {}) });
                             }}
                             stopToken={t.stopToken}
+                            inputDraft={inputDrafts[t.id] ?? ""}
+                            onInputDraftChange={(v) => setInputDraft(t.id, v)}
                           />
                         </div>
                       ))}
