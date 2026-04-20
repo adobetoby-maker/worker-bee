@@ -45,6 +45,18 @@ import {
   estimatedWaitSeconds,
   type QueueState,
 } from "@/lib/agent-queue";
+import { ProjectsDashboard } from "@/components/ProjectsDashboard";
+import { ProjectWorkspace } from "@/components/ProjectWorkspace";
+import {
+  subscribeProjects,
+  bindTabToProject,
+  projectForTab,
+  addFile,
+  guessFilenameFromCode,
+  languageFromFenceLabel,
+  formatBytes,
+  type Project,
+} from "@/lib/projects";
 
 export const Route = createFileRoute("/")({
   component: Index,
