@@ -142,9 +142,11 @@ export function ToolsPanel({ appendLog, connections }: Props) {
       <div className="grid gap-4 p-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
         {TOOLS.map((tool) => {
           const s = getToolState(tool);
-          const glow = s.enabled
-            ? "border-primary shadow-[0_0_24px_-6px_var(--primary)]"
-            : "border-border";
+          const glow = tool.coreTool
+            ? "border-[#ffaa00] shadow-[0_0_28px_-4px_#ffaa00aa]"
+            : s.enabled
+              ? "border-primary shadow-[0_0_24px_-6px_var(--primary)]"
+              : "border-border";
           return (
             <div
               key={tool.id}
@@ -152,7 +154,10 @@ export function ToolsPanel({ appendLog, connections }: Props) {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-background border border-border text-xl">
+                  <div
+                    className="flex h-10 w-10 items-center justify-center rounded-md bg-background border border-border text-xl"
+                    style={tool.coreTool ? { borderColor: "#ffaa00aa" } : undefined}
+                  >
                     {tool.icon}
                   </div>
                   <div>
@@ -164,7 +169,14 @@ export function ToolsPanel({ appendLog, connections }: Props) {
                     </div>
                   </div>
                 </div>
-                {tool.connectionTool ? (
+                {tool.coreTool ? (
+                  <span
+                    className="font-mono text-[10px] uppercase tracking-[0.15em] px-2 py-0.5 rounded font-bold"
+                    style={{ background: "#ffaa00", color: "#000" }}
+                  >
+                    🔒 CORE — ALWAYS ON
+                  </span>
+                ) : tool.connectionTool ? (
                   <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-success border border-success/40 bg-success/10 px-2 py-0.5 rounded">
                     ● LIVE
                   </span>
