@@ -14,6 +14,8 @@ import {
   type HoneyPot,
   type VaultSession,
 } from "@/lib/vault";
+import { setVaultSnapshot } from "@/lib/vault-snapshot";
+import { emitActivity } from "@/lib/activity-feed";
 
 const EMOJIS = ["🐝","🍯","🔑","🗝","🛡","⚡","🌐","📧","💬","🐙","🦊","🦁","🐺","🎭","🎪","🚀","🔮","🧪","🦋","🌶"];
 const CATEGORIES: Category[] = ["EMAIL", "SOCIAL", "HOSTING", "API", "DATABASE", "OTHER"];
