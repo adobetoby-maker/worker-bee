@@ -407,8 +407,15 @@ function Dashboard({
                 onEdit={() => setEditing(pot)}
                 onDelete={() => handleDelete(pot)}
                 onInject={() => {
+                  // Single-tab enforcement: if injected elsewhere, ask first.
+                  const prior = getInjectionForPot(pot.service);
+                  if (prior && prior !== activeTabId) {
+                    setMoveConfirm({ potName: pot.service, priorTabId: prior });
+                    return;
+                  }
+                  injectPot(pot.service, activeTabId);
                   emitActivity({ kind: "vault", icon: "🍯", text: `${pot.service} · injected` });
-                  onInject(pot.service);
+                  onInject(pot.service, prior);
                 }}
               />
             ))}
