@@ -48,6 +48,10 @@ interface TabControlsProps {
   onOpenPrompt: () => void;
   onClear: () => void;
   onInjectPrompt?: (text: string) => void;
+  // Project binding
+  projects?: { id: string; emoji: string; name: string }[];
+  activeProjectId?: string | null;
+  onProjectChange?: (id: string | null) => void;
 }
 
 export function TabControls({
@@ -58,6 +62,9 @@ export function TabControls({
   onOpenPrompt,
   onClear,
   onInjectPrompt,
+  projects = [],
+  activeProjectId = null,
+  onProjectChange,
 }: TabControlsProps) {
   const [confirming, setConfirming] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(false);
