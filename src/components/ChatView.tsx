@@ -18,6 +18,8 @@ interface Props {
   appendLog: (line: LogLine) => void;
   onStreamingChange: (streaming: boolean) => void;
   stopToken?: number;
+  inputDraft?: string;
+  onInputDraftChange?: (v: string) => void;
 }
 
 export function ChatView({
@@ -31,8 +33,15 @@ export function ChatView({
   appendLog,
   onStreamingChange,
   stopToken = 0,
+  inputDraft,
+  onInputDraftChange,
 }: Props) {
-  const [input, setInput] = useState("");
+  const [localInput, setLocalInput] = useState("");
+  const input = inputDraft !== undefined ? inputDraft : localInput;
+  const setInput = (v: string) => {
+    if (onInputDraftChange) onInputDraftChange(v);
+    else setLocalInput(v);
+  };
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
