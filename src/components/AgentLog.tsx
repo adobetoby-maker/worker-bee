@@ -35,6 +35,15 @@ export function AgentLog({ lines }: Props) {
       >
         {lines.map((line, i) => {
           const tag = tagFor(line.level);
+          if (line.smoke) {
+            return (
+              <div key={i} className="whitespace-pre" style={{ color: "#39ff14" }}>
+                <span style={{ color: "#39ff1499" }}>[{line.ts}]</span>{" "}
+                <span>{tag.label}</span>{" "}
+                <span>{line.msg}</span>
+              </div>
+            );
+          }
           return (
             <div key={i} className="whitespace-pre text-muted-foreground">
               <span className="text-muted-foreground/60">[{line.ts}]</span>{" "}
