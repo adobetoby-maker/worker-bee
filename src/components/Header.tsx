@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { BeeLogo } from "./BeeLogo";
 import { StatusBadge } from "./StatusBadge";
+import { ActivityFeed } from "./ActivityFeed";
 
 interface HeaderProps {
   connected: boolean;
@@ -10,6 +11,7 @@ interface HeaderProps {
   error?: boolean;
   services?: { gmail: boolean; slack: boolean; whatsapp: boolean };
   onServiceClick?: () => void;
+  onSearchOpen?: () => void;
 }
 
 const TAGLINES = [
@@ -19,7 +21,7 @@ const TAGLINES = [
   "Fueled by Ollama. Guided by you.",
 ];
 
-export function Header({ connected, model, toolCount, streaming = false, error = false, services, onServiceClick }: HeaderProps) {
+export function Header({ connected, model, toolCount, streaming = false, error = false, services, onServiceClick, onSearchOpen }: HeaderProps) {
   const [taglineIdx, setTaglineIdx] = useState(0);
 
   useEffect(() => {
@@ -103,6 +105,17 @@ export function Header({ connected, model, toolCount, streaming = false, error =
             })}
           </div>
         )}
+        <div className="flex items-center gap-1 ml-1 pl-2 border-l border-border">
+          <ActivityFeed />
+          <button
+            type="button"
+            onClick={onSearchOpen}
+            title="Search (⌘K)"
+            className="text-base leading-none px-1.5 py-0.5 rounded hover:bg-surface-2/40 transition"
+          >
+            🔍
+          </button>
+        </div>
       </div>
     </header>
   );
