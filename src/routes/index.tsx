@@ -47,6 +47,7 @@ import {
 } from "@/lib/agent-queue";
 import { ProjectsDashboard } from "@/components/ProjectsDashboard";
 import { ProjectWorkspace } from "@/components/ProjectWorkspace";
+import { DiffViewer } from "@/components/DiffViewer";
 import {
   subscribeProjects,
   bindTabToProject,
@@ -57,6 +58,7 @@ import {
   formatBytes,
   type Project,
 } from "@/lib/projects";
+import { diffLines } from "@/lib/diff";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -147,6 +149,13 @@ function Index() {
   useEffect(() => subscribeQueue(setQueueState), []);
   const [projects, setProjects] = useState<Project[]>([]);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
+  const [diffState, setDiffState] = useState<{
+    projectId: string;
+    filePath: string;
+    before: string;
+    after: string;
+    fromTabName?: string;
+  } | null>(null);
   useEffect(() => subscribeProjects(setProjects), []);
 
   useEffect(() => {
