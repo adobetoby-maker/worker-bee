@@ -157,6 +157,14 @@ function LockScreen({
         className="w-full max-w-md rounded-lg border border-primary/30 bg-surface/80 p-8 shadow-[0_0_60px_-20px_var(--primary)]"
         style={{ animation: "var(--animate-slide-down)" }}
       >
+        {autoLockedBanner && (
+          <div
+            className="mb-4 rounded px-3 py-2 font-mono text-[11px]"
+            style={{ background: "#1a1200", color: "#ffaa00", border: "1px solid #ffaa0066" }}
+          >
+            🔒 Vault auto-locked after inactivity. Re-enter master password to continue.
+          </div>
+        )}
         <div className="text-center mb-6">
           <div style={{ fontSize: 64, lineHeight: 1 }}>🔒</div>
           <h2 className="mt-4 font-mono text-lg uppercase tracking-[0.2em] text-primary">
