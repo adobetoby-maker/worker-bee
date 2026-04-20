@@ -184,27 +184,32 @@ export function ConnectionsPanel({ state, onChange, appendLog, onSaveToVault }: 
   };
 
   const connectWhatsApp = () => {
-    if (!waPhoneId || !waToken) return;
+    if (!waSid || !waToken || !waTwilioNumber || !waYourNumber) return;
+    // Friendly name would normally come from Twilio's /Accounts/{Sid}.json call.
+    // We derive a sensible default from the SID for the sandbox UI.
+    const friendlyName = `Twilio Account ${waSid.slice(0, 6)}…`;
     const next: ConnectionsState = {
       ...state,
       whatsapp: {
-        phoneNumberId: waPhoneId,
-        accessToken: waToken,
-        testRecipient: waRecipient,
-        displayName: "Worker Bee",
+        accountSid: waSid,
+        authToken: waToken,
+        twilioNumber: waTwilioNumber,
+        yourNumber: waYourNumber,
+        friendlyName,
+        messagesThisMonth: 0,
       },
     };
     persist(next);
-    appendLog({ ts: nowTs(), level: "OK", msg: "WhatsApp connection established" });
+    appendLog({ ts: nowTs(), level: "OK", msg: "WhatsApp (Twilio) connection established" });
     setVaultPrompt({
       service: "whatsapp",
-      label: "WhatsApp Access Token",
+      label: "Twilio Auth Token",
       secret: waToken,
       category: "SOCIAL",
     });
-    setWaPhoneId("");
+    setWaSid("");
     setWaToken("");
-    setWaRecipient("");
+    setWaYourNumber("");
   };
 
   const disconnect = (service: ServiceId) => {
@@ -213,12 +218,17 @@ export function ConnectionsPanel({ state, onChange, appendLog, onSaveToVault }: 
     appendLog({ ts: nowTs(), level: "ARROW", msg: `${service} disconnected` });
   };
 
-  const sendTest = () => {
-    if (!waToken && !state.whatsapp) return;
+  const sendTest = async () => {
+    const recipient = waYourNumber || state.whatsapp?.yourNumber;
+    if (!recipient) return;
+    setWaSending(true);
+    appendLog({ ts: nowTs(), level: "ARROW", msg: `Sending Twilio WhatsApp test to ${recipient}…` });
+    await new Promise((r) => setTimeout(r, 900));
+    setWaSending(false);
     appendLog({
       ts: nowTs(),
       level: "OK",
-      msg: `WhatsApp test message sent to ${waRecipient || state.whatsapp?.testRecipient}`,
+      msg: `🐝 Test WhatsApp delivered to ${recipient} via Twilio Sandbox`,
     });
   };
 
