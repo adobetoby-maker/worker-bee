@@ -4,6 +4,8 @@ export interface LogLine {
   ts: string;
   level: LogLevel;
   msg: string;
+  /** When true, the entire row renders in success-green for the smoke test. */
+  smoke?: boolean;
 }
 
 export const INITIAL_LOG: LogLine[] = [

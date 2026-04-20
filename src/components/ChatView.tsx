@@ -43,6 +43,8 @@ interface Props {
   // for a given code block; if a match exists a "↔ Compare" button appears.
   matchProjectFile?: (language: string, code: string, suggestedName: string) => string | null;
   onCompareCodeBlock?: (filePath: string, newContent: string) => void;
+  // Hidden developer smoke test — triggered by typing exactly "🐝🐝🐝".
+  onSmokeTest?: () => void;
 }
 
 export function ChatView({
@@ -73,6 +75,7 @@ export function ChatView({
   onSaveCodeBlock,
   matchProjectFile,
   onCompareCodeBlock,
+  onSmokeTest,
 }: Props) {
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
@@ -201,6 +204,12 @@ export function ChatView({
   const send = async () => {
     const text = input.trim();
     if (!text || streaming) return;
+    // Hidden developer smoke test trigger.
+    if (text === "🐝🐝🐝" && onSmokeTest) {
+      setInput("");
+      onSmokeTest();
+      return;
+    }
     if (!connected || !model) {
       appendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
       return;
@@ -251,7 +260,7 @@ export function ChatView({
               <div
                 className={
                   isUser
-                    ? "max-w-[75%] px-4 py-3 text-sm text-primary-foreground bg-gradient-to-br from-primary to-primary-glow shadow-[var(--shadow-elegant,0_8px_24px_-12px_rgba(255,107,0,0.5))]"
+                    ? "max-w-[75%] px-4 py-3 text-sm text-primary-foreground bg-gradient-to-br from-primary to-primary-glow shadow-[var(--shadow-elegant,0_8px_24px_-12px_rgba(255,170,0,0.5))]"
                     : "max-w-[75%] px-4 py-3 text-sm text-foreground/90 bg-surface border border-border font-sans"
                 }
                 style={{
