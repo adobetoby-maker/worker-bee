@@ -16,10 +16,13 @@ export interface SlackConn {
   botUser: string;
 }
 export interface WhatsAppConn {
-  phoneNumberId: string;
-  accessToken: string;
-  testRecipient: string;
-  displayName: string;
+  // Twilio Sandbox-based connection
+  accountSid: string;
+  authToken: string;
+  twilioNumber: string; // e.g. whatsapp:+14155238886
+  yourNumber: string; // e.g. whatsapp:+15551234567 (verified sandbox recipient)
+  friendlyName: string; // friendly name returned by Twilio API
+  messagesThisMonth?: number;
 }
 
 export interface ConnectionsState {
