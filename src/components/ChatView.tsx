@@ -204,6 +204,12 @@ export function ChatView({
   const send = async () => {
     const text = input.trim();
     if (!text || streaming) return;
+    // Hidden developer smoke test trigger.
+    if (text === "🐝🐝🐝" && onSmokeTest) {
+      setInput("");
+      onSmokeTest();
+      return;
+    }
     if (!connected || !model) {
       appendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
       return;
