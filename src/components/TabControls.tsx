@@ -101,6 +101,29 @@ export function TabControls({
       </div>
 
       <div className="ml-auto flex items-center gap-2 relative">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setBrowserOpen((b) => !b)}
+            className={`px-3 py-1 rounded border text-[10px] uppercase tracking-[0.15em] transition-colors ${
+              browserOpen
+                ? "border-primary/60 text-primary bg-primary/10"
+                : "border-border text-muted-foreground hover:text-primary hover:border-primary/60"
+            }`}
+            title="Browser quick commands"
+          >
+            🎭 BROWSER
+          </button>
+          {browserOpen && (
+            <BrowserQuickCommands
+              onClose={() => setBrowserOpen(false)}
+              onInject={(p) => {
+                onInjectPrompt?.(p);
+                setBrowserOpen(false);
+              }}
+            />
+          )}
+        </div>
         <button
           type="button"
           onClick={onOpenPrompt}
