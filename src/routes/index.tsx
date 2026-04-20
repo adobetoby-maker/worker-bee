@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Header } from "@/components/Header";
 import { Sidebar, type View } from "@/components/Sidebar";
 import { ConfigPanel } from "@/components/ConfigPanel";
@@ -27,6 +27,7 @@ export const Route = createFileRoute("/")({
 
 const ENABLED_TOOLS = ["web_search", "fs_read", "shell", "http_fetch"];
 const TAB_COLORS = ["#ff6b00", "#39ff14", "#00bfff", "#ff3bff", "#ffcc00"];
+const TABS_STORAGE_KEY = "openclaw_tabs";
 
 const BOOT_MESSAGE: ChatMessage = {
   role: "assistant",
@@ -44,11 +45,35 @@ interface TabState extends ChatTab {
   messages: ChatMessage[];
   systemPrompt: string;
   isStreaming: boolean;
+  hasError: boolean;
   stopToken: number;
 }
 
 const defaultSystemPrompt = (tools: string[]) =>
   `You are OpenClaw, a powerful AI assistant running via Ollama. Available tools: ${tools.join(", ") || "none"}.`;
+
+function loadStoredTabs(): TabState[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(TABS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Array<Partial<TabState>>;
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    return parsed.map((t, i) => ({
+      id: t.id ?? crypto.randomUUID(),
+      name: t.name ?? `Agent ${i + 1}`,
+      color: t.color ?? TAB_COLORS[i % TAB_COLORS.length],
+      model: t.model ?? null,
+      messages: Array.isArray(t.messages) ? (t.messages as ChatMessage[]) : [BOOT_MESSAGE],
+      systemPrompt: t.systemPrompt ?? defaultSystemPrompt(ENABLED_TOOLS),
+      isStreaming: false,
+      hasError: false,
+      stopToken: 0,
+    }));
+  } catch {
+    return null;
+  }
+}
 
 function Index() {
   const [active, setActive] = useState<View>("chat");
@@ -63,24 +88,54 @@ function Index() {
     loadStoredProfile(),
   );
   const [showAdvisor, setShowAdvisor] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(0);
 
   const appendLog = useCallback((line: LogLine) => {
     setLog((prev) => [...prev, line]);
   }, []);
 
-  const [tabs, setTabs] = useState<TabState[]>(() => [
-    {
-      id: crypto.randomUUID(),
-      name: "Agent 1",
-      color: TAB_COLORS[0],
-      model: "llama3.1:8b",
-      messages: [BOOT_MESSAGE],
-      systemPrompt: defaultSystemPrompt(ENABLED_TOOLS),
-      isStreaming: false,
-      stopToken: 0,
-    },
-  ]);
+  const [tabs, setTabs] = useState<TabState[]>(() => {
+    const restored = loadStoredTabs();
+    if (restored) return restored;
+    return [
+      {
+        id: crypto.randomUUID(),
+        name: "Agent 1",
+        color: TAB_COLORS[0],
+        model: "llama3.1:8b",
+        messages: [BOOT_MESSAGE],
+        systemPrompt: defaultSystemPrompt(ENABLED_TOOLS),
+        isStreaming: false,
+        hasError: false,
+        stopToken: 0,
+      },
+    ];
+  });
   const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0].id);
+
+  // Persist tabs to localStorage
+  const isFirstSave = useRef(true);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const serialized = tabs.map((t) => ({
+        id: t.id,
+        name: t.name,
+        color: t.color,
+        model: t.model,
+        messages: t.messages,
+        systemPrompt: t.systemPrompt,
+      }));
+      window.localStorage.setItem(TABS_STORAGE_KEY, JSON.stringify(serialized));
+      if (isFirstSave.current) {
+        isFirstSave.current = false;
+      } else {
+        setSavedFlash(Date.now());
+      }
+    } catch {
+      // ignore quota errors
+    }
+  }, [tabs]);
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0];
   const streamingTabs = tabs.filter((t) => t.isStreaming);
@@ -128,6 +183,7 @@ function Index() {
         messages: [NEW_TAB_MESSAGE],
         systemPrompt: defaultSystemPrompt(ENABLED_TOOLS),
         isStreaming: false,
+        hasError: false,
         stopToken: 0,
       };
       setActiveTabId(newTab.id);
@@ -137,7 +193,6 @@ function Index() {
         msg: `${newTab.name} session opened (${model ?? "no model"})`,
       });
       const next = [...prev, newTab];
-      // Trigger advisor when reaching the 3rd tab if no profile saved yet
       if (next.length >= 3 && !machineProfile) {
         setShowAdvisor(true);
       }
@@ -146,18 +201,19 @@ function Index() {
   }, [model, appendLog, machineProfile]);
 
   const handleCloseTab = useCallback(
-    (id: string) => {
+    (id: string, skipConfirm = false) => {
       setTabs((prev) => {
         if (prev.length <= 1) return prev;
         const closing = prev.find((t) => t.id === id);
-        const remaining = prev.filter((t) => t.id !== id);
-        if (closing) {
-          appendLog({
-            ts: nowTs(),
-            level: "ARROW",
-            msg: `${closing.name} session closed`,
-          });
+        if (!closing) return prev;
+        const userMessages = closing.messages.filter((m) => m.role === "user").length;
+        if (!skipConfirm && userMessages > 0) {
+          if (!window.confirm(`Close ${closing.name}? It has ${userMessages} message${userMessages === 1 ? "" : "s"}.`)) {
+            return prev;
+          }
         }
+        const remaining = prev.filter((t) => t.id !== id);
+        appendLog({ ts: nowTs(), level: "ARROW", msg: `${closing.name} session closed` });
         if (id === activeTabId) {
           setActiveTabId(remaining[0].id);
         }
@@ -172,7 +228,22 @@ function Index() {
     [updateTab],
   );
 
-  // Bump stopToken on tabs other than `keepId` to abort their in-flight streams
+  const handleReorderTabs = useCallback(
+    (fromId: string, toId: string) => {
+      setTabs((prev) => {
+        const fromIdx = prev.findIndex((t) => t.id === fromId);
+        const toIdx = prev.findIndex((t) => t.id === toId);
+        if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return prev;
+        const next = prev.slice();
+        const [moved] = next.splice(fromIdx, 1);
+        next.splice(toIdx, 0, moved);
+        return next;
+      });
+      appendLog({ ts: nowTs(), level: "ARROW", msg: "Tab order updated" });
+    },
+    [appendLog],
+  );
+
   const stopOthers = useCallback(
     (keepId: string) => {
       setTabs((prev) =>
@@ -185,7 +256,7 @@ function Index() {
     [appendLog],
   );
 
-  // Keyboard shortcuts: ⌘T new, ⌘W close
+  // Keyboard shortcuts: ⌘T new, ⌘W close, ⌘1-5 switch
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (active !== "chat") return;
@@ -196,13 +267,18 @@ function Index() {
       } else if (e.key === "w" || e.key === "W") {
         e.preventDefault();
         handleCloseTab(activeTabId);
+      } else if (/^[1-5]$/.test(e.key)) {
+        const idx = parseInt(e.key, 10) - 1;
+        if (tabs[idx]) {
+          e.preventDefault();
+          setActiveTabId(tabs[idx].id);
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, activeTabId, handleNewTab, handleCloseTab]);
+  }, [active, activeTabId, tabs, handleNewTab, handleCloseTab]);
 
-  // Show advisor on first successful connect (if no profile + not previously shown)
   useEffect(() => {
     if (connected && !machineProfile && !isAdvisorShown()) {
       setShowAdvisor(true);
@@ -225,7 +301,6 @@ function Index() {
     setShowAdvisor(false);
   }, []);
 
-  // Reset dismissal when streaming count drops below threshold
   useEffect(() => {
     if (streamingCount < 2) setBannerDismissedAt(0);
   }, [streamingCount]);
@@ -233,6 +308,17 @@ function Index() {
   const bannerLevel: "warn" | "critical" | null =
     streamingCount >= 3 ? "critical" : streamingCount >= 2 ? "warn" : null;
   const showBanner = bannerLevel !== null && bannerDismissedAt < streamingCount;
+
+  // Wrap appendLog to detect chat errors per-tab
+  const makeTabLogger = useCallback(
+    (tabId: string) => (line: LogLine) => {
+      appendLog(line);
+      if (line.level === "ERR" && line.msg.startsWith("chat:")) {
+        updateTab(tabId, { hasError: true });
+      }
+    },
+    [appendLog, updateTab],
+  );
 
   return (
     <div className="flex flex-col h-screen w-full bg-background text-foreground">
@@ -251,12 +337,28 @@ function Index() {
       />
       {active === "chat" && (
         <ChatTabsBar
-          tabs={tabs.map((t) => ({ id: t.id, name: t.name, color: t.color, model: t.model }))}
+          tabs={tabs.map((t) => ({
+            id: t.id,
+            name: t.name,
+            color: t.color,
+            model: t.model,
+            isStreaming: t.isStreaming,
+            hasError: t.hasError,
+            messageCount: t.messages.length,
+            hasInteracted: t.messages.some((m) => m.role === "user"),
+          }))}
           activeId={activeTabId}
-          onSelect={setActiveTabId}
+          onSelect={(id) => {
+            setActiveTabId(id);
+            // Clear error state when user opens an errored tab
+            const t = tabs.find((x) => x.id === id);
+            if (t?.hasError) updateTab(id, { hasError: false });
+          }}
           onRename={handleRenameTab}
-          onClose={handleCloseTab}
+          onClose={(id) => handleCloseTab(id)}
           onNew={handleNewTab}
+          onReorder={handleReorderTabs}
+          savedFlash={savedFlash}
         />
       )}
       {active === "chat" && showBanner && bannerLevel && (
@@ -305,26 +407,46 @@ function Index() {
                       }}
                     />
                   ) : (
-                    tabs.map((t) => (
+                    <>
+                      {tabs.map((t) => (
+                        <div
+                          key={t.id}
+                          className="absolute inset-0 flex flex-col"
+                          style={{ display: t.id === activeTabId ? "flex" : "none" }}
+                        >
+                          <ChatView
+                            endpoint={endpoint}
+                            model={t.model ?? model}
+                            connected={connected}
+                            enabledTools={ENABLED_TOOLS}
+                            systemPrompt={t.systemPrompt}
+                            messages={t.messages}
+                            onMessagesChange={(updater) => handleMessagesChange(t.id, updater)}
+                            appendLog={makeTabLogger(t.id)}
+                            onStreamingChange={(s) => {
+                              updateTab(t.id, { isStreaming: s, ...(s ? { hasError: false } : {}) });
+                            }}
+                            stopToken={t.stopToken}
+                          />
+                        </div>
+                      ))}
+                      {/* Keyboard shortcut legend */}
                       <div
-                        key={t.id}
-                        className="absolute inset-0 flex flex-col"
-                        style={{ display: t.id === activeTabId ? "flex" : "none" }}
+                        className="absolute bottom-24 right-4 font-mono text-[10px] leading-relaxed select-none"
+                        style={{
+                          background: "#333",
+                          color: "#888",
+                          borderRadius: 8,
+                          padding: "8px 12px",
+                          pointerEvents: "none",
+                          opacity: 0.7,
+                        }}
                       >
-                        <ChatView
-                          endpoint={endpoint}
-                          model={t.model ?? model}
-                          connected={connected}
-                          enabledTools={ENABLED_TOOLS}
-                          systemPrompt={t.systemPrompt}
-                          messages={t.messages}
-                          onMessagesChange={(updater) => handleMessagesChange(t.id, updater)}
-                          appendLog={appendLog}
-                          onStreamingChange={(s) => updateTab(t.id, { isStreaming: s })}
-                          stopToken={t.stopToken}
-                        />
+                        <div>⌘T  New agent</div>
+                        <div>⌘W  Close tab</div>
+                        <div>⌘1–5  Switch tab</div>
                       </div>
-                    ))
+                    </>
                   )}
                 </div>
               </>
