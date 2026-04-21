@@ -839,6 +839,7 @@ function Index() {
                   refreshingModels={refreshingModels}
                   projects={projects.filter((p) => !p.archived).map((p) => ({ id: p.id, emoji: p.emoji, name: p.name }))}
                   activeProjectId={projectForTab(activeTab.id)?.id ?? null}
+                  memoryCount={memoryCountByTab[activeTab.id] ?? null}
                   onProjectChange={(pid) => {
                     bindTabToProject(activeTab.id, pid);
                     const proj = pid ? projects.find((p) => p.id === pid) : null;
