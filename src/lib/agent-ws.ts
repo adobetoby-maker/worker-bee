@@ -8,7 +8,7 @@ import { nowTs, type LogLine } from "@/lib/agent-state";
 export type WSStatus = "idle" | "connecting" | "open" | "closed" | "error";
 
 export interface AgentWSMessage {
-  type: "token" | "done" | "status" | "error" | "pong";
+  type: "token" | "done" | "status" | "error" | "pong" | "browser_result";
   content?: string;
   text?: string;
   message?: string;
@@ -24,6 +24,7 @@ export interface AgentWSHandlers {
   onOpen?: () => void;
   onClose?: () => void;
   onSocketError?: () => void;
+  onBrowserResult?: (result: { text: string; url?: string; raw: unknown }) => void;
 }
 
 interface Entry {
