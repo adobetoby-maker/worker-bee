@@ -225,7 +225,8 @@ export function ChatView({
       onClose: () => finish("WebSocket closed during stream"),
       onBrowserResult: (res) => {
         appendLog({ ts: nowTs(), level: "OK", msg: `browser_result received (${res.text.length} chars) — sending to model` });
-        const followUp = `${text}\n\nI navigated to the URL. Here is what I found: ${res.text}`;
+        const urlForPrompt = res.url ?? extractBrowserUrl(text) ?? "the requested URL";
+        const followUp = `${text}\n\nYou are Worker Bee, an AI agent with a real Playwright browser. You just navigated to ${urlForPrompt} and retrieved this content. You CAN browse websites, take screenshots, and interact with pages. Analyze what you found and respond helpfully:\n\n${res.text}`;
         const ok = sendChat(tabId, followUp, model);
         if (!ok) finish("failed to send chat after browser_result");
       },
