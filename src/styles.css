@@ -190,7 +190,10 @@ html.dark {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
-    /* Subtle scanlines + grain */
+  }
+
+  /* Dark theme keeps the cyberpunk scanlines + amber glow */
+  html.dark body {
     background-image:
       repeating-linear-gradient(
         to bottom,
@@ -217,76 +220,58 @@ html.dark {
     height: 4px;
   }
   *::-webkit-scrollbar-track {
-    background: #0a0a0a;
+    background: #eeece8;
   }
   *::-webkit-scrollbar-thumb {
-    background: #2a2a2a;
+    background: #c8c2b8;
     border-radius: 2px;
   }
   *::-webkit-scrollbar-thumb:hover {
-    background: #3a3a3a;
+    background: #a8a298;
   }
   * {
     scrollbar-width: thin;
-    scrollbar-color: #2a2a2a #0a0a0a;
+    scrollbar-color: #c8c2b8 #eeece8;
   }
 }
 
 .chat-pill:focus-within {
   border-color: var(--primary) !important;
-  box-shadow: 0 0 0 3px rgba(255, 170, 0, 0.12);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent);
 }
 
-/* Light theme overrides — applied when <html> has class "light" */
-html.light {
-  --background: #f8f6f2;
-  --surface: #ffffff;
-  --surface-raised: #f0ede8;
-  --border: #e2ddd6;
-  --foreground: #1a1714;
-  --muted-foreground: #6b6560;
-  --primary: #d4840a;
-  --primary-foreground: #ffffff;
-  --primary-glow: #e8960f;
-  --card: #ffffff;
-  --card-foreground: #1a1714;
-  --popover: #ffffff;
-  --popover-foreground: #1a1714;
-  --secondary: #f0ede8;
-  --secondary-foreground: #1a1714;
-  --muted: #f0ede8;
-  --accent: #f0ede8;
-  --accent-foreground: #1a1714;
-  --input: #e2ddd6;
-  --ring: #d4840a;
+/* Terminal / agent log — light theme defaults */
+.agent-log,
+[data-agent-log] {
+  background: #faf9f6;
+  color: #3d3a36;
 }
+[data-log-level="OK"]    { color: #2d7a2d; }
+[data-log-level="ERR"]   { color: #c0392b; }
+[data-log-level="ARROW"] { color: #c17f24; }
 
-html.light body {
-  background: #f8f6f2;
+pre {
+  background: #f5f4f0;
   color: #1a1714;
 }
 
-/* Terminal / agent log adjustments for light theme */
-html.light .agent-log,
-html.light [data-agent-log] {
-  background: #f0ede8 !important;
-  color: #3d3a36 !important;
+/* Dark theme: restore cyberpunk terminal look */
+html.dark .agent-log,
+html.dark [data-agent-log] {
+  background: #0a0a0a !important;
+  color: #e0e0e0 !important;
 }
-html.light [data-log-level="OK"] { color: #2d7a2d !important; }
-html.light [data-log-level="ERR"] { color: #c0392b !important; }
-html.light [data-log-level="ARROW"] { color: #d4840a !important; }
-
-/* Code blocks */
-html.light pre {
-  background: #f5f2ee !important;
-  color: #1a1714 !important;
+html.dark [data-log-level="OK"]    { color: #39ff14 !important; }
+html.dark [data-log-level="ERR"]   { color: #ff3b3b !important; }
+html.dark [data-log-level="ARROW"] { color: #ffaa00 !important; }
+html.dark pre {
+  background: #0d0d0d !important;
+  color: #e0e0e0 !important;
 }
-
-/* Custom scrollbars adapt for light */
-html.light *::-webkit-scrollbar-track { background: #f0ede8; }
-html.light *::-webkit-scrollbar-thumb { background: #c8c2b8; }
-html.light *::-webkit-scrollbar-thumb:hover { background: #a8a298; }
-html.light * { scrollbar-color: #c8c2b8 #f0ede8; }
+html.dark *::-webkit-scrollbar-track { background: #0a0a0a; }
+html.dark *::-webkit-scrollbar-thumb { background: #2a2a2a; }
+html.dark *::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+html.dark * { scrollbar-color: #2a2a2a #0a0a0a; }
 
 @keyframes wizard-slide-in-right {
   from { transform: translateX(40px); opacity: 0; }
