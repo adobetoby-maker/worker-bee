@@ -364,6 +364,10 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
       text = (data as { content: string }).content;
     }
     if ((msg.type as string) === "heartbeat") return;
+    if ((msg.type as string) === "clear_thinking") {
+      entry.handlers.forEach((h) => h.onClearThinking?.());
+      return;
+    }
     console.log("WS msg type:", msg.type, "text:", text);
     switch (msg.type) {
       case "token":
