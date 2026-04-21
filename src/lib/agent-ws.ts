@@ -335,6 +335,8 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
 export function closeAgentWS(tabId: string): void {
   const entry = tabs.get(tabId);
   if (!entry) return;
+  entry.intentionalClose = true;
+  clearTimers(entry);
   try { entry.ws?.close(); } catch { /* noop */ }
   tabs.delete(tabId);
 }
