@@ -206,6 +206,57 @@
   box-shadow: 0 0 0 3px rgba(255, 170, 0, 0.12);
 }
 
+/* Light theme overrides — applied when <html> has class "light" */
+html.light {
+  --background: #f8f6f2;
+  --surface: #ffffff;
+  --surface-raised: #f0ede8;
+  --border: #e2ddd6;
+  --foreground: #1a1714;
+  --muted-foreground: #6b6560;
+  --primary: #d4840a;
+  --primary-foreground: #ffffff;
+  --primary-glow: #e8960f;
+  --card: #ffffff;
+  --card-foreground: #1a1714;
+  --popover: #ffffff;
+  --popover-foreground: #1a1714;
+  --secondary: #f0ede8;
+  --secondary-foreground: #1a1714;
+  --muted: #f0ede8;
+  --accent: #f0ede8;
+  --accent-foreground: #1a1714;
+  --input: #e2ddd6;
+  --ring: #d4840a;
+}
+
+html.light body {
+  background: #f8f6f2;
+  color: #1a1714;
+}
+
+/* Terminal / agent log adjustments for light theme */
+html.light .agent-log,
+html.light [data-agent-log] {
+  background: #f0ede8 !important;
+  color: #3d3a36 !important;
+}
+html.light [data-log-level="OK"] { color: #2d7a2d !important; }
+html.light [data-log-level="ERR"] { color: #c0392b !important; }
+html.light [data-log-level="ARROW"] { color: #d4840a !important; }
+
+/* Code blocks */
+html.light pre {
+  background: #f5f2ee !important;
+  color: #1a1714 !important;
+}
+
+/* Custom scrollbars adapt for light */
+html.light *::-webkit-scrollbar-track { background: #f0ede8; }
+html.light *::-webkit-scrollbar-thumb { background: #c8c2b8; }
+html.light *::-webkit-scrollbar-thumb:hover { background: #a8a298; }
+html.light * { scrollbar-color: #c8c2b8 #f0ede8; }
+
 @keyframes wizard-slide-in-right {
   from { transform: translateX(40px); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
