@@ -99,6 +99,7 @@ export function openAgentWS(
   ws.onopen = () => {
     entry.status = "open";
     entry.log?.({ ts: nowTs(), level: "OK", msg: "WebSocket connected to agent :8000" });
+    console.log("WS open and ready");
     entry.handlers.forEach((h) => h.onOpen?.());
   };
   ws.onclose = () => {
@@ -106,9 +107,10 @@ export function openAgentWS(
     entry.log?.({ ts: nowTs(), level: "ARROW", msg: "WebSocket disconnected" });
     entry.handlers.forEach((h) => h.onClose?.());
   };
-  ws.onerror = () => {
+  ws.onerror = (event) => {
     entry.status = "error";
     entry.log?.({ ts: nowTs(), level: "ERR", msg: "WebSocket error — is agent running?" });
+    console.error("WS error event:", event);
     entry.handlers.forEach((h) => h.onSocketError?.());
   };
   ws.onmessage = (event) => {
@@ -167,10 +169,20 @@ export function isWSOpen(tabId: string): boolean {
 export function sendChat(tabId: string, content: string, model: string | null): boolean {
   const entry = tabs.get(tabId);
   const ws = entry?.ws;
-  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  if (!ws) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "WebSocket not ready" });
+    console.error("WS send aborted: no socket for tab", tabId);
+    return false;
+  }
+  if (ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: `WebSocket not ready (readyState=${ws.readyState})` });
+    console.error("WS send aborted: readyState=", ws.readyState);
+    return false;
+  }
   const payload = { action: "chat", content, model };
   const json = JSON.stringify(payload);
   entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  console.log("WS readyState:", ws.readyState, "sending:", payload);
   ws.send(json);
   return true;
 }
