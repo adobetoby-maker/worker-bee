@@ -516,6 +516,7 @@ export function ChatView({
   const send = async () => {
     const text = input.trim();
     if (!text || streaming) return;
+    pushHistory(text);
     // Hidden developer smoke test trigger.
     if (text === "🐝🐝🐝" && onSmokeTest) {
       setInput("");
