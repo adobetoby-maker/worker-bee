@@ -230,9 +230,44 @@ export function ChatView({
       onBrowserResult: (res) => {
         appendLog({ ts: nowTs(), level: "OK", msg: `browser_result received (${res.text.length} chars) — sending to model` });
         const urlForPrompt = res.url ?? extractBrowserUrl(text) ?? "the requested URL";
+        if (res.visionDescription) {
+          onMessagesChange((prev) => {
+            // Insert vision card BEFORE the in-progress assistant placeholder.
+            const copy = prev.slice();
+            const visionMsg: ChatMessage = {
+              role: "assistant",
+              content: "",
+              visionDescription: res.visionDescription,
+            };
+            if (copy.length > 0 && copy[copy.length - 1].role === "assistant" && copy[copy.length - 1].content === "") {
+              copy.splice(copy.length - 1, 0, visionMsg);
+            } else {
+              copy.push(visionMsg);
+            }
+            return copy;
+          });
+        }
         const followUp = `${text}\n\nYou are Worker Bee, an AI agent with a real Playwright browser. You just navigated to ${urlForPrompt} and retrieved this content. You CAN browse websites, take screenshots, and interact with pages. Analyze what you found and respond helpfully:\n\n${res.text}`;
         const ok = sendChat(tabId, followUp, model);
         if (!ok) finish("failed to send chat after browser_result");
+      },
+      onScreenshot: (shot) => {
+        if (!shot.screenshotB64) return;
+        onMessagesChange((prev) => {
+          const copy = prev.slice();
+          const shotMsg: ChatMessage = {
+            role: "assistant",
+            content: "",
+            screenshotB64: shot.screenshotB64,
+            screenshotUrl: shot.url,
+          };
+          if (copy.length > 0 && copy[copy.length - 1].role === "assistant" && copy[copy.length - 1].content === "") {
+            copy.splice(copy.length - 1, 0, shotMsg);
+          } else {
+            copy.push(shotMsg);
+          }
+          return copy;
+        });
       },
     });
 
