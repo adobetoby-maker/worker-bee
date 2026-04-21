@@ -138,6 +138,51 @@ export function ChatView({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
+  // Terminal-style input history.
+  const HISTORY_KEY = "workerbee_input_history";
+  const [inputHistory, setInputHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [savedDraft, setSavedDraft] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load history from localStorage on mount.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(HISTORY_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) setInputHistory(arr.filter((s) => typeof s === "string").slice(0, 100));
+      }
+    } catch { /* noop */ }
+  }, []);
+
+  const pushHistory = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setInputHistory((prev) => {
+      const next = [trimmed, ...prev.filter((s) => s !== trimmed)].slice(0, 100);
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+        }
+      } catch { /* noop */ }
+      return next;
+    });
+    setHistoryIndex(-1);
+    setSavedDraft("");
+  };
+
+  const TAB_COMPLETIONS: Array<[string, string]> = [
+    ["/re", "/remember "],
+    ["/le", "/learn "],
+    ["ana", "Analyze https://"],
+    ["scr", "Take a screenshot of https://"],
+    ["log", "Log into https://"],
+    ["pla", "Plan: "],
+    ["bui", "Build a "],
+  ];
+
   // Install action card state — driven by post-stream scan of assistant text.
   const [installCard, setInstallCard] = useState<{
     command: string;
