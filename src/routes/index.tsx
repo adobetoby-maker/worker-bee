@@ -159,6 +159,7 @@ function Index() {
     parallelMode: false,
   });
   const [autoSendByTab, setAutoSendByTab] = useState<Record<string, { token: number; text: string }>>({});
+  const [repairTokenByTab, setRepairTokenByTab] = useState<Record<string, number>>({});
   const [flashTurnTabId, setFlashTurnTabId] = useState<string | null>(null);
 
   useEffect(() => subscribeQueue(setQueueState), []);
@@ -812,6 +813,10 @@ function Index() {
                     });
                   }}
                   onInjectPrompt={(p) => setInputDraft(activeTab.id, p)}
+                  onRepair={() => {
+                    setRepairTokenByTab((prev) => ({ ...prev, [activeTab.id]: (prev[activeTab.id] ?? 0) + 1 }));
+                    appendLog({ ts: nowTs(), level: "ARROW", msg: `${activeTab.name} → manual self-repair requested` });
+                  }}
                   projects={projects.filter((p) => !p.archived).map((p) => ({ id: p.id, emoji: p.emoji, name: p.name }))}
                   activeProjectId={projectForTab(activeTab.id)?.id ?? null}
                   onProjectChange={(pid) => {
@@ -869,6 +874,8 @@ function Index() {
                             estimatedWaitSec={estimatedWaitSeconds(t.id)}
                             autoSendToken={autoSendByTab[t.id]?.token ?? 0}
                             autoSendText={autoSendByTab[t.id]?.text ?? ""}
+                            repairToken={repairTokenByTab[t.id] ?? 0}
+                            onOpenConfig={() => setActive("config")}
                             onRequestSend={(text) => handleRequestSend(t.id, t.name, t.color, t.model ?? model, text)}
                             onCancelQueued={() => {
                               cancelQueued(t.id);

@@ -12,8 +12,10 @@ import {
   sendShell,
   detectInstallCommand,
   isUnsafeCommand,
+  sendSelfRepair,
 } from "@/lib/agent-ws";
 import { InstallActionCard, type InstallCardState } from "./InstallActionCard";
+import { RepairCard, type RepairCardState } from "./RepairCard";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -62,6 +64,9 @@ interface Props {
   onCompareCodeBlock?: (filePath: string, newContent: string) => void;
   // Hidden developer smoke test — triggered by typing exactly "🐝🐝🐝".
   onSmokeTest?: () => void;
+  // Manual self-repair trigger token — when increments, ChatView sends self_repair.
+  repairToken?: number;
+  onOpenConfig?: () => void;
 }
 
 export function ChatView({
@@ -94,6 +99,8 @@ export function ChatView({
   matchProjectFile,
   onCompareCodeBlock,
   onSmokeTest,
+  repairToken = 0,
+  onOpenConfig,
 }: Props) {
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
@@ -114,6 +121,19 @@ export function ChatView({
     blockedReason?: string;
   } | null>(null);
   const installUnsubRef = useRef<(() => void) | null>(null);
+
+  // Self-repair card state.
+  const [repairCard, setRepairCard] = useState<{
+    state: RepairCardState;
+    error: string;
+    logs: string[];
+  } | null>(null);
+  const repairUnsubRef = useRef<(() => void) | null>(null);
+
+  // Error-burst banner: count consecutive recent ERR log lines for THIS tab.
+  const [errBurst, setErrBurst] = useState(0);
+  const [burstDismissed, setBurstDismissed] = useState(false);
+  const consecutiveErrRef = useRef(0);
 
   useEffect(() => {
     onStreamingChange(streaming);
@@ -136,6 +156,66 @@ export function ChatView({
     }
   }, [stopToken]);
 
+  // Subscribe to repair events for this tab — always live, regardless of streaming.
+  useEffect(() => {
+    repairUnsubRef.current?.();
+    const unsub = subscribeAgentWS(tabId, {
+      onRepairStarted: ({ error }) => {
+        setRepairCard({ state: "started", error, logs: [] });
+        consecutiveErrRef.current = 0;
+        setErrBurst(0);
+      },
+      onRepairLog: (line) => {
+        if (!line) return;
+        setRepairCard((prev) => prev ? { ...prev, logs: [...prev.logs, line] } : prev);
+      },
+      onRepairComplete: ({ ok, message }) => {
+        setRepairCard((prev) => {
+          if (!prev) return prev;
+          const finalLogs = message ? [...prev.logs, message] : prev.logs;
+          return { ...prev, state: ok ? "complete" : "failed", logs: finalLogs };
+        });
+      },
+    });
+    repairUnsubRef.current = unsub;
+    return () => { unsub(); repairUnsubRef.current = null; };
+  }, [tabId]);
+
+  // Wrap appendLog to track consecutive ERR lines and trigger banner at 3.
+  const trackedAppendLog = (line: LogLine) => {
+    if (line.level === "ERR") {
+      consecutiveErrRef.current += 1;
+      if (consecutiveErrRef.current >= 3 && !burstDismissed && !repairCard) {
+        setErrBurst(consecutiveErrRef.current);
+      }
+    } else if (line.level === "OK") {
+      consecutiveErrRef.current = 0;
+    }
+    appendLog(line);
+  };
+
+  // Manual repair trigger from TabControls.
+  const triggerSelfRepair = (errorText: string) => {
+    if (!isWSOpen(tabId)) {
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "self_repair: WS not open" });
+      return;
+    }
+    setRepairCard({ state: "started", error: errorText, logs: [] });
+    consecutiveErrRef.current = 0;
+    setErrBurst(0);
+    setBurstDismissed(false);
+    sendSelfRepair(tabId, errorText);
+  };
+
+  const lastRepairTokenRef = useRef(0);
+  useEffect(() => {
+    if (repairToken > 0 && repairToken !== lastRepairTokenRef.current) {
+      lastRepairTokenRef.current = repairToken;
+      triggerSelfRepair("Manual repair requested by user");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repairToken]);
+
   const resolvedSystemPrompt =
     systemPrompt ??
     `You are Worker Bee, a website-building AI agent running via Ollama. Available tools: ${enabledTools.join(", ") || "none"}.`;
@@ -149,17 +229,17 @@ export function ChatView({
 
   const startStream = async (text: string) => {
     if (!connected || !model) {
-      appendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
       return;
     }
     const next: ChatMessage[] = [...messages, { role: "user", content: text }];
     onMessagesChange(() => [...next, { role: "assistant", content: "" }]);
     setStreaming(true);
     onSendStart?.(text);
-    appendLog({ ts: nowTs(), level: "ARROW", msg: `chat send chars=${text.length}` });
+    trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: `chat send chars=${text.length}` });
 
     if (!isWSOpen(tabId)) {
-      appendLog({ ts: nowTs(), level: "ERR", msg: "chat: WebSocket not open — is agent running?" });
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "chat: WebSocket not open — is agent running?" });
       onMessagesChange((prev) => {
         const copy = prev.slice();
         copy[copy.length - 1] = { role: "assistant", content: "⚠ WebSocket not connected to agent. Start the Worker Bee agent server and reconnect in CONFIG." };
@@ -182,14 +262,14 @@ export function ChatView({
           copy[copy.length - 1] = { role: "assistant", content: `⚠ ${errorText}` };
           return copy;
         });
-        appendLog({ ts: nowTs(), level: "ERR", msg: `chat: ${errorText}` });
+        trackedAppendLog({ ts: nowTs(), level: "ERR", msg: `chat: ${errorText}` });
       } else {
-        appendLog({ ts: nowTs(), level: "OK", msg: `response complete chars=${assistantText.length}` });
+        trackedAppendLog({ ts: nowTs(), level: "OK", msg: `response complete chars=${assistantText.length}` });
         // Scan completed assistant message for install commands.
         const cmd = detectInstallCommand(assistantText);
         if (cmd) {
           if (isUnsafeCommand(cmd)) {
-            appendLog({ ts: nowTs(), level: "ERR", msg: `BLOCKED unsafe command: ${cmd}` });
+            trackedAppendLog({ ts: nowTs(), level: "ERR", msg: `BLOCKED unsafe command: ${cmd}` });
             setInstallCard({
               command: cmd,
               state: "blocked",
@@ -197,7 +277,7 @@ export function ChatView({
               blockedReason: "This command is on the unsafe-command blocklist and was not executed.",
             });
           } else {
-            appendLog({ ts: nowTs(), level: "ARROW", msg: `install detected: ${cmd}` });
+            trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: `install detected: ${cmd}` });
             setInstallCard({ command: cmd, state: "prompt", output: "" });
           }
         }
@@ -210,7 +290,7 @@ export function ChatView({
     const controller = new AbortController();
     abortRef.current = controller;
     controller.signal.addEventListener("abort", () => {
-      appendLog({ ts: nowTs(), level: "ARROW", msg: "stream aborted" });
+      trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: "stream aborted" });
       finish();
     });
 
@@ -228,7 +308,7 @@ export function ChatView({
       onError: (msg) => finish(msg || "agent error"),
       onClose: () => finish("WebSocket closed during stream"),
       onBrowserResult: (res) => {
-        appendLog({ ts: nowTs(), level: "OK", msg: `browser_result received (${res.text.length} chars) — sending to model` });
+        trackedAppendLog({ ts: nowTs(), level: "OK", msg: `browser_result received (${res.text.length} chars) — sending to model` });
         const urlForPrompt = res.url ?? extractBrowserUrl(text) ?? "the requested URL";
         if (res.visionDescription) {
           onMessagesChange((prev) => {
@@ -273,7 +353,7 @@ export function ChatView({
 
     const browserUrl = extractBrowserUrl(text);
     if (browserUrl) {
-      appendLog({ ts: nowTs(), level: "ARROW", msg: `browser action → ${browserUrl}` });
+      trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: `browser action → ${browserUrl}` });
       const ok = sendBrowser(tabId, browserUrl);
       if (!ok) finish("failed to send browser action");
       return;
@@ -302,7 +382,7 @@ export function ChatView({
       return;
     }
     if (!connected || !model) {
-      appendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
       return;
     }
     const decision = onRequestSend ? onRequestSend(text) : "start";
@@ -332,7 +412,7 @@ export function ChatView({
   const sendFollowUpChat = (content: string) => {
     if (!model) return;
     if (!isWSOpen(tabId)) {
-      appendLog({ ts: nowTs(), level: "ERR", msg: "follow-up chat: WS not open" });
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "follow-up chat: WS not open" });
       return;
     }
     onMessagesChange((prev) => [
@@ -380,11 +460,11 @@ export function ChatView({
     if (!installCard || installCard.state !== "prompt") return;
     const cmd = installCard.command;
     if (!isWSOpen(tabId)) {
-      appendLog({ ts: nowTs(), level: "ERR", msg: "shell: WS not open" });
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "shell: WS not open" });
       return;
     }
     setInstallCard({ command: cmd, state: "running", output: "" });
-    appendLog({ ts: nowTs(), level: "ARROW", msg: `shell approved: ${cmd}` });
+    trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: `shell approved: ${cmd}` });
     let buf = "";
     installUnsubRef.current?.();
     const unsub = subscribeAgentWS(tabId, {
@@ -416,7 +496,7 @@ export function ChatView({
 
   const handleDenyInstall = () => {
     if (!installCard) return;
-    appendLog({ ts: nowTs(), level: "ARROW", msg: `shell denied: ${installCard.command}` });
+    trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: `shell denied: ${installCard.command}` });
     setInstallCard(null);
     sendFollowUpChat("The user denied the install request. Please suggest an alternative approach that does not require installing new packages.");
   };
@@ -577,6 +657,53 @@ export function ChatView({
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {repairCard && (
+        <div className="px-4 pb-2">
+          <RepairCard
+            state={repairCard.state}
+            error={repairCard.error}
+            logs={repairCard.logs}
+            onCopyLog={() => {
+              const text = `Error: ${repairCard.error}\n\n${repairCard.logs.join("\n")}`;
+              navigator.clipboard?.writeText(text);
+            }}
+            onOpenConfig={onOpenConfig}
+            onDismiss={() => setRepairCard(null)}
+          />
+        </div>
+      )}
+
+      {errBurst >= 3 && !repairCard && !burstDismissed && (
+        <div
+          className="px-4 py-2 flex items-center justify-between gap-3 font-mono text-[11px]"
+          style={{
+            background: "#1a1400",
+            color: "#ffaa00",
+            borderTop: "1px solid #ffaa0040",
+          }}
+        >
+          <span>⚠ Multiple errors detected ({errBurst} in a row)</span>
+          <span className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => triggerSelfRepair(`Auto-detected: ${errBurst} consecutive errors in tab log`)}
+              className="px-2 py-0.5 rounded border"
+              style={{ borderColor: "#ffaa0066", color: "#ffaa00", background: "#0a0a0a" }}
+            >
+              🔧 RUN SELF-REPAIR
+            </button>
+            <button
+              type="button"
+              onClick={() => { setBurstDismissed(true); setErrBurst(0); consecutiveErrRef.current = 0; }}
+              className="px-2 py-0.5 rounded border"
+              style={{ borderColor: "#33333366", color: "#aaa" }}
+            >
+              DISMISS
+            </button>
+          </span>
         </div>
       )}
 
