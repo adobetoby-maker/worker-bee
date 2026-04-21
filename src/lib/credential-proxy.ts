@@ -56,6 +56,37 @@ export function clearUnlockedPots() {
   unlockedPots = [];
 }
 
+// Returns a SAFE list of pots (service + username + emoji + category) without
+// passwords. For UI dropdowns like the login prompt's "Use from Vault".
+// Never includes the password.
+export function listVaultPotsSafe(): Array<{ id: string; service: string; username: string; emoji: string; category: string }> {
+  return unlockedPots.map((p) => ({
+    id: p.id,
+    service: p.service,
+    username: p.username,
+    emoji: p.emoji,
+    category: p.category,
+  }));
+}
+
+// Returns BOTH username and password for a given pot id. Caller must be a
+// trusted in-app surface (e.g. the login form) — never serialize to LLM.
+export function getPotCredentials(potId: string, agentName: string): { username: string; password: string } | null {
+  const pot = unlockedPots.find((p) => p.id === potId);
+  if (!pot) return null;
+  const ev: AccessEvent = {
+    id: crypto.randomUUID(),
+    potName: pot.service,
+    field: "password",
+    agentName,
+    ts: Date.now(),
+  };
+  log = [ev, ...log].slice(0, MAX_LOG);
+  saveLog();
+  emitLog();
+  return { username: pot.username, password: pot.password };
+}
+
 // Returns the requested field value WITHOUT logging the value itself.
 // Returns null if vault is locked or the pot is not found.
 export function getCredential(
