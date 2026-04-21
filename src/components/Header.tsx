@@ -60,8 +60,8 @@ export function Header({ connected, model, toolCount, streaming = false, error =
 
   return (
     <header
-      className="sticky top-0 z-40 flex items-center justify-between px-5 bg-background/85 backdrop-blur border-b border-primary/30"
-      style={{ height: 72 }}
+      className="sticky top-0 z-40 flex items-center justify-between px-5 backdrop-blur"
+      style={{ height: 72, background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
     >
       <div className="flex items-center gap-3">
         <BeeLogo size={44} streaming={streaming} error={error} />

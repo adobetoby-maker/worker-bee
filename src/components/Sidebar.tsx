@@ -21,8 +21,8 @@ const NAV: { id: View; label: string; icon: string }[] = [
 export function Sidebar({ active, onChange, log }: SidebarProps) {
   return (
     <aside
-      className="flex flex-col border-r border-border bg-surface/40"
-      style={{ width: 240 }}
+      className="flex flex-col"
+      style={{ width: 240, background: "var(--surface)", borderRight: "1px solid var(--border)" }}
     >
       <nav className="flex flex-col py-3">
         {NAV.map((item) => {
