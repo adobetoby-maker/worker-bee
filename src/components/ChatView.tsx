@@ -451,6 +451,31 @@ export function ChatView({
         return <BrowserTaskCard action={action} onStop={stop} />;
       })()}
 
+      {installCard && (
+        <div className="space-y-1">
+          <InstallActionCard
+            command={installCard.command}
+            state={installCard.state}
+            output={installCard.output}
+            exitCode={installCard.exitCode}
+            blockedReason={installCard.blockedReason}
+            onApprove={handleApproveInstall}
+            onDeny={handleDenyInstall}
+          />
+          {(installCard.state === "done" || installCard.state === "blocked") && (
+            <div className="px-4 pb-1 text-right">
+              <button
+                type="button"
+                onClick={handleDismissInstall}
+                className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
+              >
+                dismiss ✕
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {isQueued && (
         <div
           className="px-4 py-2 flex items-center justify-between gap-3 font-mono text-[11px]"
