@@ -747,6 +747,7 @@ function Index() {
         queueDepth={queueState.queue.length}
         parallelMode={queueState.parallelMode}
         autoStatus={autoStatus}
+        reconnectInfo={reconnectInfo}
         onOpenConfig={() => setActive("config")}
       />
       {active === "chat" && (
