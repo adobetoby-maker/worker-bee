@@ -809,14 +809,29 @@ export function ChatView({
                 {isUser ? (
                   <div className="whitespace-pre-wrap break-words">{m.content}</div>
                 ) : (
-                  <AssistantContent
-                    content={m.content}
-                    showCursor={showCursor}
-                    projectName={projectName}
-                    onSaveCodeBlock={onSaveCodeBlock}
-                    matchProjectFile={matchProjectFile}
-                    onCompareCodeBlock={onCompareCodeBlock}
-                  />
+                  <>
+                    <AssistantContent
+                      content={m.content}
+                      showCursor={showCursor}
+                      projectName={projectName}
+                      onSaveCodeBlock={onSaveCodeBlock}
+                      matchProjectFile={matchProjectFile}
+                      onCompareCodeBlock={onCompareCodeBlock}
+                    />
+                    {consultedByMessage[i] > 0 && (
+                      <div
+                        style={{
+                          marginTop: 6,
+                          fontFamily: "JetBrains Mono, monospace",
+                          fontSize: 10,
+                          color: "var(--muted-foreground)",
+                          opacity: 0.75,
+                        }}
+                      >
+                        🧠 {consultedByMessage[i]} memories consulted
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
