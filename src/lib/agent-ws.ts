@@ -517,6 +517,65 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         entry.handlers.forEach((h) => h.onLoginResult?.({ ok, url, attempts, error }));
         break;
       }
+      case "memory_stats": {
+        let conversations = 0, actions = 0, knowledge = 0;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.conversations === "number") conversations = d.conversations;
+          if (typeof d.actions === "number") actions = d.actions;
+          if (typeof d.knowledge === "number") knowledge = d.knowledge;
+        }
+        const total = conversations + actions + knowledge;
+        entry.handlers.forEach((h) => h.onMemoryStats?.({ conversations, actions, knowledge, total }));
+        break;
+      }
+      case "memory_search_result": {
+        let query = "";
+        const results: MemorySearchResult[] = [];
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.query === "string") query = d.query;
+          const arr = d.results;
+          if (Array.isArray(arr)) {
+            for (const r of arr) {
+              if (r && typeof r === "object") {
+                const rec = r as Record<string, unknown>;
+                results.push({
+                  score: typeof rec.score === "number" ? rec.score : undefined,
+                  timestamp: typeof rec.timestamp === "string" ? rec.timestamp : undefined,
+                  content: typeof rec.content === "string" ? rec.content : String(rec.content ?? ""),
+                  source: typeof rec.source === "string" ? rec.source : undefined,
+                });
+              }
+            }
+          }
+        }
+        entry.handlers.forEach((h) => h.onMemorySearchResult?.({ query, results }));
+        break;
+      }
+      case "memory_consulted": {
+        let count = 0;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.count === "number") count = d.count;
+          else if (typeof d.n === "number") count = d.n;
+        } else if (typeof data === "number") {
+          count = data;
+        }
+        entry.handlers.forEach((h) => h.onMemoryConsulted?.({ count }));
+        break;
+      }
+      case "memory_stored": {
+        let ok = true;
+        let message: string | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.ok === "boolean") ok = d.ok;
+          if (typeof d.message === "string") message = d.message;
+        }
+        entry.handlers.forEach((h) => h.onMemoryStored?.({ ok, message }));
+        break;
+      }
     }
 }
 
