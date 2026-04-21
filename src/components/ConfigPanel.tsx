@@ -177,36 +177,54 @@ export function ConfigPanel({
           >
             Need to install the agent server? → Install Guide
           </a>
+          <div className="mt-2 font-mono" style={{ color: "#555", fontSize: "11px" }}>
+            Already installed? Run:
+          </div>
+          <CopyCmd cmd="cd ~/worker-bee && ./start.sh" />
         </section>
 
         {/* Tip box */}
         <section>
           <div className="border border-border bg-surface/40 p-4">
-            {mode === "localhost" && (
+            {mode === "http" && (
               <TipBlock
-                title="LOCALHOST TIP"
+                title="LOCAL HTTP TIP"
                 lines={[
-                  "Make sure Ollama is running on this machine:",
+                  "Requires browser mixed content exception when this page is served over HTTPS.",
+                  "Safari: Develop menu → Disable Local File Restrictions.",
+                  "Chrome: Site settings → Insecure content → Allow.",
                 ]}
-                cmds={["ollama serve", "ollama pull llama3.2"]}
+                cmds={["http://localhost:8000"]}
+              />
+            )}
+            {mode === "https" && (
+              <TipBlock
+                title="LOCAL HTTPS TIP — RECOMMENDED"
+                lines={[
+                  "Run this in iTerm2 to start the agent with HTTPS:",
+                ]}
+                cmds={[
+                  'mkdir -p ~/.ssl && openssl req -x509 -newkey rsa:4096 -keyout ~/.ssl/key.pem -out ~/.ssl/cert.pem -days 365 -nodes -subj "/CN=localhost" && cd ~/worker-bee && source .venv/bin/activate && uvicorn main:app --reload --host 0.0.0.0 --port 8000 --ssl-keyfile ~/.ssl/key.pem --ssl-certfile ~/.ssl/cert.pem',
+                  "open https://localhost:8000/health",
+                ]}
               />
             )}
             {mode === "tailscale" && (
               <TipBlock
                 title="TAILSCALE TIP"
                 lines={[
-                  "Find your Tailscale IP, then expose Ollama on that IP:",
+                  "Find your Tailscale IP, then point at the agent on that IP over HTTPS:",
                 ]}
-                cmds={["tailscale ip -4", "OLLAMA_HOST=0.0.0.0 ollama serve"]}
+                cmds={["tailscale ip -4", "https://100.x.x.x:8000"]}
               />
             )}
             {mode === "custom" && (
               <TipBlock
                 title="CUSTOM TIP"
                 lines={[
-                  "Point at any reachable Ollama server. Include scheme and port.",
+                  "Point at any reachable Worker Bee agent. Include scheme and port.",
                 ]}
-                cmds={["http://10.0.0.42:11434", "https://ollama.mydomain.dev"]}
+                cmds={["https://10.0.0.42:8000", "https://agent.mydomain.dev"]}
               />
             )}
           </div>
