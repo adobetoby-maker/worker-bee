@@ -20,12 +20,19 @@ import {
   sendMemoryStats,
   detectMemoryCommand,
   type MemorySearchResult,
+  sendPlan,
+  sendPlanStop,
+  sendPlanPause,
+  sendPlanResume,
+  detectPlanIntent,
+  type PlanStep,
 } from "@/lib/agent-ws";
 import { toast } from "sonner";
 import { InstallActionCard, type InstallCardState } from "./InstallActionCard";
 import { RepairCard, type RepairCardState } from "./RepairCard";
 import { LoginPromptCard, type LoginSubmitArgs } from "./LoginPromptCard";
 import { LoginStatusCard, type LoginCardState } from "./LoginStatusCard";
+import { PlanCard, type PlanCardState, type PlanLogLine, type PlanStepRuntime } from "./PlanCard";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
