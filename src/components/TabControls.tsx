@@ -91,8 +91,9 @@ export function TabControls({
 
   // Always include current model in the list even if not in availableModels
   const options = Array.from(
-    new Set([...(model ? [model] : []), ...availableModels]),
+    new Set([...(model && model !== "__auto__" ? [model] : []), ...availableModels]),
   ).filter(Boolean);
+  const isAuto = !model || model === "__auto__";
 
   return (
     <div
@@ -108,11 +109,12 @@ export function TabControls({
           MODEL:
         </span>
         <select
-          value={model ?? ""}
+          value={isAuto ? "__auto__" : (model ?? "")}
           onChange={(e) => onModelChange(e.target.value)}
           title={hint}
           className="bg-background border border-border px-2 py-1 text-[11px] text-foreground rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
         >
+          <option value="__auto__">🐝 AUTO</option>
           {options.length === 0 && <option value="">No models found</option>}
           {options.map((m) => (
             <option key={m} value={m}>
@@ -121,7 +123,7 @@ export function TabControls({
           ))}
         </select>
         <span className="text-[10px]" style={{ color: "#555" }}>
-          ~{load.ram} GB RAM
+          {isAuto ? "auto-routed" : `~${load.ram} GB RAM`}
         </span>
         {onRefreshModels && (
           <button
