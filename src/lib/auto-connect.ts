@@ -1,3 +1,5 @@
+import { probeEndpointViaWS } from "@/lib/agent-ws";
+
 const ENDPOINT_KEY = "workerbee_endpoint";
 const MODE_KEY = "workerbee_endpoint_mode";
 
@@ -40,19 +42,9 @@ export function hasEverConnected(): boolean {
 }
 
 async function probe(url: string, timeoutMs = 3000): Promise<boolean> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(`${url.replace(/\/$/, "")}/health`, {
-      signal: ctrl.signal,
-      method: "GET",
-    });
-    clearTimeout(t);
-    return res.ok;
-  } catch {
-    clearTimeout(t);
-    return false;
-  }
+  // Routed through WebSocket — Chrome blocks http://localhost fetches from
+  // an https page as mixed content, but the WebSocket handshake is allowed.
+  return probeEndpointViaWS(url, timeoutMs);
 }
 
 /**
