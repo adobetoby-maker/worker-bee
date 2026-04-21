@@ -660,6 +660,53 @@ export function ChatView({
         </div>
       )}
 
+      {repairCard && (
+        <div className="px-4 pb-2">
+          <RepairCard
+            state={repairCard.state}
+            error={repairCard.error}
+            logs={repairCard.logs}
+            onCopyLog={() => {
+              const text = `Error: ${repairCard.error}\n\n${repairCard.logs.join("\n")}`;
+              navigator.clipboard?.writeText(text);
+            }}
+            onOpenConfig={onOpenConfig}
+            onDismiss={() => setRepairCard(null)}
+          />
+        </div>
+      )}
+
+      {errBurst >= 3 && !repairCard && !burstDismissed && (
+        <div
+          className="px-4 py-2 flex items-center justify-between gap-3 font-mono text-[11px]"
+          style={{
+            background: "#1a1400",
+            color: "#ffaa00",
+            borderTop: "1px solid #ffaa0040",
+          }}
+        >
+          <span>⚠ Multiple errors detected ({errBurst} in a row)</span>
+          <span className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => triggerSelfRepair(`Auto-detected: ${errBurst} consecutive errors in tab log`)}
+              className="px-2 py-0.5 rounded border"
+              style={{ borderColor: "#ffaa0066", color: "#ffaa00", background: "#0a0a0a" }}
+            >
+              🔧 RUN SELF-REPAIR
+            </button>
+            <button
+              type="button"
+              onClick={() => { setBurstDismissed(true); setErrBurst(0); consecutiveErrRef.current = 0; }}
+              className="px-2 py-0.5 rounded border"
+              style={{ borderColor: "#33333366", color: "#aaa" }}
+            >
+              DISMISS
+            </button>
+          </span>
+        </div>
+      )}
+
       {isQueued && (
         <div
           className="px-4 py-2 flex items-center justify-between gap-3 font-mono text-[11px]"
