@@ -332,6 +332,46 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         entry.handlers.forEach((h) => h.onShellDone?.({ exitCode, ok, output }));
         break;
       }
+      case "repair_started": {
+        let err = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.error === "string") err = d.error;
+          else if (typeof d.message === "string") err = d.message;
+        } else if (typeof data === "string") {
+          err = data;
+        }
+        if (!err && text) err = text;
+        entry.log?.({ ts: nowTs(), level: "ARROW", msg: `self-repair started: ${err}` });
+        entry.handlers.forEach((h) => h.onRepairStarted?.({ error: err || "unknown error" }));
+        break;
+      }
+      case "repair_log": {
+        const line = typeof data === "string"
+          ? data
+          : (data && typeof data === "object" && typeof (data as { line?: unknown }).line === "string"
+              ? (data as { line: string }).line
+              : text);
+        if (line) entry.log?.({ ts: nowTs(), level: "ARROW", msg: `repair: ${line}` });
+        entry.handlers.forEach((h) => h.onRepairLog?.(line));
+        break;
+      }
+      case "repair_complete": {
+        let ok = false;
+        let message: string | undefined;
+        let errorLog: string | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.ok === "boolean") ok = d.ok;
+          else if (typeof d.success === "boolean") ok = d.success;
+          if (typeof d.message === "string") message = d.message;
+          if (typeof d.error_log === "string") errorLog = d.error_log;
+          else if (typeof d.errorLog === "string") errorLog = d.errorLog;
+        }
+        entry.log?.({ ts: nowTs(), level: ok ? "OK" : "ERR", msg: `repair_complete ok=${ok}` });
+        entry.handlers.forEach((h) => h.onRepairComplete?.({ ok, message, errorLog }));
+        break;
+      }
     }
 }
 
