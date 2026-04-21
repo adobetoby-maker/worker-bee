@@ -1128,7 +1128,7 @@ export function ChatView({
                 className={
                   isUser
                     ? "text-sm text-primary-foreground bg-gradient-to-br from-primary to-primary-glow shadow-[var(--shadow-elegant,0_8px_24px_-12px_rgba(255,170,0,0.5))]"
-                    : "w-full"
+                    : "w-full group relative"
                 }
                 style={
                   isUser
@@ -1172,6 +1172,9 @@ export function ChatView({
                       >
                         🧠 {consultedByMessage[i]} memories consulted
                       </div>
+                    )}
+                    {!showCursor && m.content && (
+                      <CopyMessageButton text={m.content} />
                     )}
                   </>
                 )}
