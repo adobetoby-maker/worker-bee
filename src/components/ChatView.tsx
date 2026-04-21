@@ -15,7 +15,13 @@ import {
   sendSelfRepair,
   sendLogin,
   detectLoginIntent,
+  sendMemorySearch,
+  sendMemoryStore,
+  sendMemoryStats,
+  detectMemoryCommand,
+  type MemorySearchResult,
 } from "@/lib/agent-ws";
+import { toast } from "sonner";
 import { InstallActionCard, type InstallCardState } from "./InstallActionCard";
 import { RepairCard, type RepairCardState } from "./RepairCard";
 import { LoginPromptCard, type LoginSubmitArgs } from "./LoginPromptCard";
@@ -71,6 +77,8 @@ interface Props {
   // Manual self-repair trigger token — when increments, ChatView sends self_repair.
   repairToken?: number;
   onOpenConfig?: () => void;
+  // Memory
+  onMemoryStatsChange?: (total: number) => void;
 }
 
 export function ChatView({
@@ -105,6 +113,7 @@ export function ChatView({
   onSmokeTest,
   repairToken = 0,
   onOpenConfig,
+  onMemoryStatsChange,
 }: Props) {
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
@@ -149,6 +158,15 @@ export function ChatView({
   const [errBurst, setErrBurst] = useState(0);
   const [burstDismissed, setBurstDismissed] = useState(false);
   const consecutiveErrRef = useRef(0);
+
+  // Memory: search card + per-message consulted counters.
+  const [memorySearchCard, setMemorySearchCard] = useState<{
+    query: string;
+    results: MemorySearchResult[];
+    loading: boolean;
+  } | null>(null);
+  const [consultedByMessage, setConsultedByMessage] = useState<Record<number, number>>({});
+  const pendingConsultedRef = useRef<number | null>(null);
 
   useEffect(() => {
     onStreamingChange(streaming);
@@ -249,6 +267,8 @@ export function ChatView({
     }
     const next: ChatMessage[] = [...messages, { role: "user", content: text }];
     onMessagesChange(() => [...next, { role: "assistant", content: "" }]);
+    // Track which message index any incoming memory_consulted should attach to.
+    pendingConsultedRef.current = next.length; // index of the assistant placeholder
     setStreaming(true);
     onSendStart?.(text);
     trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: `chat send chars=${text.length}` });
@@ -396,6 +416,29 @@ export function ChatView({
       onSmokeTest();
       return;
     }
+    // Memory commands — intercept before anything else.
+    const memCmd = detectMemoryCommand(text);
+    if (memCmd) {
+      if (!isWSOpen(tabId)) {
+        trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "memory: WebSocket not open" });
+        return;
+      }
+      setInput("");
+      if (memCmd.kind === "remember") {
+        onMessagesChange((prev) => [...prev, { role: "user", content: text }]);
+        setMemorySearchCard({ query: memCmd.query, results: [], loading: true });
+        sendMemorySearch(tabId, memCmd.query, 5);
+      } else {
+        // /learn
+        onMessagesChange((prev) => [...prev, { role: "user", content: text }]);
+        sendMemoryStore(tabId, {
+          topic: "user instruction",
+          content: memCmd.content,
+          source: "user",
+        });
+      }
+      return;
+    }
     if (!connected || !model) {
       trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
       return;
@@ -458,6 +501,40 @@ export function ChatView({
   };
 
   const handleLoginCancel = () => setLoginPrompt(null);
+
+  // Memory subscription — stats, search results, consulted indicator.
+  useEffect(() => {
+    const unsub = subscribeAgentWS(tabId, {
+      onMemoryStats: ({ total }) => {
+        onMemoryStatsChange?.(total);
+      },
+      onMemorySearchResult: ({ query, results }) => {
+        setMemorySearchCard({ query, results, loading: false });
+      },
+      onMemoryConsulted: ({ count }) => {
+        if (count <= 0) return;
+        // Attach to current in-flight assistant message (last one).
+        const idx = pendingConsultedRef.current;
+        if (idx !== null && idx >= 0) {
+          setConsultedByMessage((prev) => ({ ...prev, [idx]: count }));
+        }
+      },
+      onMemoryStored: ({ ok, message }) => {
+        if (ok) toast.success("🧠 Stored in memory");
+        else toast.error(message ?? "Failed to store memory");
+        // Refresh stats after a store.
+        sendMemoryStats(tabId);
+      },
+      onOpen: () => {
+        // Fetch stats on (re)connect.
+        sendMemoryStats(tabId);
+      },
+    });
+    // Try immediately if already open.
+    if (isWSOpen(tabId)) sendMemoryStats(tabId);
+    return () => { unsub(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabId]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -732,14 +809,29 @@ export function ChatView({
                 {isUser ? (
                   <div className="whitespace-pre-wrap break-words">{m.content}</div>
                 ) : (
-                  <AssistantContent
-                    content={m.content}
-                    showCursor={showCursor}
-                    projectName={projectName}
-                    onSaveCodeBlock={onSaveCodeBlock}
-                    matchProjectFile={matchProjectFile}
-                    onCompareCodeBlock={onCompareCodeBlock}
-                  />
+                  <>
+                    <AssistantContent
+                      content={m.content}
+                      showCursor={showCursor}
+                      projectName={projectName}
+                      onSaveCodeBlock={onSaveCodeBlock}
+                      matchProjectFile={matchProjectFile}
+                      onCompareCodeBlock={onCompareCodeBlock}
+                    />
+                    {consultedByMessage[i] > 0 && (
+                      <div
+                        style={{
+                          marginTop: 6,
+                          fontFamily: "JetBrains Mono, monospace",
+                          fontSize: 10,
+                          color: "var(--muted-foreground)",
+                          opacity: 0.75,
+                        }}
+                      >
+                        🧠 {consultedByMessage[i]} memories consulted
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -755,6 +847,67 @@ export function ChatView({
         if (!action) return null;
         return <BrowserTaskCard action={action} onStop={stop} />;
       })()}
+
+      {memorySearchCard && (
+        <div className="px-4 pb-2">
+          <div
+            style={{
+              background: "#0a0a0a",
+              border: "1px solid #9b59b6",
+              borderRadius: 8,
+              padding: 12,
+              fontFamily: "JetBrains Mono, monospace",
+              fontSize: 12,
+              color: "#d8b4ff",
+            }}
+          >
+            <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+              <div style={{ color: "#c084fc", fontSize: 11, letterSpacing: "0.1em" }}>
+                🧠 MEMORY SEARCH — {memorySearchCard.query}
+              </div>
+              <button
+                type="button"
+                onClick={() => setMemorySearchCard(null)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "#9b59b6",
+                  cursor: "pointer",
+                  fontSize: 11,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            {memorySearchCard.loading ? (
+              <div style={{ opacity: 0.7 }}>searching memories…</div>
+            ) : memorySearchCard.results.length === 0 ? (
+              <div style={{ opacity: 0.7 }}>no matching memories</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {memorySearchCard.results.map((r, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      borderTop: idx === 0 ? "none" : "1px dashed rgba(155,89,182,0.25)",
+                      paddingTop: idx === 0 ? 0 : 6,
+                    }}
+                  >
+                    <div style={{ color: "#c084fc", fontSize: 10, opacity: 0.85 }}>
+                      {r.score !== undefined ? `score ${r.score.toFixed(3)}` : "—"}
+                      {r.timestamp ? ` · ${r.timestamp}` : ""}
+                      {r.source ? ` · ${r.source}` : ""}
+                    </div>
+                    <div style={{ color: "#e9d5ff", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                      {r.content}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {installCard && (
         <div className="space-y-1">

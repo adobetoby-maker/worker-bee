@@ -161,6 +161,7 @@ function Index() {
   });
   const [autoSendByTab, setAutoSendByTab] = useState<Record<string, { token: number; text: string }>>({});
   const [repairTokenByTab, setRepairTokenByTab] = useState<Record<string, number>>({});
+  const [memoryCountByTab, setMemoryCountByTab] = useState<Record<string, number>>({});
   const [flashTurnTabId, setFlashTurnTabId] = useState<string | null>(null);
   const [refreshingModels, setRefreshingModels] = useState(false);
 
@@ -839,6 +840,7 @@ function Index() {
                   refreshingModels={refreshingModels}
                   projects={projects.filter((p) => !p.archived).map((p) => ({ id: p.id, emoji: p.emoji, name: p.name }))}
                   activeProjectId={projectForTab(activeTab.id)?.id ?? null}
+                  memoryCount={memoryCountByTab[activeTab.id] ?? null}
                   onProjectChange={(pid) => {
                     bindTabToProject(activeTab.id, pid);
                     const proj = pid ? projects.find((p) => p.id === pid) : null;
@@ -954,6 +956,11 @@ function Index() {
                               setActive("projects");
                             }}
                             onSmokeTest={() => runSmokeTest(t.name)}
+                            onMemoryStatsChange={(total) =>
+                              setMemoryCountByTab((prev) =>
+                                prev[t.id] === total ? prev : { ...prev, [t.id]: total }
+                              )
+                            }
                           />
                         </div>
                       ))}

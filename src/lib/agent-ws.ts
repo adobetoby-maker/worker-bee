@@ -23,7 +23,8 @@ export interface AgentWSMessage {
     | "gmail_summary" | "gmail_preview" | "gmail_top_senders"
     | "gmail_progress" | "gmail_done"
     | "login_log" | "login_result"
-    | "tags_result" | "ps_result";
+    | "tags_result" | "ps_result"
+    | "memory_stats" | "memory_search_result" | "memory_consulted" | "memory_stored";
   content?: string;
   text?: string;
   message?: string;
@@ -53,6 +54,17 @@ export interface AgentWSHandlers {
   onGmailDone?: (info: GmailDone) => void;
   onLoginLog?: (line: string) => void;
   onLoginResult?: (info: { ok: boolean; url?: string; attempts?: number; error?: string }) => void;
+  onMemoryStats?: (info: { conversations: number; actions: number; knowledge: number; total: number }) => void;
+  onMemorySearchResult?: (info: { query: string; results: MemorySearchResult[] }) => void;
+  onMemoryConsulted?: (info: { count: number }) => void;
+  onMemoryStored?: (info: { ok: boolean; message?: string }) => void;
+}
+
+export interface MemorySearchResult {
+  score?: number;
+  timestamp?: string;
+  content: string;
+  source?: string;
 }
 
 interface Entry {
@@ -505,6 +517,65 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         entry.handlers.forEach((h) => h.onLoginResult?.({ ok, url, attempts, error }));
         break;
       }
+      case "memory_stats": {
+        let conversations = 0, actions = 0, knowledge = 0;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.conversations === "number") conversations = d.conversations;
+          if (typeof d.actions === "number") actions = d.actions;
+          if (typeof d.knowledge === "number") knowledge = d.knowledge;
+        }
+        const total = conversations + actions + knowledge;
+        entry.handlers.forEach((h) => h.onMemoryStats?.({ conversations, actions, knowledge, total }));
+        break;
+      }
+      case "memory_search_result": {
+        let query = "";
+        const results: MemorySearchResult[] = [];
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.query === "string") query = d.query;
+          const arr = d.results;
+          if (Array.isArray(arr)) {
+            for (const r of arr) {
+              if (r && typeof r === "object") {
+                const rec = r as Record<string, unknown>;
+                results.push({
+                  score: typeof rec.score === "number" ? rec.score : undefined,
+                  timestamp: typeof rec.timestamp === "string" ? rec.timestamp : undefined,
+                  content: typeof rec.content === "string" ? rec.content : String(rec.content ?? ""),
+                  source: typeof rec.source === "string" ? rec.source : undefined,
+                });
+              }
+            }
+          }
+        }
+        entry.handlers.forEach((h) => h.onMemorySearchResult?.({ query, results }));
+        break;
+      }
+      case "memory_consulted": {
+        let count = 0;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.count === "number") count = d.count;
+          else if (typeof d.n === "number") count = d.n;
+        } else if (typeof data === "number") {
+          count = data;
+        }
+        entry.handlers.forEach((h) => h.onMemoryConsulted?.({ count }));
+        break;
+      }
+      case "memory_stored": {
+        let ok = true;
+        let message: string | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.ok === "boolean") ok = d.ok;
+          if (typeof d.message === "string") message = d.message;
+        }
+        entry.handlers.forEach((h) => h.onMemoryStored?.({ ok, message }));
+        break;
+      }
     }
 }
 
@@ -740,6 +811,61 @@ export function detectLoginIntent(text: string): string | null {
   if (u) return u[0].replace(/[.,)]+$/, "");
   const d = text.match(LOGIN_DOMAIN_RE);
   if (d) return `https://${d[1]}${d[2] ?? ""}`.replace(/[.,)]+$/, "");
+  return null;
+}
+
+// ────────────────────────────────────────────
+// Memory actions
+// ────────────────────────────────────────────
+
+export function sendMemoryStats(tabId: string): boolean {
+  const ws = tabs.get(tabId)?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  ws.send(JSON.stringify({ action: "memory_stats" }));
+  return true;
+}
+
+export function sendMemorySearch(tabId: string, query: string, n = 5): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "memory_search: WS not open" });
+    return false;
+  }
+  ws.send(JSON.stringify({ action: "memory_search", query, n }));
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: `memory_search: ${query}` });
+  return true;
+}
+
+export function sendMemoryStore(
+  tabId: string,
+  args: { topic: string; content: string; source?: string },
+): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "memory_store: WS not open" });
+    return false;
+  }
+  ws.send(JSON.stringify({
+    action: "memory_store",
+    topic: args.topic,
+    content: args.content,
+    source: args.source ?? "user",
+  }));
+  entry?.log?.({ ts: nowTs(), level: "OK", msg: `memory_store: ${args.topic}` });
+  return true;
+}
+
+export function detectMemoryCommand(text: string):
+  | { kind: "remember"; query: string }
+  | { kind: "learn"; content: string }
+  | null {
+  const t = text.trim();
+  const r = t.match(/^\/remember\s+(.+)$/is);
+  if (r) return { kind: "remember", query: r[1].trim() };
+  const l = t.match(/^\/learn\s+(.+)$/is);
+  if (l) return { kind: "learn", content: l[1].trim() };
   return null;
 }
 

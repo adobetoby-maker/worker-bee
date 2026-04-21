@@ -62,6 +62,8 @@ interface TabControlsProps {
   projects?: { id: string; emoji: string; name: string }[];
   activeProjectId?: string | null;
   onProjectChange?: (id: string | null) => void;
+  // Memory
+  memoryCount?: number | null;
 }
 
 export function TabControls({
@@ -78,6 +80,7 @@ export function TabControls({
   projects = [],
   activeProjectId = null,
   onProjectChange,
+  memoryCount = null,
 }: TabControlsProps) {
   const [confirming, setConfirming] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(false);
@@ -150,6 +153,27 @@ export function TabControls({
             ))}
           </select>
         </div>
+      )}
+
+      {memoryCount !== null && memoryCount !== undefined && (
+        <span
+          title="Memories indexed for this agent"
+          className="font-mono"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "2px 8px",
+            borderRadius: 999,
+            fontSize: 11,
+            background: "rgba(57,255,20,0.08)",
+            border: "1px solid rgba(57,255,20,0.35)",
+            color: "#39ff14",
+            lineHeight: 1.4,
+          }}
+        >
+          🧠 {memoryCount} {memoryCount === 1 ? "memory" : "memories"}
+        </span>
       )}
 
       <div className="ml-auto flex items-center gap-2 relative">
