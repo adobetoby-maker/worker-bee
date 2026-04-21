@@ -874,6 +874,8 @@ function Index() {
                             estimatedWaitSec={estimatedWaitSeconds(t.id)}
                             autoSendToken={autoSendByTab[t.id]?.token ?? 0}
                             autoSendText={autoSendByTab[t.id]?.text ?? ""}
+                            repairToken={repairTokenByTab[t.id] ?? 0}
+                            onOpenConfig={() => setActive("config")}
                             onRequestSend={(text) => handleRequestSend(t.id, t.name, t.color, t.model ?? model, text)}
                             onCancelQueued={() => {
                               cancelQueued(t.id);
