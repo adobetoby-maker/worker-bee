@@ -113,7 +113,7 @@ export function ConfigPanel({
     // Best-effort tag discovery (does NOT affect connected status)
     setTagsLoading(true);
     try {
-      const list = (await getTagsViaWS(url, 15000)) as OllamaModel[];
+      const list = (await fetchTagsHTTP(url, 8000)) as OllamaModel[];
       setModels(list);
       const first = list[0]?.name ?? null;
       if (first && !model) setModel(first);
@@ -136,7 +136,7 @@ export function ConfigPanel({
     setTagsLoading(true);
     appendLog({ ts: nowTs(), level: "ARROW", msg: "Refreshing models…" });
     try {
-      const list = (await getTagsViaWS(endpoint.replace(/\/$/, ""), 15000)) as OllamaModel[];
+      const list = (await fetchTagsHTTP(endpoint.replace(/\/$/, ""), 8000)) as OllamaModel[];
       setModels(list);
       const first = list[0]?.name ?? null;
       if (first && !model) setModel(first);
