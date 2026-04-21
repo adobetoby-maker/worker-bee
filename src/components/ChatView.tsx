@@ -848,7 +848,7 @@ export function ChatView({
 
   return (
     <div
-      className="flex flex-1 min-h-0 flex-col"
+      className="flex flex-1 min-h-0 flex-col relative"
       style={{ animation: "var(--animate-slide-down)" }}
     >
       <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto py-6">
