@@ -848,6 +848,67 @@ export function ChatView({
         return <BrowserTaskCard action={action} onStop={stop} />;
       })()}
 
+      {memorySearchCard && (
+        <div className="px-4 pb-2">
+          <div
+            style={{
+              background: "#0a0a0a",
+              border: "1px solid #9b59b6",
+              borderRadius: 8,
+              padding: 12,
+              fontFamily: "JetBrains Mono, monospace",
+              fontSize: 12,
+              color: "#d8b4ff",
+            }}
+          >
+            <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+              <div style={{ color: "#c084fc", fontSize: 11, letterSpacing: "0.1em" }}>
+                🧠 MEMORY SEARCH — {memorySearchCard.query}
+              </div>
+              <button
+                type="button"
+                onClick={() => setMemorySearchCard(null)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "#9b59b6",
+                  cursor: "pointer",
+                  fontSize: 11,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            {memorySearchCard.loading ? (
+              <div style={{ opacity: 0.7 }}>searching memories…</div>
+            ) : memorySearchCard.results.length === 0 ? (
+              <div style={{ opacity: 0.7 }}>no matching memories</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {memorySearchCard.results.map((r, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      borderTop: idx === 0 ? "none" : "1px dashed rgba(155,89,182,0.25)",
+                      paddingTop: idx === 0 ? 0 : 6,
+                    }}
+                  >
+                    <div style={{ color: "#c084fc", fontSize: 10, opacity: 0.85 }}>
+                      {r.score !== undefined ? `score ${r.score.toFixed(3)}` : "—"}
+                      {r.timestamp ? ` · ${r.timestamp}` : ""}
+                      {r.source ? ` · ${r.source}` : ""}
+                    </div>
+                    <div style={{ color: "#e9d5ff", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                      {r.content}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {installCard && (
         <div className="space-y-1">
           <InstallActionCard
