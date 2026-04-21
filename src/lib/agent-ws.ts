@@ -815,6 +815,61 @@ export function detectLoginIntent(text: string): string | null {
 }
 
 // ────────────────────────────────────────────
+// Memory actions
+// ────────────────────────────────────────────
+
+export function sendMemoryStats(tabId: string): boolean {
+  const ws = tabs.get(tabId)?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  ws.send(JSON.stringify({ action: "memory_stats" }));
+  return true;
+}
+
+export function sendMemorySearch(tabId: string, query: string, n = 5): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "memory_search: WS not open" });
+    return false;
+  }
+  ws.send(JSON.stringify({ action: "memory_search", query, n }));
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: `memory_search: ${query}` });
+  return true;
+}
+
+export function sendMemoryStore(
+  tabId: string,
+  args: { topic: string; content: string; source?: string },
+): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "memory_store: WS not open" });
+    return false;
+  }
+  ws.send(JSON.stringify({
+    action: "memory_store",
+    topic: args.topic,
+    content: args.content,
+    source: args.source ?? "user",
+  }));
+  entry?.log?.({ ts: nowTs(), level: "OK", msg: `memory_store: ${args.topic}` });
+  return true;
+}
+
+export function detectMemoryCommand(text: string):
+  | { kind: "remember"; query: string }
+  | { kind: "learn"; content: string }
+  | null {
+  const t = text.trim();
+  const r = t.match(/^\/remember\s+(.+)$/is);
+  if (r) return { kind: "remember", query: r[1].trim() };
+  const l = t.match(/^\/learn\s+(.+)$/is);
+  if (l) return { kind: "learn", content: l[1].trim() };
+  return null;
+}
+
+// ────────────────────────────────────────────
 // Control socket — a single shared WebSocket per endpoint used for
 // out-of-band requests that used to be HTTP fetches (e.g. /api/tags,
 // /api/ps, /health probes). Routing these through WS avoids Chrome
