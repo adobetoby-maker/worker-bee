@@ -206,23 +206,6 @@ export function ChatView({
     if (!ok) finish("failed to send over WebSocket");
   };
 
-  // Removed legacy direct sendChat below (replaced by branching above).
-  const _legacyUnused = (() => {
-    return;
-  });
-
-  void _legacyUnused;
-  const _placeholder = (() => {
-    const unsub = (): void => {};
-    return unsub;
-  });
-  void _placeholder;
-  const __removed_inline_send__ = (() => {
-    /*
-    */
-  });
-  void __removed_inline_send__;
-
   const lastAutoTokenRef = useRef(0);
   useEffect(() => {
     if (autoSendToken > 0 && autoSendToken !== lastAutoTokenRef.current && autoSendText) {
