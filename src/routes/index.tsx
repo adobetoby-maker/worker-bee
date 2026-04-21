@@ -1055,6 +1055,16 @@ function Index() {
                     msg: `[${label}] flagged for Hive Vault — unlock vault to add as Honey Pot`,
                   });
                 }}
+                onOpenInboxCleaner={() => {
+                  setActive("inbox-cleaner");
+                  appendLog({ ts: nowTs(), level: "ARROW", msg: "Inbox Cleaner opened" });
+                }}
+              />
+            )}
+            {active === "inbox-cleaner" && (
+              <InboxCleaner
+                tabId={activeTabId}
+                onBack={() => setActive("chat")}
               />
             )}
             {active === "config" && (
