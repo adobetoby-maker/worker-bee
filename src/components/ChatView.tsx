@@ -508,6 +508,140 @@ export function ChatView({
     return () => { unsub(); loginUnsubRef.current = null; };
   }, [tabId]);
 
+  // Subscribe to plan events for this tab.
+  useEffect(() => {
+    const unsub = subscribeAgentWS(tabId, {
+      onPlanStarted: ({ goal }) => {
+        setPlanCard({
+          goal,
+          state: "generating",
+          steps: [],
+          runtime: {},
+          current: 0,
+          total: 0,
+          logs: [],
+          completed: 0,
+          failed: 0,
+          showResults: false,
+        });
+      },
+      onPlanReady: ({ goal, tasks, count }) => {
+        setPlanCard((prev) => ({
+          goal: goal || prev?.goal || "",
+          state: "ready",
+          steps: tasks,
+          runtime: Object.fromEntries(tasks.map((t) => [t.id, { status: "pending" as const }])),
+          current: 0,
+          total: count || tasks.length,
+          logs: prev?.logs ?? [],
+          completed: 0,
+          failed: 0,
+          showResults: false,
+        }));
+      },
+      onPlanProgress: (info) => {
+        setPlanCard((prev) => {
+          if (!prev) return prev;
+          const runtime = {
+            ...prev.runtime,
+            [info.step_id]: { status: info.status, result: info.result },
+          };
+          return {
+            ...prev,
+            state: "running",
+            runtime,
+            current: info.current,
+            total: info.total || prev.total,
+          };
+        });
+      },
+      onPlanLog: ({ message, level }) => {
+        if (!message) return;
+        setPlanCard((prev) => prev ? { ...prev, logs: [...prev.logs, { message, level }] } : prev);
+      },
+      onPlanComplete: ({ completed, failed, total, results }) => {
+        setPlanCard((prev) => {
+          if (!prev) return prev;
+          // Merge any per-step results provided in the bulk results map.
+          const runtime = { ...prev.runtime };
+          for (const step of prev.steps) {
+            const r = (results as Record<string, unknown>)[String(step.id)];
+            if (r && typeof r === "object" && !runtime[step.id]?.result) {
+              runtime[step.id] = {
+                status: runtime[step.id]?.status ?? "done",
+                result: r as Record<string, unknown>,
+              };
+            }
+          }
+          return {
+            ...prev,
+            state: "complete",
+            runtime,
+            completed,
+            failed,
+            total: total || prev.total,
+            current: total || prev.current,
+          };
+        });
+      },
+      onPlanError: ({ message }) => {
+        setPlanCard((prev) => prev
+          ? { ...prev, state: "error", errorMsg: message }
+          : {
+              goal: "",
+              state: "error",
+              steps: [],
+              runtime: {},
+              current: 0,
+              total: 0,
+              logs: [],
+              completed: 0,
+              failed: 0,
+              errorMsg: message,
+              showResults: false,
+            });
+      },
+    });
+    return () => { unsub(); };
+  }, [tabId]);
+
+  const startPlan = (goal: string) => {
+    if (!isWSOpen(tabId)) {
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "plan: WS not open" });
+      return;
+    }
+    setPlanCard({
+      goal,
+      state: "generating",
+      steps: [],
+      runtime: {},
+      current: 0,
+      total: 0,
+      logs: [],
+      completed: 0,
+      failed: 0,
+      showResults: false,
+    });
+    sendPlan(tabId, goal);
+  };
+
+  const handleConfirmPlan = () => {
+    const goal = planSuggestion;
+    setPlanSuggestion(null);
+    setInput("");
+    if (goal) startPlan(goal);
+  };
+
+  const handleJustChat = async () => {
+    const goal = planSuggestion;
+    setPlanSuggestion(null);
+    if (!goal) return;
+    setInput("");
+    const decision = onRequestSend ? onRequestSend(goal) : "start";
+    if (decision === "queued") return;
+    await startStream(goal);
+  };
+
   const handleLoginSubmit = (args: LoginSubmitArgs) => {
     if (!isWSOpen(tabId)) {
       trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "login: WS not open" });
