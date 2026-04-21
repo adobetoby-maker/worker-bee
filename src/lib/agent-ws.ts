@@ -36,9 +36,139 @@ interface Entry {
   status: WSStatus;
   handlers: Set<AgentWSHandlers>;
   log: ((line: LogLine) => void) | null;
+  reconnectAttempts: number;
+  reconnectTimer: ReturnType<typeof setTimeout> | null;
+  intentionalClose: boolean;
+  heartbeatTimer: ReturnType<typeof setInterval> | null;
+  pongTimer: ReturnType<typeof setTimeout> | null;
+  lastMessageAt: number;
+  awaitingPong: boolean;
 }
 
 const tabs = new Map<string, Entry>();
+
+const MAX_RECONNECT_ATTEMPTS = 10;
+const BASE_RECONNECT_DELAY_MS = 1000;
+const MAX_RECONNECT_DELAY_MS = 30000;
+const HEARTBEAT_INTERVAL_MS = 30000;
+const PONG_TIMEOUT_MS = 5000;
+
+type ReconnectListener = (info: { tabId: string; attempt: number; max: number; status: "trying" | "connected" | "failed" }) => void;
+const reconnectListeners = new Set<ReconnectListener>();
+
+export function subscribeReconnectStatus(fn: ReconnectListener): () => void {
+  reconnectListeners.add(fn);
+  return () => { reconnectListeners.delete(fn); };
+}
+
+function emitReconnect(tabId: string, entry: Entry, status: "trying" | "connected" | "failed"): void {
+  reconnectListeners.forEach((fn) => fn({
+    tabId,
+    attempt: entry.reconnectAttempts,
+    max: MAX_RECONNECT_ATTEMPTS,
+    status,
+  }));
+}
+
+function clearTimers(entry: Entry): void {
+  if (entry.reconnectTimer) { clearTimeout(entry.reconnectTimer); entry.reconnectTimer = null; }
+  if (entry.heartbeatTimer) { clearInterval(entry.heartbeatTimer); entry.heartbeatTimer = null; }
+  if (entry.pongTimer) { clearTimeout(entry.pongTimer); entry.pongTimer = null; }
+  entry.awaitingPong = false;
+}
+
+function startHeartbeat(tabId: string, entry: Entry): void {
+  if (entry.heartbeatTimer) clearInterval(entry.heartbeatTimer);
+  entry.heartbeatTimer = setInterval(() => {
+    const ws = entry.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const idle = Date.now() - entry.lastMessageAt;
+    if (idle < HEARTBEAT_INTERVAL_MS) return;
+    try {
+      ws.send(JSON.stringify({ action: "ping" }));
+      entry.awaitingPong = true;
+      if (entry.pongTimer) clearTimeout(entry.pongTimer);
+      entry.pongTimer = setTimeout(() => {
+        if (entry.awaitingPong) {
+          entry.log?.({ ts: nowTs(), level: "ERR", msg: "Heartbeat timeout — reconnecting" });
+          try { ws.close(); } catch { /* noop */ }
+        }
+      }, PONG_TIMEOUT_MS);
+    } catch { /* noop */ }
+  }, HEARTBEAT_INTERVAL_MS);
+}
+
+function scheduleReconnect(tabId: string, entry: Entry): void {
+  if (entry.intentionalClose) return;
+  if (entry.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    entry.log?.({ ts: nowTs(), level: "ERR", msg: "Agent unreachable — is Worker Bee running?" });
+    entry.log?.({ ts: nowTs(), level: "ARROW", msg: "Start it: cd ~/worker-bee && ./start.sh" });
+    emitReconnect(tabId, entry, "failed");
+    return;
+  }
+  const delay = Math.min(BASE_RECONNECT_DELAY_MS * Math.pow(2, entry.reconnectAttempts), MAX_RECONNECT_DELAY_MS);
+  entry.reconnectAttempts++;
+  entry.log?.({ ts: nowTs(), level: "ARROW", msg: `Reconnect attempt ${entry.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${Math.round(delay / 1000)}s` });
+  emitReconnect(tabId, entry, "trying");
+  if (entry.reconnectTimer) clearTimeout(entry.reconnectTimer);
+  entry.reconnectTimer = setTimeout(() => {
+    entry.reconnectTimer = null;
+    createSocket(tabId, entry);
+  }, delay);
+}
+
+function createSocket(tabId: string, entry: Entry): void {
+  entry.status = "connecting";
+  let ws: WebSocket;
+  try {
+    ws = new WebSocket(wsUrl(entry.endpoint, tabId));
+  } catch {
+    entry.status = "error";
+    entry.log?.({ ts: nowTs(), level: "ERR", msg: "WebSocket error — is agent running?" });
+    scheduleReconnect(tabId, entry);
+    return;
+  }
+  entry.ws = ws;
+  entry.lastMessageAt = Date.now();
+
+  ws.onopen = () => {
+    entry.status = "open";
+    const wasReconnect = entry.reconnectAttempts > 0;
+    entry.reconnectAttempts = 0;
+    entry.lastMessageAt = Date.now();
+    entry.log?.({ ts: nowTs(), level: "OK", msg: wasReconnect ? "WebSocket reconnected ✓" : "WebSocket connected to agent :8000" });
+    try { ws.send(JSON.stringify({ action: "ping" })); } catch { /* noop */ }
+    startHeartbeat(tabId, entry);
+    emitReconnect(tabId, entry, "connected");
+    entry.handlers.forEach((h) => h.onOpen?.());
+  };
+  ws.onclose = () => {
+    entry.status = "closed";
+    if (entry.heartbeatTimer) { clearInterval(entry.heartbeatTimer); entry.heartbeatTimer = null; }
+    if (entry.pongTimer) { clearTimeout(entry.pongTimer); entry.pongTimer = null; }
+    entry.handlers.forEach((h) => h.onClose?.());
+    if (!entry.intentionalClose) {
+      entry.log?.({ ts: nowTs(), level: "ARROW", msg: "WebSocket disconnected — reconnecting..." });
+      scheduleReconnect(tabId, entry);
+    } else {
+      entry.log?.({ ts: nowTs(), level: "ARROW", msg: "WebSocket disconnected" });
+    }
+  };
+  ws.onerror = (event) => {
+    entry.status = "error";
+    entry.log?.({ ts: nowTs(), level: "ERR", msg: "WebSocket error — is agent running?" });
+    console.error("WS error event:", event);
+    entry.handlers.forEach((h) => h.onSocketError?.());
+  };
+  ws.onmessage = (event) => {
+    entry.lastMessageAt = Date.now();
+    if (entry.awaitingPong) {
+      entry.awaitingPong = false;
+      if (entry.pongTimer) { clearTimeout(entry.pongTimer); entry.pongTimer = null; }
+    }
+    handleMessage(entry, event);
+  };
+}
 
 function wsUrl(endpoint: string, tabId: string): string {
   // Smart protocol detection: https → wss, http → ws.
