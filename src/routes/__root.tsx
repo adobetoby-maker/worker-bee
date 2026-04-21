@@ -74,6 +74,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('workerbee_theme');if(t==='dark'){document.documentElement.classList.add('dark');}document.documentElement.classList.remove('light');}catch(e){}",
+          }}
+        />
       </head>
       <body>
         {children}
@@ -87,7 +93,7 @@ function RootComponent() {
   return (
     <>
       <Outlet />
-      <Toaster theme="dark" position="bottom-right" />
+      <Toaster position="bottom-right" />
     </>
   );
 }
