@@ -15,6 +15,8 @@ interface HeaderProps {
   onQueueOpen?: () => void;
   queueDepth?: number;
   parallelMode?: boolean;
+  autoStatus?: "idle" | "trying" | "connected" | "failed";
+  onOpenConfig?: () => void;
 }
 
 const TAGLINES = [
@@ -24,7 +26,7 @@ const TAGLINES = [
   "Fueled by Ollama. Guided by you.",
 ];
 
-export function Header({ connected, model, toolCount, streaming = false, error = false, services, onServiceClick, onSearchOpen, onQueueOpen, queueDepth = 0, parallelMode = false }: HeaderProps) {
+export function Header({ connected, model, toolCount, streaming = false, error = false, services, onServiceClick, onSearchOpen, onQueueOpen, queueDepth = 0, parallelMode = false, autoStatus = "idle", onOpenConfig }: HeaderProps) {
   const [taglineIdx, setTaglineIdx] = useState(0);
 
   useEffect(() => {
@@ -76,6 +78,49 @@ export function Header({ connected, model, toolCount, streaming = false, error =
           <StatusBadge variant="success" dot>
             OLLAMA LIVE
           </StatusBadge>
+        ) : autoStatus === "trying" ? (
+          <span
+            className="inline-flex items-center gap-1.5 font-mono uppercase"
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.18em",
+              color: "#ffaa00",
+              border: "1px solid #ffaa0055",
+              padding: "3px 8px",
+              borderRadius: 2,
+              background: "#ffaa0010",
+            }}
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "#ffaa00",
+                animation: "pulse-neon 1.4s ease-in-out infinite",
+                opacity: 0.7,
+              }}
+            />
+            CONNECTING…
+          </span>
+        ) : autoStatus === "failed" ? (
+          <button
+            type="button"
+            onClick={onOpenConfig}
+            className="inline-flex items-center gap-1.5 font-mono uppercase hover:bg-surface-2/40 transition"
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.16em",
+              color: "#ffaa00",
+              border: "1px solid #ffaa0066",
+              padding: "3px 8px",
+              borderRadius: 2,
+              background: "#ffaa0010",
+            }}
+            title="Open CONFIG"
+          >
+            ⚠ AGENT OFFLINE — CHECK CONFIG
+          </button>
         ) : (
           <StatusBadge variant="destructive" dot>
             DISCONNECTED
