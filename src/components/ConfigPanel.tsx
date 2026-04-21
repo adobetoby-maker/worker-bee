@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { nowTs, type LogLine } from "@/lib/agent-state";
 import { saveEndpoint, type EndpointMode } from "@/lib/auto-connect";
-import { getTagsViaWS, probeEndpointViaWS } from "@/lib/agent-ws";
+import { probeEndpointViaWS } from "@/lib/agent-ws";
+import { fetchTagsHTTP } from "@/lib/fetch-tags";
 
 type Mode = "http" | "https" | "tailscale" | "custom";
 
