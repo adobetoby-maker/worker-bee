@@ -28,6 +28,18 @@ import {
   type PlanStep,
 } from "@/lib/agent-ws";
 import { toast } from "sonner";
+import { marked } from "marked";
+
+marked.setOptions({ gfm: true, breaks: true });
+
+function renderInlineMarkdown(text: string): string {
+  try {
+    // Parse as markdown but disable code fences (they're handled by parent splitter).
+    return marked.parse(text, { async: false }) as string;
+  } catch {
+    return text.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
+  }
+}
 import { InstallActionCard, type InstallCardState } from "./InstallActionCard";
 import { RepairCard, type RepairCardState } from "./RepairCard";
 import { LoginPromptCard, type LoginSubmitArgs } from "./LoginPromptCard";
