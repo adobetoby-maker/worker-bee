@@ -82,4 +82,4 @@ export async function autoDiscoverEndpoint(): Promise<
 export const INSTALL_COMMAND =
   "curl -fsSL https://raw.githubusercontent.com/adobetoby-maker/workerbee-ai/refs/heads/main/mac-install.sh | zsh";
 
-export type AutoConnectStatus = "idle" | "trying" | "connected" | "failed";
+export type AutoConnectStatus = "idle" | "trying" | "connected" | "failed" | "reconnecting";

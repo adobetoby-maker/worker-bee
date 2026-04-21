@@ -15,7 +15,8 @@ interface HeaderProps {
   onQueueOpen?: () => void;
   queueDepth?: number;
   parallelMode?: boolean;
-  autoStatus?: "idle" | "trying" | "connected" | "failed";
+  autoStatus?: "idle" | "trying" | "connected" | "failed" | "reconnecting";
+  reconnectInfo?: { attempt: number; max: number } | null;
   onOpenConfig?: () => void;
 }
 
@@ -26,7 +27,7 @@ const TAGLINES = [
   "Fueled by Ollama. Guided by you.",
 ];
 
-export function Header({ connected, model, toolCount, streaming = false, error = false, services, onServiceClick, onSearchOpen, onQueueOpen, queueDepth = 0, parallelMode = false, autoStatus = "idle", onOpenConfig }: HeaderProps) {
+export function Header({ connected, model, toolCount, streaming = false, error = false, services, onServiceClick, onSearchOpen, onQueueOpen, queueDepth = 0, parallelMode = false, autoStatus = "idle", reconnectInfo = null, onOpenConfig }: HeaderProps) {
   const [taglineIdx, setTaglineIdx] = useState(0);
 
   useEffect(() => {
@@ -78,7 +79,7 @@ export function Header({ connected, model, toolCount, streaming = false, error =
           <StatusBadge variant="success" dot>
             OLLAMA LIVE
           </StatusBadge>
-        ) : autoStatus === "trying" ? (
+        ) : autoStatus === "trying" || autoStatus === "reconnecting" ? (
           <span
             className="inline-flex items-center gap-1.5 font-mono uppercase"
             style={{
@@ -101,7 +102,9 @@ export function Header({ connected, model, toolCount, streaming = false, error =
                 opacity: 0.7,
               }}
             />
-            CONNECTING…
+            {autoStatus === "reconnecting" && reconnectInfo
+              ? `RECONNECTING… (${reconnectInfo.attempt}/${reconnectInfo.max})`
+              : "CONNECTING…"}
           </span>
         ) : autoStatus === "failed" ? (
           <button

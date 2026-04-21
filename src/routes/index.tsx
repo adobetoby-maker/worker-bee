@@ -60,7 +60,7 @@ import {
 } from "@/lib/projects";
 import { diffLines } from "@/lib/diff";
 import { ejectAllForTab } from "@/lib/injection-registry";
-import { openAgentWS, closeAgentWS, sendPing } from "@/lib/agent-ws";
+import { openAgentWS, closeAgentWS, sendPing, subscribeReconnectStatus } from "@/lib/agent-ws";
 import {
   autoDiscoverEndpoint,
   loadSavedEndpoint,
@@ -132,6 +132,7 @@ function Index() {
   const [model, setModel] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [autoStatus, setAutoStatus] = useState<AutoConnectStatus>("idle");
+  const [reconnectInfo, setReconnectInfo] = useState<{ attempt: number; max: number } | null>(null);
   const [endpointMode, setEndpointMode] = useState<EndpointMode>("custom");
   const [showWelcome, setShowWelcome] = useState(false);
   const [bannerDismissedAt, setBannerDismissedAt] = useState(0);
@@ -161,6 +162,22 @@ function Index() {
   const [flashTurnTabId, setFlashTurnTabId] = useState<string | null>(null);
 
   useEffect(() => subscribeQueue(setQueueState), []);
+
+  // ===== WebSocket reconnect status (per-tab) =====
+  useEffect(() => {
+    return subscribeReconnectStatus(({ attempt, max, status }) => {
+      if (status === "trying") {
+        setReconnectInfo({ attempt, max });
+        setAutoStatus("reconnecting");
+      } else if (status === "connected") {
+        setReconnectInfo(null);
+        setAutoStatus("connected");
+      } else if (status === "failed") {
+        setReconnectInfo(null);
+        setAutoStatus("failed");
+      }
+    });
+  }, []);
 
   // ===== Auto-connect on first load =====
   // Tries last saved endpoint, then https/http localhost fallbacks. Silent UI.
@@ -730,6 +747,7 @@ function Index() {
         queueDepth={queueState.queue.length}
         parallelMode={queueState.parallelMode}
         autoStatus={autoStatus}
+        reconnectInfo={reconnectInfo}
         onOpenConfig={() => setActive("config")}
       />
       {active === "chat" && (
