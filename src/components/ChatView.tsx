@@ -159,6 +159,15 @@ export function ChatView({
   const [burstDismissed, setBurstDismissed] = useState(false);
   const consecutiveErrRef = useRef(0);
 
+  // Memory: search card + per-message consulted counters.
+  const [memorySearchCard, setMemorySearchCard] = useState<{
+    query: string;
+    results: MemorySearchResult[];
+    loading: boolean;
+  } | null>(null);
+  const [consultedByMessage, setConsultedByMessage] = useState<Record<number, number>>({});
+  const pendingConsultedRef = useRef<number | null>(null);
+
   useEffect(() => {
     onStreamingChange(streaming);
   }, [streaming, onStreamingChange]);
