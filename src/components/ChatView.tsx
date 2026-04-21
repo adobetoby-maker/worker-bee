@@ -741,6 +741,30 @@ export function ChatView({
         </div>
       )}
 
+      {loginPrompt && (
+        <LoginPromptCard
+          initialUrl={loginPrompt.url}
+          onSubmit={handleLoginSubmit}
+          onCancel={handleLoginCancel}
+        />
+      )}
+
+      {loginStatus && (
+        <LoginStatusCard
+          state={loginStatus.state}
+          url={loginStatus.url}
+          logs={loginStatus.logs}
+          attempts={loginStatus.attempts}
+          error={loginStatus.error}
+          onTryRepair={loginStatus.state === "failed" ? () => {
+            const err = `Login to ${loginStatus.url} failed${loginStatus.attempts ? ` after ${loginStatus.attempts} attempts` : ""}: ${loginStatus.error ?? "unknown error"}`;
+            triggerSelfRepair(err);
+            setLoginStatus(null);
+          } : undefined}
+          onDismiss={() => setLoginStatus(null)}
+        />
+      )}
+
       {errBurst >= 3 && !repairCard && !burstDismissed && (
         <div
           className="px-4 py-2 flex items-center justify-between gap-3 font-mono text-[11px]"
