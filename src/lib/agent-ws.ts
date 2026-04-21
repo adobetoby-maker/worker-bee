@@ -239,6 +239,7 @@ function createSocket(tabId: string, entry: Entry): void {
     entry.log?.({ ts: nowTs(), level: "OK", msg: wasReconnect ? "WebSocket reconnected ✓" : "WebSocket connected to agent :8000" });
     try { ws.send(JSON.stringify({ action: "ping" })); } catch { /* noop */ }
     startHeartbeat(tabId, entry);
+    startKeepalive(tabId, entry);
     emitReconnect(tabId, entry, "connected");
     entry.handlers.forEach((h) => h.onOpen?.());
   };
