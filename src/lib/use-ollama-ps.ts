@@ -22,7 +22,7 @@ interface Options {
   onExpirySoon?: (model: string, secondsLeft: number) => void;
 }
 
-const ACTIVE_INTERVAL = 4000;
+const ACTIVE_INTERVAL = 8000;
 const FAILURE_INTERVAL = 15000;
 
 export function useOllamaPs({ endpoint, enabled, onChange, onExpirySoon }: Options): PsSnapshot {
