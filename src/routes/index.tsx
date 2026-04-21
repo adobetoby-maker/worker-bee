@@ -159,6 +159,7 @@ function Index() {
     parallelMode: false,
   });
   const [autoSendByTab, setAutoSendByTab] = useState<Record<string, { token: number; text: string }>>({});
+  const [repairTokenByTab, setRepairTokenByTab] = useState<Record<string, number>>({});
   const [flashTurnTabId, setFlashTurnTabId] = useState<string | null>(null);
 
   useEffect(() => subscribeQueue(setQueueState), []);
