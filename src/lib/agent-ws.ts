@@ -153,6 +153,9 @@ function clearTimers(entry: Entry): void {
   if (entry.reconnectTimer) { clearTimeout(entry.reconnectTimer); entry.reconnectTimer = null; }
   if (entry.heartbeatTimer) { clearInterval(entry.heartbeatTimer); entry.heartbeatTimer = null; }
   if (entry.pongTimer) { clearTimeout(entry.pongTimer); entry.pongTimer = null; }
+  if (entry.keepaliveTimer) { clearInterval(entry.keepaliveTimer); entry.keepaliveTimer = null; }
+  if (entry.keepaliveWarnTimer) { clearTimeout(entry.keepaliveWarnTimer); entry.keepaliveWarnTimer = null; }
+  entry.keepaliveAwaitingPong = false;
   entry.awaitingPong = false;
 }
 
