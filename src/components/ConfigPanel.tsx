@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { nowTs, type LogLine } from "@/lib/agent-state";
 
-type Mode = "localhost" | "tailscale" | "custom";
+type Mode = "http" | "https" | "tailscale" | "custom";
 
 interface OllamaModel {
   name: string;
@@ -21,8 +21,9 @@ interface ConfigPanelProps {
 }
 
 const MODES: { id: Mode; label: string; icon: string }[] = [
-  { id: "localhost", label: "Localhost", icon: "🖥" },
-  { id: "tailscale", label: "Tailscale VPN", icon: "🔒" },
+  { id: "http", label: "Local (HTTP)", icon: "🖥" },
+  { id: "https", label: "Local (HTTPS)", icon: "🔒" },
+  { id: "tailscale", label: "Tailscale", icon: "🔒" },
   { id: "custom", label: "Custom", icon: "✏" },
 ];
 
@@ -36,8 +37,9 @@ const QUICK_PULL = [
 ];
 
 const ENDPOINT_FOR: Record<Mode, string> = {
-  localhost: "http://localhost:11434",
-  tailscale: "http://100.64.0.1:11434",
+  http: "http://localhost:8000",
+  https: "https://localhost:8000",
+  tailscale: "https://100.64.0.1:8000",
   custom: "",
 };
 
@@ -51,15 +53,20 @@ export function ConfigPanel({
   onModelsLoaded,
   onConnected,
 }: ConfigPanelProps) {
-  const [mode, setMode] = useState<Mode>("localhost");
+  const [mode, setMode] = useState<Mode>("https");
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "err">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [models, setModels] = useState<OllamaModel[]>([]);
+  const [showTroubleshoot, setShowTroubleshoot] = useState(false);
 
   const handleMode = (m: Mode) => {
     setMode(m);
     if (m !== "custom") setEndpoint(ENDPOINT_FOR[m]);
-    else if (endpoint === ENDPOINT_FOR.localhost || endpoint === ENDPOINT_FOR.tailscale) {
+    else if (
+      endpoint === ENDPOINT_FOR.http ||
+      endpoint === ENDPOINT_FOR.https ||
+      endpoint === ENDPOINT_FOR.tailscale
+    ) {
       setEndpoint("");
     }
   };
@@ -170,36 +177,54 @@ export function ConfigPanel({
           >
             Need to install the agent server? → Install Guide
           </a>
+          <div className="mt-2 font-mono" style={{ color: "#555", fontSize: "11px" }}>
+            Already installed? Run:
+          </div>
+          <CopyCmd cmd="cd ~/worker-bee && ./start.sh" />
         </section>
 
         {/* Tip box */}
         <section>
           <div className="border border-border bg-surface/40 p-4">
-            {mode === "localhost" && (
+            {mode === "http" && (
               <TipBlock
-                title="LOCALHOST TIP"
+                title="LOCAL HTTP TIP"
                 lines={[
-                  "Make sure Ollama is running on this machine:",
+                  "Requires browser mixed content exception when this page is served over HTTPS.",
+                  "Safari: Develop menu → Disable Local File Restrictions.",
+                  "Chrome: Site settings → Insecure content → Allow.",
                 ]}
-                cmds={["ollama serve", "ollama pull llama3.2"]}
+                cmds={["http://localhost:8000"]}
+              />
+            )}
+            {mode === "https" && (
+              <TipBlock
+                title="LOCAL HTTPS TIP — RECOMMENDED"
+                lines={[
+                  "Run this in iTerm2 to start the agent with HTTPS:",
+                ]}
+                cmds={[
+                  'mkdir -p ~/.ssl && openssl req -x509 -newkey rsa:4096 -keyout ~/.ssl/key.pem -out ~/.ssl/cert.pem -days 365 -nodes -subj "/CN=localhost" && cd ~/worker-bee && source .venv/bin/activate && uvicorn main:app --reload --host 0.0.0.0 --port 8000 --ssl-keyfile ~/.ssl/key.pem --ssl-certfile ~/.ssl/cert.pem',
+                  "open https://localhost:8000/health",
+                ]}
               />
             )}
             {mode === "tailscale" && (
               <TipBlock
                 title="TAILSCALE TIP"
                 lines={[
-                  "Find your Tailscale IP, then expose Ollama on that IP:",
+                  "Find your Tailscale IP, then point at the agent on that IP over HTTPS:",
                 ]}
-                cmds={["tailscale ip -4", "OLLAMA_HOST=0.0.0.0 ollama serve"]}
+                cmds={["tailscale ip -4", "https://100.x.x.x:8000"]}
               />
             )}
             {mode === "custom" && (
               <TipBlock
                 title="CUSTOM TIP"
                 lines={[
-                  "Point at any reachable Ollama server. Include scheme and port.",
+                  "Point at any reachable Worker Bee agent. Include scheme and port.",
                 ]}
-                cmds={["http://10.0.0.42:11434", "https://ollama.mydomain.dev"]}
+                cmds={["https://10.0.0.42:8000", "https://agent.mydomain.dev"]}
               />
             )}
           </div>
@@ -236,6 +261,46 @@ export function ConfigPanel({
               <span className="text-muted-foreground">// awaiting connection</span>
             )}
           </div>
+
+          {status === "err" && (
+            <div
+              className="mt-3 border p-3 font-mono text-[11px]"
+              style={{
+                background: "#1a1500",
+                borderColor: "#ffaa0055",
+                color: "#ffd166",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowTroubleshoot((v) => !v)}
+                className="flex w-full items-center justify-between text-left uppercase tracking-[0.18em]"
+                style={{ color: "#ffaa00" }}
+              >
+                <span>⚠ Connection failed — common fixes</span>
+                <span>{showTroubleshoot ? "▾" : "▸"}</span>
+              </button>
+              {showTroubleshoot && (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <div>• Mixed content blocked? Open</div>
+                    <CopyCmd cmd="https://localhost:8000/health" />
+                    <div className="mt-1" style={{ color: "#888" }}>
+                      in a new tab first, click through the security warning, then try connecting again.
+                    </div>
+                  </div>
+                  <div>
+                    <div>• Agent not running? In iTerm2 run:</div>
+                    <CopyCmd cmd="cd ~/worker-bee && ./start.sh" />
+                  </div>
+                  <div>
+                    <div>• Ollama not running? In iTerm2 run:</div>
+                    <CopyCmd cmd="ollama serve" />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Model picker */}
@@ -330,15 +395,38 @@ function TipBlock({
       ))}
       <div className="mt-3 space-y-1.5">
         {cmds.map((c) => (
-          <div
-            key={c}
-            className="flex items-center gap-2 border border-border bg-background/60 px-3 py-1.5"
-          >
-            <span className="text-primary font-mono text-[11px]">$</span>
-            <code className="font-mono text-[12px] text-foreground">{c}</code>
-          </div>
+          <CopyCmd key={c} cmd={c} />
         ))}
       </div>
+    </div>
+  );
+}
+
+function CopyCmd({ cmd }: { cmd: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(cmd);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* noop */
+    }
+  };
+  return (
+    <div className="flex items-center gap-2 border border-border bg-background/60 px-3 py-1.5">
+      <span className="text-primary font-mono text-[11px]">$</span>
+      <code className="flex-1 overflow-x-auto font-mono text-[12px] text-foreground whitespace-nowrap">
+        {cmd}
+      </code>
+      <button
+        type="button"
+        onClick={copy}
+        className="shrink-0 border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.15em] hover:border-primary"
+        style={{ color: copied ? "#39ff14" : "#888" }}
+      >
+        {copied ? "✓ COPIED" : "📋 COPY"}
+      </button>
     </div>
   );
 }
