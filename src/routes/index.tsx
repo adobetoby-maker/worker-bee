@@ -120,7 +120,7 @@ function Index() {
   const [active, setActive] = useState<View>("chat");
   const [log, setLog] = useState<LogLine[]>(INITIAL_LOG);
   const [endpoint, setEndpoint] = useState("http://localhost:11434");
-  const [model, setModel] = useState<string | null>("llama3.1:8b");
+  const [model, setModel] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [bannerDismissedAt, setBannerDismissedAt] = useState(0);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
@@ -199,7 +199,7 @@ function Index() {
         id: crypto.randomUUID(),
         name: "Agent 1",
         color: TAB_COLORS[0],
-        model: "llama3.1:8b",
+        model: null,
         messages: [BOOT_MESSAGE],
         systemPrompt: defaultSystemPrompt(ENABLED_TOOLS),
         isStreaming: false,
