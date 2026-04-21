@@ -157,6 +157,10 @@ export function TabControls({
                 onInjectPrompt?.(p);
                 setBrowserOpen(false);
               }}
+              onRequestLogin={(url) => {
+                onInjectPrompt?.(`log into ${url}`);
+                setBrowserOpen(false);
+              }}
             />
           )}
         </div>
