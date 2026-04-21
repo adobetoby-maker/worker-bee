@@ -813,6 +813,10 @@ function Index() {
                     });
                   }}
                   onInjectPrompt={(p) => setInputDraft(activeTab.id, p)}
+                  onRepair={() => {
+                    setRepairTokenByTab((prev) => ({ ...prev, [activeTab.id]: (prev[activeTab.id] ?? 0) + 1 }));
+                    appendLog({ ts: nowTs(), level: "ARROW", msg: `${activeTab.name} → manual self-repair requested` });
+                  }}
                   projects={projects.filter((p) => !p.archived).map((p) => ({ id: p.id, emoji: p.emoji, name: p.name }))}
                   activeProjectId={projectForTab(activeTab.id)?.id ?? null}
                   onProjectChange={(pid) => {
