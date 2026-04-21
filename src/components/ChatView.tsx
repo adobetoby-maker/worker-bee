@@ -18,6 +18,10 @@ import { InstallActionCard, type InstallCardState } from "./InstallActionCard";
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
+  // Optional rich payloads — when present, rendered with custom UI.
+  screenshotB64?: string;
+  screenshotUrl?: string;
+  visionDescription?: string;
 }
 
 interface Props {
