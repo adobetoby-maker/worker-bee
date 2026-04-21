@@ -18,9 +18,9 @@ const PHASES = [
 ];
 
 function logColor(line: string): string {
-  if (line.includes("✅")) return "#39ff14";
-  if (line.includes("⚠")) return "#ff3b3b";
-  return "#ffaa00";
+  if (line.includes("✅")) return "var(--success)";
+  if (line.includes("⚠")) return "var(--destructive)";
+  return "var(--primary)";
 }
 
 export function RepairCard({ state, error, logs, onCopyLog, onOpenConfig, onDismiss }: Props) {
@@ -38,8 +38,8 @@ export function RepairCard({ state, error, logs, onCopyLog, onOpenConfig, onDism
 
   const isComplete = state === "complete";
   const isFailed = state === "failed";
-  const borderColor = isComplete ? "#39ff14" : "#ff3b3b";
-  const titleColor = "#ffaa00";
+  const borderColor = isComplete ? "var(--success)" : "var(--destructive)";
+  const titleColor = "var(--primary)";
 
   return (
     <div className="flex items-start gap-3 justify-start">
@@ -49,7 +49,7 @@ export function RepairCard({ state, error, logs, onCopyLog, onOpenConfig, onDism
       <div
         className="max-w-[75%]"
         style={{
-          background: "#1a0000",
+          background: "color-mix(in oklab, var(--destructive) 8%, var(--surface))",
           border: `1px solid ${borderColor}`,
           borderRadius: 8,
           padding: 12,
@@ -60,12 +60,12 @@ export function RepairCard({ state, error, logs, onCopyLog, onOpenConfig, onDism
         <div style={{ color: titleColor, fontSize: 12, marginBottom: 8, letterSpacing: "0.1em" }}>
           🔧 SELF-REPAIR INITIATED
         </div>
-        <div style={{ color: "#ff8a8a", fontSize: 11, marginBottom: 10 }}>
+        <div style={{ color: "var(--destructive)", fontSize: 11, marginBottom: 10 }}>
           Error: {error}
         </div>
         {state === "started" && (
           <>
-            <div style={{ color: "#ccc", fontSize: 11, marginBottom: 6 }}>
+            <div style={{ color: "var(--foreground)", fontSize: 11, marginBottom: 6 }}>
               qwen is diagnosing the problem...
             </div>
             <div className="space-y-1">
@@ -73,7 +73,7 @@ export function RepairCard({ state, error, logs, onCopyLog, onOpenConfig, onDism
                 <div
                   key={p}
                   style={{
-                    color: i < revealed ? "#ffaa00" : "#444",
+                    color: i < revealed ? "var(--primary)" : "var(--muted-foreground)",
                     fontSize: 11,
                     transition: "color 200ms ease",
                   }}
@@ -88,8 +88,8 @@ export function RepairCard({ state, error, logs, onCopyLog, onOpenConfig, onDism
           <div
             className="mt-3 space-y-0.5"
             style={{
-              background: "#0a0000",
-              border: "1px solid #330000",
+              background: "var(--background)",
+              border: "1px solid var(--border)",
               borderRadius: 4,
               padding: 8,
               maxHeight: 200,
@@ -104,20 +104,20 @@ export function RepairCard({ state, error, logs, onCopyLog, onOpenConfig, onDism
           </div>
         )}
         {isComplete && (
-          <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${borderColor}55` }}>
-            <div style={{ color: "#39ff14", fontSize: 12, marginBottom: 4 }}>
+          <div className="mt-3 pt-3" style={{ borderTop: `1px solid var(--border)` }}>
+            <div style={{ color: "var(--success)", fontSize: 12, marginBottom: 4 }}>
               ✅ SELF-REPAIR COMPLETE
             </div>
-            <div style={{ color: "#9fffa0", fontSize: 11 }}>Agent is restarting...</div>
-            <div style={{ color: "#9fffa0", fontSize: 11 }}>Reconnecting in 3 seconds</div>
+            <div style={{ color: "var(--success)", fontSize: 11 }}>Agent is restarting...</div>
+            <div style={{ color: "var(--success)", fontSize: 11 }}>Reconnecting in 3 seconds</div>
           </div>
         )}
         {isFailed && (
-          <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${borderColor}55` }}>
-            <div style={{ color: "#ff3b3b", fontSize: 12, marginBottom: 4 }}>
+          <div className="mt-3 pt-3" style={{ borderTop: `1px solid var(--border)` }}>
+            <div style={{ color: "var(--destructive)", fontSize: 12, marginBottom: 4 }}>
               ❌ REPAIR FAILED
             </div>
-            <div style={{ color: "#ff8a8a", fontSize: 11, marginBottom: 8 }}>
+            <div style={{ color: "var(--destructive)", fontSize: 11, marginBottom: 8 }}>
               Could not auto-fix the issue.
             </div>
             <div className="flex gap-2">
@@ -125,7 +125,7 @@ export function RepairCard({ state, error, logs, onCopyLog, onOpenConfig, onDism
                 type="button"
                 onClick={onCopyLog}
                 className="px-2 py-1 rounded border text-[10px] uppercase tracking-[0.15em]"
-                style={{ borderColor: "#ff3b3b66", color: "#ff8a8a", background: "#330000" }}
+                style={{ borderColor: "var(--destructive)", color: "var(--destructive)", background: "var(--surface)" }}
               >
                 📋 COPY ERROR LOG
               </button>
@@ -133,7 +133,7 @@ export function RepairCard({ state, error, logs, onCopyLog, onOpenConfig, onDism
                 type="button"
                 onClick={onOpenConfig}
                 className="px-2 py-1 rounded border text-[10px] uppercase tracking-[0.15em]"
-                style={{ borderColor: "#ffaa0066", color: "#ffaa00", background: "#1a1400" }}
+                style={{ borderColor: "var(--primary)", color: "var(--primary)", background: "var(--surface)" }}
               >
                 ⚙ OPEN CONFIG
               </button>
@@ -142,7 +142,7 @@ export function RepairCard({ state, error, logs, onCopyLog, onOpenConfig, onDism
                   type="button"
                   onClick={onDismiss}
                   className="ml-auto px-2 py-1 text-[10px] uppercase tracking-[0.15em]"
-                  style={{ color: "#666" }}
+                  style={{ color: "var(--muted-foreground)" }}
                 >
                   dismiss ✕
                 </button>

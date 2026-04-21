@@ -43,18 +43,18 @@ export function LoginPromptCard({ initialUrl, onSubmit, onCancel }: Props) {
     <div
       className="mx-4 my-2 rounded-md p-4"
       style={{
-        background: "#00091a",
-        border: "1px solid #00aaff",
+        background: "color-mix(in oklab, #2d5fa6 8%, var(--surface))",
+        border: "1px solid #2d5fa6",
         fontFamily: "JetBrains Mono, monospace",
-        color: "#cfe7ff",
+        color: "var(--foreground)",
         animation: "var(--animate-slide-down)",
       }}
     >
-      <div style={{ color: "#00aaff", fontSize: 12, marginBottom: 10, letterSpacing: "0.18em" }}>
+      <div style={{ color: "#2d5fa6", fontSize: 12, marginBottom: 10, letterSpacing: "0.18em" }}>
         🔐 LOGIN REQUIRED
       </div>
 
-      <label style={{ display: "block", fontSize: 11, marginBottom: 4, color: "#7fb5d6" }}>
+      <label style={{ display: "block", fontSize: 11, marginBottom: 4, color: "var(--muted-foreground)" }}>
         Site
       </label>
       <input
@@ -63,10 +63,10 @@ export function LoginPromptCard({ initialUrl, onSubmit, onCancel }: Props) {
         onChange={(e) => setUrl(e.target.value)}
         placeholder="https://example.com"
         className="w-full px-2 py-1 rounded outline-none mb-3"
-        style={{ background: "#000", border: "1px solid #00aaff55", color: "#cfe7ff", fontFamily: "JetBrains Mono, monospace", fontSize: 12 }}
+        style={{ background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)", fontFamily: "JetBrains Mono, monospace", fontSize: 12 }}
       />
 
-      <label style={{ display: "block", fontSize: 11, marginBottom: 4, color: "#7fb5d6" }}>
+      <label style={{ display: "block", fontSize: 11, marginBottom: 4, color: "var(--muted-foreground)" }}>
         Username / Email
       </label>
       <input
@@ -75,10 +75,10 @@ export function LoginPromptCard({ initialUrl, onSubmit, onCancel }: Props) {
         onChange={(e) => setUsername(e.target.value)}
         autoComplete="off"
         className="w-full px-2 py-1 rounded outline-none mb-3"
-        style={{ background: "#000", border: "1px solid #00aaff55", color: "#cfe7ff", fontFamily: "JetBrains Mono, monospace", fontSize: 12 }}
+        style={{ background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)", fontFamily: "JetBrains Mono, monospace", fontSize: 12 }}
       />
 
-      <label style={{ display: "block", fontSize: 11, marginBottom: 4, color: "#7fb5d6" }}>
+      <label style={{ display: "block", fontSize: 11, marginBottom: 4, color: "var(--muted-foreground)" }}>
         Password
       </label>
       <input
@@ -87,25 +87,25 @@ export function LoginPromptCard({ initialUrl, onSubmit, onCancel }: Props) {
         onChange={(e) => setPassword(e.target.value)}
         autoComplete="new-password"
         className="w-full px-2 py-1 rounded outline-none mb-3"
-        style={{ background: "#000", border: "1px solid #00aaff55", color: "#cfe7ff", fontFamily: "JetBrains Mono, monospace", fontSize: 12 }}
+        style={{ background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)", fontFamily: "JetBrains Mono, monospace", fontSize: 12 }}
       />
 
       <div className="flex gap-3 mb-3">
         <div style={{ flex: 1 }}>
-          <label style={{ display: "block", fontSize: 11, marginBottom: 4, color: "#7fb5d6" }}>
+          <label style={{ display: "block", fontSize: 11, marginBottom: 4, color: "var(--muted-foreground)" }}>
             Max attempts
           </label>
           <select
             value={maxAttempts}
             onChange={(e) => setMaxAttempts(Number(e.target.value))}
             className="w-full px-2 py-1 rounded outline-none"
-            style={{ background: "#000", border: "1px solid #00aaff55", color: "#cfe7ff", fontFamily: "JetBrains Mono, monospace", fontSize: 12 }}
+            style={{ background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)", fontFamily: "JetBrains Mono, monospace", fontSize: 12 }}
           >
             {[1, 2, 3, 5, 10].map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
         <div style={{ flex: 2 }}>
-          <label style={{ display: "block", fontSize: 11, marginBottom: 4, color: "#7fb5d6" }}>
+          <label style={{ display: "block", fontSize: 11, marginBottom: 4, color: "var(--muted-foreground)" }}>
             🍯 Use from Vault {pots.length === 0 ? "(vault locked or empty)" : ""}
           </label>
           <select
@@ -113,7 +113,7 @@ export function LoginPromptCard({ initialUrl, onSubmit, onCancel }: Props) {
             onChange={(e) => onSelectPot(e.target.value)}
             disabled={pots.length === 0}
             className="w-full px-2 py-1 rounded outline-none"
-            style={{ background: "#000", border: "1px solid #00aaff55", color: "#cfe7ff", fontFamily: "JetBrains Mono, monospace", fontSize: 12 }}
+            style={{ background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)", fontFamily: "JetBrains Mono, monospace", fontSize: 12 }}
           >
             <option value="">— SELECT POT —</option>
             {pots.map((p) => (
@@ -128,7 +128,7 @@ export function LoginPromptCard({ initialUrl, onSubmit, onCancel }: Props) {
           type="button"
           onClick={onCancel}
           className="px-3 py-1 rounded"
-          style={{ border: "1px solid #33333366", color: "#aaa", background: "#0a0a0a", fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: "0.15em" }}
+          style={{ border: "1px solid var(--border)", color: "var(--muted-foreground)", background: "var(--background)", fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: "0.15em" }}
         >
           CANCEL
         </button>
@@ -138,9 +138,9 @@ export function LoginPromptCard({ initialUrl, onSubmit, onCancel }: Props) {
           onClick={() => onSubmit({ url: url.trim(), username: username.trim(), password, maxAttempts })}
           className="px-3 py-1 rounded"
           style={{
-            border: "1px solid #00aaff",
-            color: canSubmit ? "#00091a" : "#557",
-            background: canSubmit ? "#00aaff" : "#003355",
+            border: "1px solid #2d5fa6",
+            color: canSubmit ? "#ffffff" : "var(--muted-foreground)",
+            background: canSubmit ? "#2d5fa6" : "var(--surface-2)",
             fontFamily: "JetBrains Mono, monospace",
             fontSize: 11,
             letterSpacing: "0.15em",

@@ -32,9 +32,11 @@ export function InstallActionCard({
   }, [output]);
 
   const isBlocked = state === "blocked";
-  const borderColor = isBlocked ? "#ff3b3b" : "#ffaa00";
-  const titleColor = isBlocked ? "#ff8a8a" : "#ffaa00";
-  const bg = isBlocked ? "#1a0000" : "#1a1400";
+  const borderColor = isBlocked ? "var(--destructive)" : "var(--primary)";
+  const titleColor = isBlocked ? "var(--destructive)" : "var(--primary)";
+  const bg = isBlocked
+    ? "color-mix(in oklab, var(--destructive) 8%, var(--surface))"
+    : "color-mix(in oklab, var(--primary) 8%, var(--surface))";
 
   return (
     <div
@@ -42,12 +44,12 @@ export function InstallActionCard({
       style={{
         border: `1px solid ${borderColor}`,
         background: bg,
-        color: "#e6e6e6",
+        color: "var(--foreground)",
       }}
     >
       <div
         className="px-3 py-2 flex items-center gap-2 uppercase tracking-[0.18em] text-[11px]"
-        style={{ color: titleColor, borderBottom: `1px solid ${borderColor}55` }}
+        style={{ color: titleColor, borderBottom: `1px solid var(--border)` }}
       >
         {isBlocked ? "🚨 Blocked — Unsafe Command" : state === "running"
           ? "🐚 Installing…"
@@ -59,13 +61,13 @@ export function InstallActionCard({
       <div className="px-3 py-3 space-y-2">
         <div
           className="px-2 py-1 rounded"
-          style={{ background: "#0a0a0a", border: "1px solid #1a1a1a", color: "#ffd97a" }}
+          style={{ background: "var(--background)", border: "1px solid var(--border)", color: "var(--primary)" }}
         >
           {command}
         </div>
 
         {isBlocked && blockedReason && (
-          <div style={{ color: "#ff8a8a" }}>{blockedReason}</div>
+          <div style={{ color: "var(--destructive)" }}>{blockedReason}</div>
         )}
 
         {(state === "running" || state === "done") && (
@@ -73,16 +75,16 @@ export function InstallActionCard({
             ref={preRef}
             className="px-2 py-2 rounded overflow-y-auto"
             style={{
-              background: "#080808",
-              border: "1px solid #1a1a1a",
-              color: "#ccc",
+              background: "var(--background)",
+              border: "1px solid var(--border)",
+              color: "var(--foreground)",
               maxHeight: 220,
               whiteSpace: "pre-wrap",
             }}
           >
             {output || (state === "running" ? "starting…" : "")}
             {state === "done" && (
-              <span style={{ color: exitCode === 0 ? "#39ff14" : "#ff8a8a" }}>
+              <span style={{ color: exitCode === 0 ? "var(--success)" : "var(--destructive)" }}>
                 {"\n"}
                 {exitCode === 0 ? "✅ Done" : `⚠ exit ${exitCode}`}
               </span>
@@ -96,7 +98,7 @@ export function InstallActionCard({
               type="button"
               onClick={onApprove}
               className="px-3 py-1 rounded uppercase tracking-[0.18em] text-[11px]"
-              style={{ background: "#39ff14", color: "#001a00" }}
+              style={{ background: "var(--success)", color: "var(--success-foreground)" }}
             >
               ✅ Approve & Install
             </button>
@@ -104,7 +106,7 @@ export function InstallActionCard({
               type="button"
               onClick={onDeny}
               className="px-3 py-1 rounded border uppercase tracking-[0.18em] text-[11px]"
-              style={{ borderColor: "#ff3b3b66", color: "#ff8a8a" }}
+              style={{ borderColor: "var(--destructive)", color: "var(--destructive)" }}
             >
               ❌ Deny
             </button>
