@@ -613,6 +613,101 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         entry.handlers.forEach((h) => h.onMemoryStored?.({ ok, message }));
         break;
       }
+      case "plan_started": {
+        let goal = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.goal === "string") goal = d.goal;
+        }
+        entry.log?.({ ts: nowTs(), level: "ARROW", msg: `plan_started: ${goal}` });
+        entry.handlers.forEach((h) => h.onPlanStarted?.({ goal }));
+        break;
+      }
+      case "plan_ready": {
+        let goal = "";
+        let count = 0;
+        const tasks: PlanStep[] = [];
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.goal === "string") goal = d.goal;
+          if (typeof d.count === "number") count = d.count;
+          if (Array.isArray(d.tasks)) {
+            for (const t of d.tasks) {
+              if (t && typeof t === "object") {
+                const r = t as Record<string, unknown>;
+                tasks.push({
+                  id: typeof r.id === "number" ? r.id : 0,
+                  action: typeof r.action === "string" ? r.action : "",
+                  description: typeof r.description === "string" ? r.description : "",
+                  params: (r.params && typeof r.params === "object") ? r.params as Record<string, unknown> : {},
+                  depends_on: Array.isArray(r.depends_on) ? (r.depends_on as unknown[]).filter((x): x is number => typeof x === "number") : [],
+                });
+              }
+            }
+          }
+        }
+        entry.log?.({ ts: nowTs(), level: "OK", msg: `plan_ready: ${tasks.length} steps` });
+        entry.handlers.forEach((h) => h.onPlanReady?.({ goal, tasks, count: count || tasks.length }));
+        break;
+      }
+      case "plan_progress": {
+        if (!data || typeof data !== "object") break;
+        const d = data as Record<string, unknown>;
+        const status = (d.status === "done" || d.status === "failed" ? d.status : "running") as PlanStepStatus;
+        const info: PlanProgress = {
+          step_id: typeof d.step_id === "number" ? d.step_id : 0,
+          status,
+          action: typeof d.action === "string" ? d.action : "",
+          desc: typeof d.desc === "string" ? d.desc : "",
+          result: (d.result && typeof d.result === "object") ? d.result as Record<string, unknown> : null,
+          current: typeof d.current === "number" ? d.current : 0,
+          total: typeof d.total === "number" ? d.total : 0,
+        };
+        entry.handlers.forEach((h) => h.onPlanProgress?.(info));
+        break;
+      }
+      case "plan_log": {
+        let message = "";
+        let level: PlanLogLevel = "info";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.message === "string") message = d.message;
+          if (d.level === "ok" || d.level === "error" || d.level === "warn" || d.level === "info") level = d.level;
+        } else if (typeof data === "string") {
+          message = data;
+        }
+        if (!message && text) message = text;
+        entry.handlers.forEach((h) => h.onPlanLog?.({ message, level }));
+        break;
+      }
+      case "plan_complete": {
+        let completed = 0, failed = 0, total = 0;
+        let results: Record<string, unknown> = {};
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.completed === "number") completed = d.completed;
+          if (typeof d.failed === "number") failed = d.failed;
+          if (typeof d.total === "number") total = d.total;
+          if (d.results && typeof d.results === "object") results = d.results as Record<string, unknown>;
+        }
+        entry.log?.({ ts: nowTs(), level: failed === 0 ? "OK" : "ERR", msg: `plan_complete ${completed}/${total} (${failed} failed)` });
+        entry.handlers.forEach((h) => h.onPlanComplete?.({ completed, failed, total, results }));
+        break;
+      }
+      case "plan_error": {
+        let message = "plan error";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.message === "string") message = d.message;
+        } else if (typeof data === "string") {
+          message = data;
+        } else if (text) {
+          message = text;
+        }
+        entry.log?.({ ts: nowTs(), level: "ERR", msg: `plan_error: ${message}` });
+        entry.handlers.forEach((h) => h.onPlanError?.({ message }));
+        break;
+      }
     }
 }
 
