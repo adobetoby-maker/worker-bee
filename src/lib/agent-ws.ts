@@ -380,6 +380,8 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         break;
       case "pong":
         entry.log?.({ ts: nowTs(), level: "OK", msg: "Agent alive" });
+        entry.keepaliveAwaitingPong = false;
+        if (entry.keepaliveWarnTimer) { clearTimeout(entry.keepaliveWarnTimer); entry.keepaliveWarnTimer = null; }
         entry.handlers.forEach((h) => h.onPong?.());
         break;
       case "browser_result": {
