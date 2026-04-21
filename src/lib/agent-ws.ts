@@ -180,6 +180,24 @@ function startHeartbeat(tabId: string, entry: Entry): void {
   }, HEARTBEAT_INTERVAL_MS);
 }
 
+function startKeepalive(_tabId: string, entry: Entry): void {
+  if (entry.keepaliveTimer) clearInterval(entry.keepaliveTimer);
+  entry.keepaliveTimer = setInterval(() => {
+    const ws = entry.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    try {
+      ws.send(JSON.stringify({ action: "ping" }));
+      entry.keepaliveAwaitingPong = true;
+      if (entry.keepaliveWarnTimer) clearTimeout(entry.keepaliveWarnTimer);
+      entry.keepaliveWarnTimer = setTimeout(() => {
+        if (entry.keepaliveAwaitingPong) {
+          console.warn("[agent-ws] keepalive: no pong within 10s, continuing");
+        }
+      }, KEEPALIVE_WARN_MS);
+    } catch { /* noop */ }
+  }, KEEPALIVE_INTERVAL_MS);
+}
+
 function scheduleReconnect(tabId: string, entry: Entry): void {
   if (entry.intentionalClose) return;
   if (entry.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
