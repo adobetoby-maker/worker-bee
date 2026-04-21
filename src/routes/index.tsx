@@ -332,6 +332,10 @@ function Index() {
   });
   const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0].id);
 
+  // Tracks which tab ids have already had their boot sequence streamed,
+  // preventing StrictMode/double-renders from logging the boot lines twice.
+  const bootedTabsRef = useRef<Set<string>>(new Set(tabs.map((t) => t.id)));
+
   // Persist tabs to localStorage
   const isFirstSave = useRef(true);
   useEffect(() => {
