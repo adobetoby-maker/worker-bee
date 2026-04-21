@@ -86,6 +86,9 @@ interface Props {
   onOpenConfig?: () => void;
   // Memory
   onMemoryStatsChange?: (total: number) => void;
+  // Manual plan trigger — when planToken increments, ChatView starts a plan with planGoal.
+  planToken?: number;
+  planGoal?: string;
 }
 
 export function ChatView({
@@ -121,6 +124,8 @@ export function ChatView({
   repairToken = 0,
   onOpenConfig,
   onMemoryStatsChange,
+  planToken = 0,
+  planGoal = "",
 }: Props) {
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
@@ -271,6 +276,15 @@ export function ChatView({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repairToken]);
+
+  const lastPlanTokenRef = useRef(0);
+  useEffect(() => {
+    if (planToken > 0 && planToken !== lastPlanTokenRef.current && planGoal) {
+      lastPlanTokenRef.current = planToken;
+      startPlan(planGoal);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planToken, planGoal]);
 
   const resolvedSystemPrompt =
     systemPrompt ??
