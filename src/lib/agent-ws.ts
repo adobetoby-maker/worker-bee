@@ -21,7 +21,8 @@ export interface AgentWSMessage {
     | "browser_result" | "shell_output" | "shell_done" | "screenshot"
     | "repair_started" | "repair_log" | "repair_complete"
     | "gmail_summary" | "gmail_preview" | "gmail_top_senders"
-    | "gmail_progress" | "gmail_done";
+    | "gmail_progress" | "gmail_done"
+    | "login_log" | "login_result";
   content?: string;
   text?: string;
   message?: string;
@@ -49,6 +50,8 @@ export interface AgentWSHandlers {
   onGmailTopSenders?: (info: { senders: GmailTopSender[] }) => void;
   onGmailProgress?: (info: GmailProgress) => void;
   onGmailDone?: (info: GmailDone) => void;
+  onLoginLog?: (line: string) => void;
+  onLoginResult?: (info: { ok: boolean; url?: string; attempts?: number; error?: string }) => void;
 }
 
 interface Entry {
@@ -473,6 +476,34 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         entry.handlers.forEach((h) => h.onGmailDone?.({ op, processed, ok, message }));
         break;
       }
+      case "login_log": {
+        const line = typeof data === "string"
+          ? data
+          : (data && typeof data === "object" && typeof (data as { line?: unknown }).line === "string"
+              ? (data as { line: string }).line
+              : text);
+        if (line) entry.log?.({ ts: nowTs(), level: "ARROW", msg: `login: ${line}` });
+        entry.handlers.forEach((h) => h.onLoginLog?.(line));
+        break;
+      }
+      case "login_result": {
+        let ok = false;
+        let url: string | undefined;
+        let attempts: number | undefined;
+        let error: string | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.ok === "boolean") ok = d.ok;
+          else if (typeof d.success === "boolean") ok = d.success;
+          if (typeof d.url === "string") url = d.url;
+          if (typeof d.attempts === "number") attempts = d.attempts;
+          if (typeof d.error === "string") error = d.error;
+          else if (typeof d.message === "string") error = d.message;
+        }
+        entry.log?.({ ts: nowTs(), level: ok ? "OK" : "ERR", msg: `login_result ok=${ok}${attempts !== undefined ? ` attempts=${attempts}` : ""}` });
+        entry.handlers.forEach((h) => h.onLoginResult?.({ ok, url, attempts, error }));
+        break;
+      }
     }
 }
 
@@ -657,4 +688,56 @@ export function sendGmail(tabId: string, args: GmailAction): boolean {
   entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
   ws.send(json);
   return true;
+}
+
+// ────────────────────────────────────────────
+// Login action — sends credentials to agent.
+// CRITICAL: password is sent over the WS but never logged.
+// The log line below redacts the password before persisting.
+// ────────────────────────────────────────────
+
+export interface LoginArgs {
+  url: string;
+  username: string;
+  password: string;
+  max_attempts?: number;
+}
+
+export function sendLogin(tabId: string, args: LoginArgs): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "login: WebSocket not open" });
+    return false;
+  }
+  const payload = {
+    action: "login",
+    url: args.url,
+    username: args.username,
+    password: args.password,
+    max_attempts: args.max_attempts ?? 5,
+  };
+  // Redacted log — never include the password value.
+  entry?.log?.({
+    ts: nowTs(),
+    level: "ARROW",
+    msg: `WS send: {"action":"login","url":"${args.url}","username":"${args.username}","password":"***","max_attempts":${payload.max_attempts}}`,
+  });
+  ws.send(JSON.stringify(payload));
+  return true;
+}
+
+// Detect login intent + URL in user text.
+const LOGIN_INTENT_RE = /\b(log\s*in(?:to)?|login\s*to|sign\s*in(?:to)?|access\s+my|open\s+my\s+account)\b/i;
+const LOGIN_URL_RE = /\bhttps?:\/\/[^\s]+/i;
+const LOGIN_DOMAIN_RE = /\b([a-z0-9-]+\.(?:com|io|app|dev|net|org|ai|co|xyz|tech))(\/[^\s]*)?/i;
+
+export function detectLoginIntent(text: string): string | null {
+  if (!text) return null;
+  if (!LOGIN_INTENT_RE.test(text)) return null;
+  const u = text.match(LOGIN_URL_RE);
+  if (u) return u[0].replace(/[.,)]+$/, "");
+  const d = text.match(LOGIN_DOMAIN_RE);
+  if (d) return `https://${d[1]}${d[2] ?? ""}`.replace(/[.,)]+$/, "");
+  return null;
 }

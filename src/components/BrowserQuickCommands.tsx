@@ -19,10 +19,12 @@ const COMMANDS: QuickCmd[] = [
 interface Props {
   onClose: () => void;
   onInject: (prompt: string) => void;
+  onRequestLogin?: (url: string) => void;
 }
 
-export function BrowserQuickCommands({ onClose, onInject }: Props) {
+export function BrowserQuickCommands({ onClose, onInject, onRequestLogin }: Props) {
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const [loginUrl, setLoginUrl] = useState("");
 
   const setUrl = (id: string, v: string) => setUrls((p) => ({ ...p, [id]: v }));
 
@@ -86,6 +88,30 @@ export function BrowserQuickCommands({ onClose, onInject }: Props) {
             </div>
           );
         })}
+        {onRequestLogin && (
+          <div
+            className="rounded p-2 flex flex-col gap-1.5"
+            style={{ background: "#111", border: "1px solid #00aaff44" }}
+          >
+            <button
+              type="button"
+              onClick={() => onRequestLogin(loginUrl || "https://example.com")}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded font-mono text-[11px] hover:bg-surface-2/60 transition"
+              style={{ color: "#00aaff", background: "#00aaff10", border: "1px solid #00aaff44" }}
+            >
+              <span style={{ fontSize: 14 }}>🔐</span>
+              <span className="uppercase tracking-[0.15em]">Login</span>
+            </button>
+            <input
+              type="url"
+              value={loginUrl}
+              onChange={(e) => setLoginUrl(e.target.value)}
+              placeholder="https://..."
+              className="font-mono text-[10px] px-2 py-1 rounded outline-none"
+              style={{ background: "#0a0a0a", border: "1px solid #2a2a2a", color: "#bbb" }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
