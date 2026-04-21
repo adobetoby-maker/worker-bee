@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { nowTs, type LogLine } from "@/lib/agent-state";
 import { saveEndpoint, type EndpointMode } from "@/lib/auto-connect";
-import { getTagsViaWS } from "@/lib/agent-ws";
+import { getTagsViaWS, probeEndpointViaWS } from "@/lib/agent-ws";
 
 type Mode = "http" | "https" | "tailscale" | "custom";
 
@@ -66,6 +66,7 @@ export function ConfigPanel({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [showTroubleshoot, setShowTroubleshoot] = useState(false);
+  const [tagsLoading, setTagsLoading] = useState(false);
 
   const handleMode = (m: Mode) => {
     setMode(m);
@@ -89,29 +90,62 @@ export function ConfigPanel({
     }
     setStatus("loading");
     setErrorMsg(null);
-    appendLog({ ts: nowTs(), level: "ARROW", msg: `WS get_tags → ${endpoint}` });
+    const url = endpoint.replace(/\/$/, "");
+    appendLog({ ts: nowTs(), level: "ARROW", msg: `WS probe → ${url}` });
 
+    // FIX 4 — Connection status is determined by WebSocket ping/pong only.
+    // get_tags success/failure only affects the model dropdown.
+    const ok = await probeEndpointViaWS(url, 5000);
+    if (!ok) {
+      setStatus("err");
+      setErrorMsg("WebSocket ping timed out (5s)");
+      setConnected(false);
+      appendLog({ ts: nowTs(), level: "ERR", msg: "connect failed · ws ping timeout" });
+      return;
+    }
+    setStatus("ok");
+    setConnected(true);
+    saveEndpoint(url, mode as EndpointMode);
+    appendLog({ ts: nowTs(), level: "OK", msg: `connected · ws ping ok` });
+    onConnected?.();
+
+    // Best-effort tag discovery (does NOT affect connected status)
+    setTagsLoading(true);
     try {
-      const list = (await getTagsViaWS(endpoint.replace(/\/$/, ""))) as OllamaModel[];
+      const list = (await getTagsViaWS(url, 15000)) as OllamaModel[];
       setModels(list);
-      setStatus("ok");
-      setConnected(true);
       const first = list[0]?.name ?? null;
       if (first && !model) setModel(first);
       onModelsLoaded?.(list.map((m) => m.name));
-      saveEndpoint(endpoint.replace(/\/$/, ""), mode as EndpointMode);
       appendLog({
         ts: nowTs(),
         level: "OK",
-        msg: `connected · ${list.length} model${list.length === 1 ? "" : "s"}`,
+        msg: `models · ${list.length} discovered`,
       });
-      onConnected?.();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "unknown error";
-      setStatus("err");
-      setErrorMsg(msg);
-      setConnected(false);
-      appendLog({ ts: nowTs(), level: "ERR", msg: `connect failed · ${msg}` });
+      appendLog({ ts: nowTs(), level: "ERR", msg: `get_tags failed · ${msg}` });
+    } finally {
+      setTagsLoading(false);
+    }
+  };
+
+  const refreshModels = async () => {
+    if (!endpoint.trim()) return;
+    setTagsLoading(true);
+    appendLog({ ts: nowTs(), level: "ARROW", msg: "Refreshing models…" });
+    try {
+      const list = (await getTagsViaWS(endpoint.replace(/\/$/, ""), 15000)) as OllamaModel[];
+      setModels(list);
+      const first = list[0]?.name ?? null;
+      if (first && !model) setModel(first);
+      onModelsLoaded?.(list.map((m) => m.name));
+      appendLog({ ts: nowTs(), level: "OK", msg: `models · ${list.length}` });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "unknown error";
+      appendLog({ ts: nowTs(), level: "ERR", msg: `refresh failed · ${msg}` });
+    } finally {
+      setTagsLoading(false);
     }
   };
 
@@ -324,29 +358,53 @@ export function ConfigPanel({
         </section>
 
         {/* Model picker */}
-        {status === "ok" && models.length > 0 && (
+        {status === "ok" && (
           <section>
             <label className="mb-2 block font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
               // active model
             </label>
-            <select
-              value={model ?? ""}
-              onChange={(e) => {
-                setModel(e.target.value);
-                appendLog({
-                  ts: nowTs(),
-                  level: "ARROW",
-                  msg: `model switched → ${e.target.value}`,
-                });
-              }}
-              className="w-full border border-border bg-surface px-3 py-2.5 font-mono text-sm text-foreground outline-none focus:border-primary"
-            >
-              {models.map((m) => (
-                <option key={m.name} value={m.name}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+            {tagsLoading ? (
+              <div className="w-full border border-border bg-surface px-3 py-2.5 font-mono text-sm text-muted-foreground">
+                Loading models…
+              </div>
+            ) : models.length === 0 ? (
+              <button
+                type="button"
+                onClick={refreshModels}
+                className="w-full border border-primary/60 bg-surface px-3 py-2.5 font-mono text-sm text-primary hover:bg-primary/10"
+              >
+                🔄 REFRESH MODELS
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <select
+                  value={model ?? ""}
+                  onChange={(e) => {
+                    setModel(e.target.value);
+                    appendLog({
+                      ts: nowTs(),
+                      level: "ARROW",
+                      msg: `model switched → ${e.target.value}`,
+                    });
+                  }}
+                  className="flex-1 border border-border bg-surface px-3 py-2.5 font-mono text-sm text-foreground outline-none focus:border-primary"
+                >
+                  {models.map((m) => (
+                    <option key={m.name} value={m.name}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={refreshModels}
+                  className="border border-border bg-surface px-3 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
+                  title="Refresh models"
+                >
+                  🔄
+                </button>
+              </div>
+            )}
           </section>
         )}
 
