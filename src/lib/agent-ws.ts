@@ -115,6 +115,9 @@ interface Entry {
   intentionalClose: boolean;
   heartbeatTimer: ReturnType<typeof setInterval> | null;
   pongTimer: ReturnType<typeof setTimeout> | null;
+  keepaliveTimer: ReturnType<typeof setInterval> | null;
+  keepaliveWarnTimer: ReturnType<typeof setTimeout> | null;
+  keepaliveAwaitingPong: boolean;
   lastMessageAt: number;
   awaitingPong: boolean;
 }
@@ -126,6 +129,8 @@ const BASE_RECONNECT_DELAY_MS = 1000;
 const MAX_RECONNECT_DELAY_MS = 30000;
 const HEARTBEAT_INTERVAL_MS = 30000;
 const PONG_TIMEOUT_MS = 5000;
+const KEEPALIVE_INTERVAL_MS = 20000;
+const KEEPALIVE_WARN_MS = 10000;
 
 type ReconnectListener = (info: { tabId: string; attempt: number; max: number; status: "trying" | "connected" | "failed" }) => void;
 const reconnectListeners = new Set<ReconnectListener>();
