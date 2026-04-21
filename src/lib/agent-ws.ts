@@ -156,6 +156,21 @@ export function openAgentWS(
         entry.log?.({ ts: nowTs(), level: "OK", msg: "Agent alive" });
         entry.handlers.forEach((h) => h.onPong?.());
         break;
+      case "browser_result": {
+        let bText = "";
+        let bUrl: string | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.text === "string") bText = d.text;
+          else if (typeof d.content === "string") bText = d.content;
+          if (typeof d.url === "string") bUrl = d.url;
+        } else if (typeof data === "string") {
+          bText = data;
+        }
+        entry.log?.({ ts: nowTs(), level: "OK", msg: `browser_result chars=${bText.length}` });
+        entry.handlers.forEach((h) => h.onBrowserResult?.({ text: bText, url: bUrl, raw: data }));
+        break;
+      }
     }
   };
 }
