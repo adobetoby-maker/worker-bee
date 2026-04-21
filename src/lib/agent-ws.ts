@@ -114,13 +114,29 @@ export function openAgentWS(
     entry.handlers.forEach((h) => h.onSocketError?.());
   };
   ws.onmessage = (event) => {
+    console.log("WS received:", event.data);
     let msg: AgentWSMessage;
     try {
       msg = JSON.parse(typeof event.data === "string" ? event.data : "");
     } catch {
+      console.warn("WS recv: failed to parse", event.data);
       return;
     }
-    const text = (msg.content ?? msg.text ?? msg.message ?? "") as string;
+    // Server sends { type, data } — also support legacy { content/text/message }
+    const data = (msg as { data?: unknown }).data;
+    let text = "";
+    if (typeof data === "string") {
+      text = data;
+    } else if (typeof msg.content === "string") {
+      text = msg.content;
+    } else if (typeof msg.text === "string") {
+      text = msg.text;
+    } else if (typeof msg.message === "string") {
+      text = msg.message;
+    } else if (data && typeof data === "object" && "content" in data && typeof (data as { content: unknown }).content === "string") {
+      text = (data as { content: string }).content;
+    }
+    console.log("WS msg type:", msg.type, "text:", text);
     switch (msg.type) {
       case "token":
         entry.handlers.forEach((h) => h.onToken?.(text));
