@@ -1,7 +1,7 @@
 import { AgentLog } from "./AgentLog";
 import type { LogLine } from "@/lib/agent-state";
 
-export type View = "chat" | "tools" | "vault" | "connections" | "projects" | "config";
+export type View = "chat" | "tools" | "vault" | "connections" | "projects" | "config" | "inbox-cleaner";
 
 interface SidebarProps {
   active: View;
