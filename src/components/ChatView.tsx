@@ -181,6 +181,22 @@ export function ChatView({
         appendLog({ ts: nowTs(), level: "ERR", msg: `chat: ${errorText}` });
       } else {
         appendLog({ ts: nowTs(), level: "OK", msg: `response complete chars=${assistantText.length}` });
+        // Scan completed assistant message for install commands.
+        const cmd = detectInstallCommand(assistantText);
+        if (cmd) {
+          if (isUnsafeCommand(cmd)) {
+            appendLog({ ts: nowTs(), level: "ERR", msg: `BLOCKED unsafe command: ${cmd}` });
+            setInstallCard({
+              command: cmd,
+              state: "blocked",
+              output: "",
+              blockedReason: "This command is on the unsafe-command blocklist and was not executed.",
+            });
+          } else {
+            appendLog({ ts: nowTs(), level: "ARROW", msg: `install detected: ${cmd}` });
+            setInstallCard({ command: cmd, state: "prompt", output: "" });
+          }
+        }
       }
       setStreaming(false);
       abortRef.current = null;
