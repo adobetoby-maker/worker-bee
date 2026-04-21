@@ -1622,17 +1622,41 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
             <div key={i} className="whitespace-pre-wrap break-words">
               {p.text}
               {showCursor && i === parts.length - 1 && (
-                <span
+                <svg
+                  width={18}
+                  height={18}
+                  viewBox="0 0 48 48"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
                   style={{
                     display: "inline-block",
+                    verticalAlign: "middle",
                     marginLeft: 4,
-                    fontSize: 14,
-                    animation: "bee-wing 0.15s ease-in-out infinite",
+                    overflow: "visible",
                     transformOrigin: "center",
+                    animation: "bee-bob 2s ease-in-out infinite",
+                    filter: "drop-shadow(0 0 4px rgba(193,127,36,0.8))",
                   }}
+                  aria-hidden="true"
                 >
-                  🐝
-                </span>
+                  <path d="M20 12 Q17 7 14 6" stroke="#1a0a00" strokeWidth="1.4" strokeLinecap="round" fill="none" />
+                  <path d="M28 12 Q31 7 34 6" stroke="#1a0a00" strokeWidth="1.4" strokeLinecap="round" fill="none" />
+                  <circle cx="14" cy="6" r="1.4" fill="#1a0a00" />
+                  <circle cx="34" cy="6" r="1.4" fill="#1a0a00" />
+                  <g style={{ transformOrigin: "16px 18px", animation: "bee-wing 80ms linear infinite" }}>
+                    <ellipse cx="16" cy="18" rx="9" ry="5.5" fill="rgba(255,255,255,0.55)" stroke="rgba(180,210,255,0.6)" strokeWidth="0.8" />
+                  </g>
+                  <g style={{ transformOrigin: "32px 18px", animation: "bee-wing 80ms linear infinite" }}>
+                    <ellipse cx="32" cy="18" rx="9" ry="5.5" fill="rgba(255,255,255,0.55)" stroke="rgba(180,210,255,0.6)" strokeWidth="0.8" />
+                  </g>
+                  <ellipse cx="24" cy="28" rx="11" ry="13" fill="#ffaa00" stroke="#1a0a00" strokeWidth="1" />
+                  <path d="M14.5 24 Q24 21 33.5 24" stroke="#1a0a00" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+                  <path d="M13.5 30 Q24 27 34.5 30" stroke="#1a0a00" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+                  <path d="M14.5 36 Q24 33 33.5 36" stroke="#1a0a00" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+                  <circle cx="20" cy="22" r="1.1" fill="#fff" />
+                  <circle cx="28" cy="22" r="1.1" fill="#fff" />
+                  <path d="M22 41 L24 46 L26 41 Z" fill="#1a0a00" />
+                </svg>
               )}
             </div>
           );
