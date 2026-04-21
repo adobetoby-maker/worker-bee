@@ -37,11 +37,25 @@ interface Entry {
 const tabs = new Map<string, Entry>();
 
 function wsUrl(endpoint: string, tabId: string): string {
-  // Convert http(s):// → ws(s)://
+  // Smart protocol detection: https → wss, http → ws.
+  // Also auto-upgrade to wss when the page itself is served over https
+  // (browsers block ws:// from https:// pages as mixed content).
   const trimmed = endpoint.replace(/\/$/, "");
-  if (trimmed.startsWith("https://")) return `wss://${trimmed.slice(8)}/ws/${tabId}`;
-  if (trimmed.startsWith("http://")) return `ws://${trimmed.slice(7)}/ws/${tabId}`;
-  return `ws://${trimmed}/ws/${tabId}`;
+  const pageIsHttps =
+    typeof window !== "undefined" && window.location?.protocol === "https:";
+  let proto: "ws" | "wss";
+  let host: string;
+  if (trimmed.startsWith("https://")) {
+    proto = "wss";
+    host = trimmed.slice(8);
+  } else if (trimmed.startsWith("http://")) {
+    proto = pageIsHttps ? "wss" : "ws";
+    host = trimmed.slice(7);
+  } else {
+    proto = pageIsHttps ? "wss" : "ws";
+    host = trimmed;
+  }
+  return `${proto}://${host}/ws/${tabId}`;
 }
 
 export function openAgentWS(
