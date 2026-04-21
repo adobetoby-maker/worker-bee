@@ -95,7 +95,7 @@ export function TabControls({
           title={hint}
           className="bg-background border border-border px-2 py-1 text-[11px] text-foreground rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
         >
-          {options.length === 0 && <option value="">no models</option>}
+          {options.length === 0 && <option value="">No models found</option>}
           {options.map((m) => (
             <option key={m} value={m}>
               {m}

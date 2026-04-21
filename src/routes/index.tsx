@@ -120,7 +120,7 @@ function Index() {
   const [active, setActive] = useState<View>("chat");
   const [log, setLog] = useState<LogLine[]>(INITIAL_LOG);
   const [endpoint, setEndpoint] = useState("http://localhost:11434");
-  const [model, setModel] = useState<string | null>("llama3.1:8b");
+  const [model, setModel] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [bannerDismissedAt, setBannerDismissedAt] = useState(0);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
@@ -149,6 +149,20 @@ function Index() {
   const [flashTurnTabId, setFlashTurnTabId] = useState<string | null>(null);
 
   useEffect(() => subscribeQueue(setQueueState), []);
+
+  // When models are discovered from /api/tags, auto-select the first model
+  // for the global default and for any tab that doesn't have one yet.
+  useEffect(() => {
+    if (availableModels.length === 0) return;
+    const first = availableModels[0];
+    setModel((prev) => prev && availableModels.includes(prev) ? prev : first);
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.model && availableModels.includes(t.model) ? t : { ...t, model: first },
+      ),
+    );
+  }, [availableModels]);
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
   const [diffState, setDiffState] = useState<{
@@ -199,7 +213,7 @@ function Index() {
         id: crypto.randomUUID(),
         name: "Agent 1",
         color: TAB_COLORS[0],
-        model: "llama3.1:8b",
+        model: null,
         messages: [BOOT_MESSAGE],
         systemPrompt: defaultSystemPrompt(ENABLED_TOOLS),
         isStreaming: false,
