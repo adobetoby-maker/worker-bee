@@ -2,7 +2,18 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { nowTs, type LogLine } from "@/lib/agent-state";
 import { BrowserTaskCard, detectBrowserAction } from "./BrowserTaskCard";
-import { sendChat, sendStop, subscribeAgentWS, isWSOpen, sendBrowser, extractBrowserUrl } from "@/lib/agent-ws";
+import {
+  sendChat,
+  sendStop,
+  subscribeAgentWS,
+  isWSOpen,
+  sendBrowser,
+  extractBrowserUrl,
+  sendShell,
+  detectInstallCommand,
+  isUnsafeCommand,
+} from "@/lib/agent-ws";
+import { InstallActionCard, type InstallCardState } from "./InstallActionCard";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -89,6 +100,16 @@ export function ChatView({
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+
+  // Install action card state — driven by post-stream scan of assistant text.
+  const [installCard, setInstallCard] = useState<{
+    command: string;
+    state: InstallCardState;
+    output: string;
+    exitCode?: number;
+    blockedReason?: string;
+  } | null>(null);
+  const installUnsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     onStreamingChange(streaming);
