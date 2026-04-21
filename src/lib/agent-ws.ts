@@ -173,6 +173,30 @@ export function openAgentWS(
         entry.handlers.forEach((h) => h.onBrowserResult?.({ text: bText, url: bUrl, raw: data }));
         break;
       }
+      case "shell_output": {
+        const chunk = typeof data === "string"
+          ? data
+          : (data && typeof data === "object" && typeof (data as { text?: unknown }).text === "string"
+              ? (data as { text: string }).text
+              : text);
+        entry.handlers.forEach((h) => h.onShellOutput?.(chunk));
+        break;
+      }
+      case "shell_done": {
+        let exitCode = 0;
+        let output = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.exit_code === "number") exitCode = d.exit_code;
+          else if (typeof d.exitCode === "number") exitCode = d.exitCode;
+          if (typeof d.output === "string") output = d.output;
+          else if (typeof d.text === "string") output = d.text;
+        }
+        const ok = exitCode === 0;
+        entry.log?.({ ts: nowTs(), level: ok ? "OK" : "ERR", msg: `shell_done exit=${exitCode}` });
+        entry.handlers.forEach((h) => h.onShellDone?.({ exitCode, ok, output }));
+        break;
+      }
     }
   };
 }
