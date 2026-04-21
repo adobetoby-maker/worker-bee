@@ -48,6 +48,7 @@ import {
 } from "@/lib/agent-queue";
 import { ProjectsDashboard } from "@/components/ProjectsDashboard";
 import { ProjectWorkspace } from "@/components/ProjectWorkspace";
+import { useWorkingIndicator } from "@/lib/use-working-indicator";
 import { DiffViewer } from "@/components/DiffViewer";
 import {
   subscribeProjects,
@@ -368,6 +369,8 @@ function Index() {
   const streamingTabs = tabs.filter((t) => t.isStreaming);
   const streamingCount = streamingTabs.length;
   const anyStreaming = streamingCount > 0;
+
+  useWorkingIndicator(anyStreaming);
 
   const totals = useMemo(
     () => ({

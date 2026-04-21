@@ -8,9 +8,11 @@ interface BeeLogoProps {
 export function BeeLogo({ size = 44, streaming = false, error = false, className = "" }: BeeLogoProps) {
   const animation = error
     ? "bee-shake 0.4s ease-in-out infinite"
-    : "bee-bob 2s ease-in-out infinite";
+    : streaming
+      ? "bee-lean 600ms ease-in-out infinite"
+      : "bee-bob 2s ease-in-out infinite";
   const filter = streaming
-    ? "drop-shadow(0 0 6px #ffaa00) drop-shadow(0 0 14px rgba(255,170,0,0.55))"
+    ? "drop-shadow(0 0 8px rgba(193,127,36,0.85)) drop-shadow(0 0 18px rgba(193,127,36,0.6))"
     : "drop-shadow(0 0 2px rgba(255,170,0,0.25))";
 
   return (
@@ -21,7 +23,13 @@ export function BeeLogo({ size = 44, streaming = false, error = false, className
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
-      style={{ animation, filter, transition: "filter 200ms ease", overflow: "visible" }}
+      style={{
+        animation,
+        filter,
+        transition: "filter 200ms ease",
+        overflow: "visible",
+        transformOrigin: "center",
+      }}
       aria-hidden="true"
     >
       {/* Antennae */}
