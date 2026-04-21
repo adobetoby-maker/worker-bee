@@ -165,9 +165,13 @@ export function isWSOpen(tabId: string): boolean {
 }
 
 export function sendChat(tabId: string, content: string, model: string | null): boolean {
-  const ws = tabs.get(tabId)?.ws;
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
   if (!ws || ws.readyState !== WebSocket.OPEN) return false;
-  ws.send(JSON.stringify({ action: "chat", content, model }));
+  const payload = { action: "chat", content, model };
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
   return true;
 }
 
