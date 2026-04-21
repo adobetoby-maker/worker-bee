@@ -56,6 +56,7 @@ interface TabControlsProps {
   onClear: () => void;
   onInjectPrompt?: (text: string) => void;
   onRepair?: () => void;
+  onPlan?: (goal: string) => void;
   onRefreshModels?: () => void;
   refreshingModels?: boolean;
   // Project binding
@@ -75,6 +76,7 @@ export function TabControls({
   onClear,
   onInjectPrompt,
   onRepair,
+  onPlan,
   onRefreshModels,
   refreshingModels = false,
   projects = [],
@@ -201,6 +203,7 @@ export function TabControls({
                 onInjectPrompt?.(`log into ${url}`);
                 setBrowserOpen(false);
               }}
+              onPlan={onPlan ? (g) => { onPlan(g); setBrowserOpen(false); } : undefined}
             />
           )}
         </div>

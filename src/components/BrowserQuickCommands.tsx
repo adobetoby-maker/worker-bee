@@ -20,11 +20,13 @@ interface Props {
   onClose: () => void;
   onInject: (prompt: string) => void;
   onRequestLogin?: (url: string) => void;
+  onPlan?: (goal: string) => void;
 }
 
-export function BrowserQuickCommands({ onClose, onInject, onRequestLogin }: Props) {
+export function BrowserQuickCommands({ onClose, onInject, onRequestLogin, onPlan }: Props) {
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [loginUrl, setLoginUrl] = useState("");
+  const [planGoal, setPlanGoal] = useState("");
 
   const setUrl = (id: string, v: string) => setUrls((p) => ({ ...p, [id]: v }));
 
@@ -107,6 +109,34 @@ export function BrowserQuickCommands({ onClose, onInject, onRequestLogin }: Prop
               value={loginUrl}
               onChange={(e) => setLoginUrl(e.target.value)}
               placeholder="https://..."
+              className="font-mono text-[10px] px-2 py-1 rounded outline-none"
+              style={{ background: "#0a0a0a", border: "1px solid #2a2a2a", color: "#bbb" }}
+            />
+          </div>
+        )}
+        {onPlan && (
+          <div
+            className="rounded p-2 flex flex-col gap-1.5"
+            style={{ background: "#111", border: "1px solid #ffaa0044" }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                const g = planGoal.trim();
+                if (!g) return;
+                onPlan(g);
+              }}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded font-mono text-[11px] hover:bg-surface-2/60 transition"
+              style={{ color: "#ffaa00", background: "#ffaa0010", border: "1px solid #ffaa0044" }}
+            >
+              <span style={{ fontSize: 14 }}>🗺</span>
+              <span className="uppercase tracking-[0.15em]">Plan Task</span>
+            </button>
+            <input
+              type="text"
+              value={planGoal}
+              onChange={(e) => setPlanGoal(e.target.value)}
+              placeholder="What's the goal?"
               className="font-mono text-[10px] px-2 py-1 rounded outline-none"
               style={{ background: "#0a0a0a", border: "1px solid #2a2a2a", color: "#bbb" }}
             />
