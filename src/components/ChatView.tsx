@@ -414,6 +414,29 @@ export function ChatView({
       onSmokeTest();
       return;
     }
+    // Memory commands — intercept before anything else.
+    const memCmd = detectMemoryCommand(text);
+    if (memCmd) {
+      if (!isWSOpen(tabId)) {
+        trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "memory: WebSocket not open" });
+        return;
+      }
+      setInput("");
+      if (memCmd.kind === "remember") {
+        onMessagesChange((prev) => [...prev, { role: "user", content: text }]);
+        setMemorySearchCard({ query: memCmd.query, results: [], loading: true });
+        sendMemorySearch(tabId, memCmd.query, 5);
+      } else {
+        // /learn
+        onMessagesChange((prev) => [...prev, { role: "user", content: text }]);
+        sendMemoryStore(tabId, {
+          topic: "user instruction",
+          content: memCmd.content,
+          source: "user",
+        });
+      }
+      return;
+    }
     if (!connected || !model) {
       trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
       return;
