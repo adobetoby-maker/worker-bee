@@ -370,6 +370,8 @@ function Index() {
   const streamingCount = streamingTabs.length;
   const anyStreaming = streamingCount > 0;
 
+  useWorkingIndicator(anyStreaming);
+
   const totals = useMemo(
     () => ({
       ramGb: machineProfile?.ramGb ?? 8,
