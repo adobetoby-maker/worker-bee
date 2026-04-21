@@ -12,8 +12,10 @@ import {
   sendShell,
   detectInstallCommand,
   isUnsafeCommand,
+  sendSelfRepair,
 } from "@/lib/agent-ws";
 import { InstallActionCard, type InstallCardState } from "./InstallActionCard";
+import { RepairCard, type RepairCardState } from "./RepairCard";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -62,6 +64,9 @@ interface Props {
   onCompareCodeBlock?: (filePath: string, newContent: string) => void;
   // Hidden developer smoke test — triggered by typing exactly "🐝🐝🐝".
   onSmokeTest?: () => void;
+  // Manual self-repair trigger token — when increments, ChatView sends self_repair.
+  repairToken?: number;
+  onOpenConfig?: () => void;
 }
 
 export function ChatView({
@@ -94,6 +99,8 @@ export function ChatView({
   matchProjectFile,
   onCompareCodeBlock,
   onSmokeTest,
+  repairToken = 0,
+  onOpenConfig,
 }: Props) {
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
@@ -114,6 +121,19 @@ export function ChatView({
     blockedReason?: string;
   } | null>(null);
   const installUnsubRef = useRef<(() => void) | null>(null);
+
+  // Self-repair card state.
+  const [repairCard, setRepairCard] = useState<{
+    state: RepairCardState;
+    error: string;
+    logs: string[];
+  } | null>(null);
+  const repairUnsubRef = useRef<(() => void) | null>(null);
+
+  // Error-burst banner: count consecutive recent ERR log lines for THIS tab.
+  const [errBurst, setErrBurst] = useState(0);
+  const [burstDismissed, setBurstDismissed] = useState(false);
+  const consecutiveErrRef = useRef(0);
 
   useEffect(() => {
     onStreamingChange(streaming);
