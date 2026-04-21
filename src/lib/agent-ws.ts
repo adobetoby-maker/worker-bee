@@ -1002,6 +1002,55 @@ export function detectMemoryCommand(text: string):
 }
 
 // ────────────────────────────────────────────
+// Plan actions
+// ────────────────────────────────────────────
+
+function sendPlanAction(tabId: string, action: string, extra: Record<string, unknown> = {}): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: `${action}: WS not open` });
+    return false;
+  }
+  const payload = { action, ...extra };
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
+
+export function sendPlan(tabId: string, goal: string): boolean {
+  return sendPlanAction(tabId, "plan", { goal });
+}
+export function sendPlanStop(tabId: string): boolean {
+  return sendPlanAction(tabId, "plan_stop");
+}
+export function sendPlanPause(tabId: string): boolean {
+  return sendPlanAction(tabId, "plan_pause");
+}
+export function sendPlanResume(tabId: string): boolean {
+  return sendPlanAction(tabId, "plan_resume");
+}
+
+const PLAN_INTENT_PATTERNS: RegExp[] = [
+  /\bstep[\s-]?by[\s-]?step\b/i,
+  /\bautomate\b/i,
+  /\bdo\s+all\b/i,
+  /\bfor\s+each\b/i,
+  /\baudit\s+all\b/i,
+  /\bgo\s+through\b/i,
+  /\bworkflow\b/i,
+  /\bsequence\b/i,
+  /\bmulti[\s-]?step\b/i,
+  /\bplan\b/i,
+];
+
+export function detectPlanIntent(text: string): boolean {
+  if (!text) return false;
+  return PLAN_INTENT_PATTERNS.some((re) => re.test(text));
+}
+
+// ────────────────────────────────────────────
 // Control socket — a single shared WebSocket per endpoint used for
 // out-of-band requests that used to be HTTP fetches (e.g. /api/tags,
 // /api/ps, /health probes). Routing these through WS avoids Chrome
