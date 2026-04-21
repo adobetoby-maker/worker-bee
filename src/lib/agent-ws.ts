@@ -790,7 +790,10 @@ export function sendChat(tabId: string, content: string, model: string | null): 
     console.error("WS send aborted: readyState=", ws.readyState);
     return false;
   }
-  const payload = { action: "chat", content, model };
+  const payload: { action: string; content: string; model?: string } =
+    !model || model === "__auto__"
+      ? { action: "chat", content }
+      : { action: "chat", content, model };
   const json = JSON.stringify(payload);
   entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
   console.log("WS readyState:", ws.readyState, "sending:", payload);
