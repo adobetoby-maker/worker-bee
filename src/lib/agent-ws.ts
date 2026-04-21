@@ -41,6 +41,7 @@ export interface AgentWSHandlers {
   onOpen?: () => void;
   onClose?: () => void;
   onSocketError?: () => void;
+  onClearThinking?: () => void;
   onBrowserResult?: (result: { text: string; url?: string; visionDescription?: string; raw: unknown }) => void;
   onScreenshot?: (result: { url?: string; screenshotB64: string }) => void;
   onShellOutput?: (chunk: string) => void;
