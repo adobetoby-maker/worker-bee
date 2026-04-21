@@ -573,11 +573,68 @@ export function ChatView({
       className="flex flex-1 min-h-0 flex-col"
       style={{ animation: "var(--animate-slide-down)" }}
     >
-      <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto px-6 py-6 space-y-4">
+      <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto py-6">
+        <div className="mx-auto w-full space-y-6" style={{ maxWidth: 680, padding: "0 16px" }}>
         {!connected && (
           <div className="flex justify-center">
             <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground border border-border bg-surface/40 px-4 py-2 rounded">
               ⚠ Connect to Ollama in CONFIG to start chatting
+            </div>
+          </div>
+        )}
+        {connected && messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center gap-4 py-16">
+            <span style={{ fontSize: 48 }}>🐝</span>
+            <div
+              style={{
+                fontFamily: "JetBrains Mono, monospace",
+                fontSize: 22,
+                fontWeight: 700,
+                color: "var(--primary)",
+              }}
+            >
+              Worker Bee
+            </div>
+            <div
+              className="text-muted-foreground"
+              style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 14 }}
+            >
+              Your local AI website builder
+            </div>
+            <div className="flex flex-row gap-2.5 flex-wrap justify-center" style={{ marginTop: 8 }}>
+              {[
+                "🌐 Analyze a website",
+                "💻 Build a landing page",
+                "📸 Take a screenshot",
+              ].map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => setInput(chip)}
+                  className="suggestion-chip"
+                  style={{
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 999,
+                    padding: "8px 16px",
+                    fontFamily: "JetBrains Mono, monospace",
+                    fontSize: 12,
+                    color: "var(--muted-foreground)",
+                    cursor: "pointer",
+                    transition: "border-color 0.15s, color 0.15s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "var(--primary)";
+                    e.currentTarget.style.color = "var(--primary)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "var(--border)";
+                    e.currentTarget.style.color = "var(--muted-foreground)";
+                  }}
+                >
+                  {chip}
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -588,12 +645,9 @@ export function ChatView({
           // Special rich messages: screenshot / vision analysis.
           if (!isUser && m.screenshotB64) {
             return (
-              <div key={i} className="flex items-start gap-3 justify-start">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-base">
-                  🌐
-                </div>
+              <div key={i} className="flex items-start justify-start">
                 <div
-                  className="max-w-[75%]"
+                  className="w-full"
                   style={{
                     background: "#0a0a0a",
                     border: "1px solid #ffaa00",
@@ -623,12 +677,9 @@ export function ChatView({
           }
           if (!isUser && m.visionDescription) {
             return (
-              <div key={i} className="flex items-start gap-3 justify-start">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-base">
-                  👁
-                </div>
+              <div key={i} className="flex items-start justify-start">
                 <div
-                  className="max-w-[75%]"
+                  className="w-full"
                   style={{
                     background: "#0a0a0a",
                     border: "1px solid #39ff14",
@@ -652,22 +703,31 @@ export function ChatView({
           return (
             <div
               key={i}
-              className={`flex items-start gap-3 ${isUser ? "justify-end" : "justify-start"}`}
+              className={`flex items-start ${isUser ? "justify-end" : "justify-start"}`}
             >
-              {!isUser && (
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-base">
-                  🦾
-                </div>
-              )}
               <div
                 className={
                   isUser
-                    ? "max-w-[75%] px-4 py-3 text-sm text-primary-foreground bg-gradient-to-br from-primary to-primary-glow shadow-[var(--shadow-elegant,0_8px_24px_-12px_rgba(255,170,0,0.5))]"
-                    : "max-w-[75%] px-4 py-3 text-sm text-foreground/90 bg-surface border border-border font-sans"
+                    ? "text-sm text-primary-foreground bg-gradient-to-br from-primary to-primary-glow shadow-[var(--shadow-elegant,0_8px_24px_-12px_rgba(255,170,0,0.5))]"
+                    : "w-full"
                 }
-                style={{
-                  borderRadius: isUser ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-                }}
+                style={
+                  isUser
+                    ? {
+                        maxWidth: "85%",
+                        padding: "10px 14px",
+                        borderRadius: "18px 18px 4px 18px",
+                      }
+                    : {
+                        background: "rgba(255,255,255,0.03)",
+                        borderLeft: "2px solid rgba(255,170,0,0.2)",
+                        padding: "8px 0 8px 16px",
+                        borderRadius: 0,
+                        fontFamily: "'IBM Plex Sans', sans-serif",
+                        fontSize: 15,
+                        lineHeight: 1.75,
+                      }
+                }
               >
                 {isUser ? (
                   <div className="whitespace-pre-wrap break-words">{m.content}</div>
@@ -682,14 +742,10 @@ export function ChatView({
                   />
                 )}
               </div>
-              {isUser && (
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-primary/40 bg-primary/10 text-base">
-                  👤
-                </div>
-              )}
             </div>
           );
         })}
+        </div>
       </div>
 
       {streaming && (() => {
@@ -829,37 +885,93 @@ export function ChatView({
         </div>
       )}
 
-      <div className="border-t border-border bg-surface/40 px-4 py-3">
-        <div className="flex items-end gap-3">
-          <Textarea
-            rows={3}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={connected ? "Message Worker Bee…  (Enter to send · Shift+Enter newline)" : "Connect to Ollama in CONFIG first"}
-            className="flex-1 resize-none font-mono text-[13px] bg-background border-border focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--primary)_25%,transparent)]"
-          />
-          <button
-            type="button"
-            onClick={streaming ? stop : send}
-            disabled={!streaming && !input.trim() && !isQueued}
-            className={`h-[72px] w-28 shrink-0 rounded-md font-mono text-xs uppercase tracking-[0.2em] transition-all ${
-              streaming
-                ? "bg-destructive/20 text-destructive border border-destructive/60"
-                : isQueued
-                ? "border"
-                : "bg-gradient-to-br from-primary to-primary-glow text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[0_0_24px_-4px_var(--primary)]"
-            }`}
-            style={
-              streaming
-                ? { animation: "var(--animate-pulse-neon)" }
-                : isQueued
-                ? { borderColor: "#ffaa0066", background: "#1a1400", color: "#ffaa00" }
-                : undefined
-            }
+      <div className="border-t border-border bg-surface/40">
+        <div className="mx-auto w-full" style={{ maxWidth: 680, padding: "12px 16px" }}>
+          <div
+            className="chat-pill flex flex-row items-end"
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 16,
+              padding: "10px 14px",
+              gap: 10,
+              transition: "border-color 0.15s, box-shadow 0.15s",
+            }}
           >
-            {streaming ? "◼ STOP" : isQueued ? `QUEUED #${queuePosition}` : "SEND ▶"}
-          </button>
+            <button
+              type="button"
+              title="Attach"
+              className="chat-attach-btn"
+              style={{
+                width: 28,
+                height: 28,
+                background: "transparent",
+                border: "none",
+                color: "var(--muted-foreground)",
+                cursor: "pointer",
+                fontSize: 16,
+                flexShrink: 0,
+                transition: "color 0.15s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted-foreground)")}
+            >
+              📎
+            </button>
+            <Textarea
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder={connected ? "Message Worker Bee…" : "Connect to Ollama in CONFIG first"}
+              className="flex-1 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+              style={{
+                padding: 0,
+                minHeight: 24,
+                fontSize: 14,
+                boxShadow: "none",
+              }}
+            />
+            <button
+              type="button"
+              onClick={streaming ? stop : send}
+              disabled={!streaming && !input.trim() && !isQueued}
+              title={streaming ? "Stop" : "Send"}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 16,
+                fontWeight: 700,
+                cursor: streaming || input.trim() || isQueued ? "pointer" : "not-allowed",
+                transition: "all 0.15s",
+                ...(streaming
+                  ? {
+                      background: "#ff3b3b22",
+                      border: "1px solid #ff3b3b66",
+                      color: "#ff3b3b",
+                    }
+                  : input.trim() || isQueued
+                  ? {
+                      background:
+                        "linear-gradient(135deg, var(--primary), var(--primary-glow, var(--primary)))",
+                      color: "#000",
+                      border: "none",
+                    }
+                  : {
+                      background: "#222",
+                      color: "#444",
+                      border: "none",
+                    }),
+              }}
+            >
+              {streaming ? "◼" : "↑"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
