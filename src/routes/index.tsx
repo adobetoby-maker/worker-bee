@@ -162,6 +162,61 @@ function Index() {
 
   useEffect(() => subscribeQueue(setQueueState), []);
 
+  // ===== Auto-connect on first load =====
+  // Tries last saved endpoint, then https/http localhost fallbacks. Silent UI.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let cancelled = false;
+    const saved = loadSavedEndpoint();
+    if (saved.url) {
+      setEndpoint(saved.url);
+      if (saved.mode) setEndpointMode(saved.mode);
+    }
+    const everConnected = hasEverConnected();
+    setAutoStatus("trying");
+    appendLog({ ts: nowTs(), level: "ARROW", msg: "auto-connect: probing endpoints…" });
+    autoDiscoverEndpoint().then(async (found) => {
+      if (cancelled) return;
+      if (!found) {
+        setAutoStatus("failed");
+        appendLog({ ts: nowTs(), level: "ERR", msg: "auto-connect: no endpoint reachable" });
+        if (!everConnected) setShowWelcome(true);
+        return;
+      }
+      setEndpoint(found.url);
+      setEndpointMode(found.mode);
+      // Pull tags to fully connect
+      try {
+        const res = await fetch(`${found.url.replace(/\/$/, "")}/api/tags`);
+        if (!res.ok) throw new Error(`http ${res.status}`);
+        const data = (await res.json()) as { models?: { name: string }[] };
+        const list = data.models ?? [];
+        if (cancelled) return;
+        setAvailableModels(list.map((m) => m.name));
+        setConnected(true);
+        setAutoStatus("connected");
+        saveEndpoint(found.url, found.mode);
+        if (list[0]?.name) setModel((prev) => prev ?? list[0].name);
+        setShowWelcome(false);
+        appendLog({
+          ts: nowTs(),
+          level: "OK",
+          msg: `auto-connect: ${found.url} · ${list.length} model${list.length === 1 ? "" : "s"}`,
+        });
+      } catch (e) {
+        if (cancelled) return;
+        setAutoStatus("failed");
+        const msg = e instanceof Error ? e.message : "unknown";
+        appendLog({ ts: nowTs(), level: "ERR", msg: `auto-connect /api/tags failed · ${msg}` });
+        if (!everConnected) setShowWelcome(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // When models are discovered from /api/tags, auto-select the first model
   // for the global default and for any tab that doesn't have one yet.
   useEffect(() => {
