@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { nowTs, type LogLine } from "@/lib/agent-state";
 import { saveEndpoint, type EndpointMode } from "@/lib/auto-connect";
+import { getTagsViaWS } from "@/lib/agent-ws";
 
 type Mode = "http" | "https" | "tailscale" | "custom";
 
@@ -88,13 +89,10 @@ export function ConfigPanel({
     }
     setStatus("loading");
     setErrorMsg(null);
-    appendLog({ ts: nowTs(), level: "ARROW", msg: `GET ${endpoint}/api/tags` });
+    appendLog({ ts: nowTs(), level: "ARROW", msg: `WS get_tags → ${endpoint}` });
 
     try {
-      const res = await fetch(`${endpoint.replace(/\/$/, "")}/api/tags`);
-      if (!res.ok) throw new Error(`http ${res.status}`);
-      const data = (await res.json()) as { models?: OllamaModel[] };
-      const list = data.models ?? [];
+      const list = (await getTagsViaWS(endpoint.replace(/\/$/, ""))) as OllamaModel[];
       setModels(list);
       setStatus("ok");
       setConnected(true);
