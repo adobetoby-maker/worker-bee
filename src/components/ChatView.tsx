@@ -20,12 +20,19 @@ import {
   sendMemoryStats,
   detectMemoryCommand,
   type MemorySearchResult,
+  sendPlan,
+  sendPlanStop,
+  sendPlanPause,
+  sendPlanResume,
+  detectPlanIntent,
+  type PlanStep,
 } from "@/lib/agent-ws";
 import { toast } from "sonner";
 import { InstallActionCard, type InstallCardState } from "./InstallActionCard";
 import { RepairCard, type RepairCardState } from "./RepairCard";
 import { LoginPromptCard, type LoginSubmitArgs } from "./LoginPromptCard";
 import { LoginStatusCard, type LoginCardState } from "./LoginStatusCard";
+import { PlanCard, type PlanCardState, type PlanLogLine, type PlanStepRuntime } from "./PlanCard";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -79,6 +86,9 @@ interface Props {
   onOpenConfig?: () => void;
   // Memory
   onMemoryStatsChange?: (total: number) => void;
+  // Manual plan trigger — when planToken increments, ChatView starts a plan with planGoal.
+  planToken?: number;
+  planGoal?: string;
 }
 
 export function ChatView({
@@ -114,6 +124,8 @@ export function ChatView({
   repairToken = 0,
   onOpenConfig,
   onMemoryStatsChange,
+  planToken = 0,
+  planGoal = "",
 }: Props) {
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
@@ -167,6 +179,22 @@ export function ChatView({
   } | null>(null);
   const [consultedByMessage, setConsultedByMessage] = useState<Record<number, number>>({});
   const pendingConsultedRef = useRef<number | null>(null);
+
+  // Task planner state.
+  const [planCard, setPlanCard] = useState<{
+    goal: string;
+    state: PlanCardState;
+    steps: PlanStep[];
+    runtime: Record<number, PlanStepRuntime>;
+    current: number;
+    total: number;
+    logs: PlanLogLine[];
+    completed: number;
+    failed: number;
+    errorMsg?: string;
+    showResults: boolean;
+  } | null>(null);
+  const [planSuggestion, setPlanSuggestion] = useState<string | null>(null);
 
   useEffect(() => {
     onStreamingChange(streaming);
@@ -248,6 +276,15 @@ export function ChatView({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repairToken]);
+
+  const lastPlanTokenRef = useRef(0);
+  useEffect(() => {
+    if (planToken > 0 && planToken !== lastPlanTokenRef.current && planGoal) {
+      lastPlanTokenRef.current = planToken;
+      startPlan(planGoal);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planToken, planGoal]);
 
   const resolvedSystemPrompt =
     systemPrompt ??
@@ -451,6 +488,12 @@ export function ChatView({
       setLoginPrompt({ url: loginUrl });
       return;
     }
+    // Plan intent detection — show suggestion bar (one chance per message).
+    if (!planCard && !planSuggestion && detectPlanIntent(text)) {
+      onMessagesChange((prev) => [...prev, { role: "user", content: text }]);
+      setPlanSuggestion(text);
+      return;
+    }
     const decision = onRequestSend ? onRequestSend(text) : "start";
     if (decision === "queued") {
       setInput("");
@@ -484,6 +527,140 @@ export function ChatView({
     loginUnsubRef.current = unsub;
     return () => { unsub(); loginUnsubRef.current = null; };
   }, [tabId]);
+
+  // Subscribe to plan events for this tab.
+  useEffect(() => {
+    const unsub = subscribeAgentWS(tabId, {
+      onPlanStarted: ({ goal }) => {
+        setPlanCard({
+          goal,
+          state: "generating",
+          steps: [],
+          runtime: {},
+          current: 0,
+          total: 0,
+          logs: [],
+          completed: 0,
+          failed: 0,
+          showResults: false,
+        });
+      },
+      onPlanReady: ({ goal, tasks, count }) => {
+        setPlanCard((prev) => ({
+          goal: goal || prev?.goal || "",
+          state: "ready",
+          steps: tasks,
+          runtime: Object.fromEntries(tasks.map((t) => [t.id, { status: "pending" as const }])),
+          current: 0,
+          total: count || tasks.length,
+          logs: prev?.logs ?? [],
+          completed: 0,
+          failed: 0,
+          showResults: false,
+        }));
+      },
+      onPlanProgress: (info) => {
+        setPlanCard((prev) => {
+          if (!prev) return prev;
+          const runtime = {
+            ...prev.runtime,
+            [info.step_id]: { status: info.status, result: info.result },
+          };
+          return {
+            ...prev,
+            state: "running",
+            runtime,
+            current: info.current,
+            total: info.total || prev.total,
+          };
+        });
+      },
+      onPlanLog: ({ message, level }) => {
+        if (!message) return;
+        setPlanCard((prev) => prev ? { ...prev, logs: [...prev.logs, { message, level }] } : prev);
+      },
+      onPlanComplete: ({ completed, failed, total, results }) => {
+        setPlanCard((prev) => {
+          if (!prev) return prev;
+          // Merge any per-step results provided in the bulk results map.
+          const runtime = { ...prev.runtime };
+          for (const step of prev.steps) {
+            const r = (results as Record<string, unknown>)[String(step.id)];
+            if (r && typeof r === "object" && !runtime[step.id]?.result) {
+              runtime[step.id] = {
+                status: runtime[step.id]?.status ?? "done",
+                result: r as Record<string, unknown>,
+              };
+            }
+          }
+          return {
+            ...prev,
+            state: "complete",
+            runtime,
+            completed,
+            failed,
+            total: total || prev.total,
+            current: total || prev.current,
+          };
+        });
+      },
+      onPlanError: ({ message }) => {
+        setPlanCard((prev) => prev
+          ? { ...prev, state: "error", errorMsg: message }
+          : {
+              goal: "",
+              state: "error",
+              steps: [],
+              runtime: {},
+              current: 0,
+              total: 0,
+              logs: [],
+              completed: 0,
+              failed: 0,
+              errorMsg: message,
+              showResults: false,
+            });
+      },
+    });
+    return () => { unsub(); };
+  }, [tabId]);
+
+  const startPlan = (goal: string) => {
+    if (!isWSOpen(tabId)) {
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "plan: WS not open" });
+      return;
+    }
+    setPlanCard({
+      goal,
+      state: "generating",
+      steps: [],
+      runtime: {},
+      current: 0,
+      total: 0,
+      logs: [],
+      completed: 0,
+      failed: 0,
+      showResults: false,
+    });
+    sendPlan(tabId, goal);
+  };
+
+  const handleConfirmPlan = () => {
+    const goal = planSuggestion;
+    setPlanSuggestion(null);
+    setInput("");
+    if (goal) startPlan(goal);
+  };
+
+  const handleJustChat = async () => {
+    const goal = planSuggestion;
+    setPlanSuggestion(null);
+    if (!goal) return;
+    setInput("");
+    const decision = onRequestSend ? onRequestSend(goal) : "start";
+    if (decision === "queued") return;
+    await startStream(goal);
+  };
 
   const handleLoginSubmit = (args: LoginSubmitArgs) => {
     if (!isWSOpen(tabId)) {
@@ -906,6 +1083,65 @@ export function ChatView({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {planCard && (
+        <PlanCard
+          goal={planCard.goal}
+          state={planCard.state}
+          steps={planCard.steps}
+          runtime={planCard.runtime}
+          current={planCard.current}
+          total={planCard.total}
+          logs={planCard.logs}
+          completed={planCard.completed}
+          failed={planCard.failed}
+          errorMsg={planCard.errorMsg}
+          showResults={planCard.showResults}
+          onExecute={() => {
+            if (!planCard) return;
+            sendPlan(tabId, planCard.goal);
+            setPlanCard((prev) => prev ? { ...prev, state: "running", logs: prev.logs } : prev);
+          }}
+          onCancel={() => setPlanCard(null)}
+          onPause={() => sendPlanPause(tabId)}
+          onResume={() => sendPlanResume(tabId)}
+          onStop={() => sendPlanStop(tabId)}
+          onToggleResults={() => setPlanCard((prev) => prev ? { ...prev, showResults: !prev.showResults } : prev)}
+          onDismiss={() => setPlanCard(null)}
+        />
+      )}
+
+      {planSuggestion && (
+        <div
+          className="mx-4 mb-2 px-3 py-2 rounded-md flex items-center justify-between gap-3 font-mono"
+          style={{
+            background: "color-mix(in oklab, var(--primary) 12%, var(--surface))",
+            border: "1px solid var(--primary)",
+            color: "var(--foreground)",
+            fontSize: 12,
+          }}
+        >
+          <span>🗺 This sounds like a multi-step task.</span>
+          <span className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleConfirmPlan}
+              className="px-3 py-1 rounded uppercase tracking-[0.18em]"
+              style={{ background: "var(--primary)", color: "var(--primary-foreground)", border: "none", fontSize: 10 }}
+            >
+              Create Plan
+            </button>
+            <button
+              type="button"
+              onClick={handleJustChat}
+              className="px-3 py-1 rounded border uppercase tracking-[0.18em]"
+              style={{ borderColor: "var(--border)", color: "var(--muted-foreground)", background: "transparent", fontSize: 10 }}
+            >
+              Just Chat
+            </button>
+          </span>
         </div>
       )}
 

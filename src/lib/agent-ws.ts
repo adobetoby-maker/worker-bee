@@ -24,7 +24,8 @@ export interface AgentWSMessage {
     | "gmail_progress" | "gmail_done"
     | "login_log" | "login_result"
     | "tags_result" | "ps_result"
-    | "memory_stats" | "memory_search_result" | "memory_consulted" | "memory_stored";
+    | "memory_stats" | "memory_search_result" | "memory_consulted" | "memory_stored"
+    | "plan_started" | "plan_ready" | "plan_progress" | "plan_log" | "plan_complete" | "plan_error";
   content?: string;
   text?: string;
   message?: string;
@@ -58,6 +59,42 @@ export interface AgentWSHandlers {
   onMemorySearchResult?: (info: { query: string; results: MemorySearchResult[] }) => void;
   onMemoryConsulted?: (info: { count: number }) => void;
   onMemoryStored?: (info: { ok: boolean; message?: string }) => void;
+  onPlanStarted?: (info: { goal: string }) => void;
+  onPlanReady?: (info: PlanReady) => void;
+  onPlanProgress?: (info: PlanProgress) => void;
+  onPlanLog?: (info: { message: string; level: PlanLogLevel }) => void;
+  onPlanComplete?: (info: PlanComplete) => void;
+  onPlanError?: (info: { message: string }) => void;
+}
+
+export interface PlanStep {
+  id: number;
+  action: string;
+  description: string;
+  params: Record<string, unknown>;
+  depends_on: number[];
+}
+export interface PlanReady {
+  goal: string;
+  tasks: PlanStep[];
+  count: number;
+}
+export type PlanStepStatus = "running" | "done" | "failed";
+export interface PlanProgress {
+  step_id: number;
+  status: PlanStepStatus;
+  action: string;
+  desc: string;
+  result: Record<string, unknown> | null;
+  current: number;
+  total: number;
+}
+export type PlanLogLevel = "info" | "ok" | "error" | "warn";
+export interface PlanComplete {
+  completed: number;
+  failed: number;
+  total: number;
+  results: Record<string, unknown>;
 }
 
 export interface MemorySearchResult {
@@ -576,6 +613,101 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         entry.handlers.forEach((h) => h.onMemoryStored?.({ ok, message }));
         break;
       }
+      case "plan_started": {
+        let goal = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.goal === "string") goal = d.goal;
+        }
+        entry.log?.({ ts: nowTs(), level: "ARROW", msg: `plan_started: ${goal}` });
+        entry.handlers.forEach((h) => h.onPlanStarted?.({ goal }));
+        break;
+      }
+      case "plan_ready": {
+        let goal = "";
+        let count = 0;
+        const tasks: PlanStep[] = [];
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.goal === "string") goal = d.goal;
+          if (typeof d.count === "number") count = d.count;
+          if (Array.isArray(d.tasks)) {
+            for (const t of d.tasks) {
+              if (t && typeof t === "object") {
+                const r = t as Record<string, unknown>;
+                tasks.push({
+                  id: typeof r.id === "number" ? r.id : 0,
+                  action: typeof r.action === "string" ? r.action : "",
+                  description: typeof r.description === "string" ? r.description : "",
+                  params: (r.params && typeof r.params === "object") ? r.params as Record<string, unknown> : {},
+                  depends_on: Array.isArray(r.depends_on) ? (r.depends_on as unknown[]).filter((x): x is number => typeof x === "number") : [],
+                });
+              }
+            }
+          }
+        }
+        entry.log?.({ ts: nowTs(), level: "OK", msg: `plan_ready: ${tasks.length} steps` });
+        entry.handlers.forEach((h) => h.onPlanReady?.({ goal, tasks, count: count || tasks.length }));
+        break;
+      }
+      case "plan_progress": {
+        if (!data || typeof data !== "object") break;
+        const d = data as Record<string, unknown>;
+        const status = (d.status === "done" || d.status === "failed" ? d.status : "running") as PlanStepStatus;
+        const info: PlanProgress = {
+          step_id: typeof d.step_id === "number" ? d.step_id : 0,
+          status,
+          action: typeof d.action === "string" ? d.action : "",
+          desc: typeof d.desc === "string" ? d.desc : "",
+          result: (d.result && typeof d.result === "object") ? d.result as Record<string, unknown> : null,
+          current: typeof d.current === "number" ? d.current : 0,
+          total: typeof d.total === "number" ? d.total : 0,
+        };
+        entry.handlers.forEach((h) => h.onPlanProgress?.(info));
+        break;
+      }
+      case "plan_log": {
+        let message = "";
+        let level: PlanLogLevel = "info";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.message === "string") message = d.message;
+          if (d.level === "ok" || d.level === "error" || d.level === "warn" || d.level === "info") level = d.level;
+        } else if (typeof data === "string") {
+          message = data;
+        }
+        if (!message && text) message = text;
+        entry.handlers.forEach((h) => h.onPlanLog?.({ message, level }));
+        break;
+      }
+      case "plan_complete": {
+        let completed = 0, failed = 0, total = 0;
+        let results: Record<string, unknown> = {};
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.completed === "number") completed = d.completed;
+          if (typeof d.failed === "number") failed = d.failed;
+          if (typeof d.total === "number") total = d.total;
+          if (d.results && typeof d.results === "object") results = d.results as Record<string, unknown>;
+        }
+        entry.log?.({ ts: nowTs(), level: failed === 0 ? "OK" : "ERR", msg: `plan_complete ${completed}/${total} (${failed} failed)` });
+        entry.handlers.forEach((h) => h.onPlanComplete?.({ completed, failed, total, results }));
+        break;
+      }
+      case "plan_error": {
+        let message = "plan error";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.message === "string") message = d.message;
+        } else if (typeof data === "string") {
+          message = data;
+        } else if (text) {
+          message = text;
+        }
+        entry.log?.({ ts: nowTs(), level: "ERR", msg: `plan_error: ${message}` });
+        entry.handlers.forEach((h) => h.onPlanError?.({ message }));
+        break;
+      }
     }
 }
 
@@ -867,6 +999,55 @@ export function detectMemoryCommand(text: string):
   const l = t.match(/^\/learn\s+(.+)$/is);
   if (l) return { kind: "learn", content: l[1].trim() };
   return null;
+}
+
+// ────────────────────────────────────────────
+// Plan actions
+// ────────────────────────────────────────────
+
+function sendPlanAction(tabId: string, action: string, extra: Record<string, unknown> = {}): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: `${action}: WS not open` });
+    return false;
+  }
+  const payload = { action, ...extra };
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
+
+export function sendPlan(tabId: string, goal: string): boolean {
+  return sendPlanAction(tabId, "plan", { goal });
+}
+export function sendPlanStop(tabId: string): boolean {
+  return sendPlanAction(tabId, "plan_stop");
+}
+export function sendPlanPause(tabId: string): boolean {
+  return sendPlanAction(tabId, "plan_pause");
+}
+export function sendPlanResume(tabId: string): boolean {
+  return sendPlanAction(tabId, "plan_resume");
+}
+
+const PLAN_INTENT_PATTERNS: RegExp[] = [
+  /\bstep[\s-]?by[\s-]?step\b/i,
+  /\bautomate\b/i,
+  /\bdo\s+all\b/i,
+  /\bfor\s+each\b/i,
+  /\baudit\s+all\b/i,
+  /\bgo\s+through\b/i,
+  /\bworkflow\b/i,
+  /\bsequence\b/i,
+  /\bmulti[\s-]?step\b/i,
+  /\bplan\b/i,
+];
+
+export function detectPlanIntent(text: string): boolean {
+  if (!text) return false;
+  return PLAN_INTENT_PATTERNS.some((re) => re.test(text));
 }
 
 // ────────────────────────────────────────────
