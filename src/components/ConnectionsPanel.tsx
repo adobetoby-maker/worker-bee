@@ -7,6 +7,7 @@ interface Props {
   onChange: (next: ConnectionsState) => void;
   appendLog: (line: LogLine) => void;
   onSaveToVault?: (label: string, value: string, category: "EMAIL" | "SOCIAL") => void;
+  onOpenInboxCleaner?: () => void;
 }
 
 const AMBER = "#ffaa00";
