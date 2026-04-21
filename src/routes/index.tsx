@@ -164,23 +164,6 @@ function Index() {
   const [flashTurnTabId, setFlashTurnTabId] = useState<string | null>(null);
   const [refreshingModels, setRefreshingModels] = useState(false);
 
-  const refreshModels = useCallback(async () => {
-    if (!endpoint) return;
-    setRefreshingModels(true);
-    appendLog({ ts: nowTs(), level: "ARROW", msg: "Refreshing models…" });
-    try {
-      const list = await getTagsViaWS(endpoint.replace(/\/$/, ""));
-      setAvailableModels(list.map((m) => m.name));
-      if (list[0]?.name) setModel((prev) => prev ?? list[0].name);
-      appendLog({ ts: nowTs(), level: "OK", msg: `models · ${list.length}` });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "unknown";
-      appendLog({ ts: nowTs(), level: "ERR", msg: `refresh models failed · ${msg}` });
-    } finally {
-      setRefreshingModels(false);
-    }
-  }, [endpoint, appendLog]);
-
   useEffect(() => subscribeQueue(setQueueState), []);
 
   // ===== WebSocket reconnect status (per-tab) =====
