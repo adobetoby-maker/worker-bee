@@ -290,3 +290,60 @@ export function extractBrowserUrl(text: string): string | null {
   if (hasTrigger) return null;
   return null;
 }
+
+// ────────────────────────────────────────────
+// Shell action + install detection / safety
+// ────────────────────────────────────────────
+
+const INSTALL_PATTERNS: RegExp[] = [
+  /\bpip(?:3)?\s+install\s+[^\n`]+/i,
+  /\bollama\s+pull\s+[^\n`]+/i,
+  /\bbrew\s+install\s+[^\n`]+/i,
+  /\bplaywright\s+install(?:\s+[^\n`]+)?/i,
+  /\bnpm\s+install\s+[^\n`]+/i,
+  /\bapt(?:-get)?\s+install\s+[^\n`]+/i,
+];
+
+const UNSAFE_PATTERNS: RegExp[] = [
+  /\brm\s+-rf\b/i,
+  /\bsudo\s+rm\b/i,
+  /\bmkfs\b/i,
+  /\bdd\s+if=/i,
+  /\bchmod\s+777\s+\//i,
+  /curl[^\n|]*\|\s*bash/i,
+  /wget[^\n|]*\|\s*bash/i,
+];
+
+export function detectInstallCommand(text: string): string | null {
+  if (!text) return null;
+  for (const re of INSTALL_PATTERNS) {
+    const m = text.match(re);
+    if (m) {
+      // Strip trailing punctuation/markdown noise.
+      return m[0]
+        .replace(/[`*]+/g, "")
+        .replace(/[.,;)\]}>]+$/, "")
+        .trim();
+    }
+  }
+  return null;
+}
+
+export function isUnsafeCommand(cmd: string): boolean {
+  return UNSAFE_PATTERNS.some((re) => re.test(cmd));
+}
+
+export function sendShell(tabId: string, command: string): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "shell: WebSocket not open" });
+    return false;
+  }
+  const payload = { action: "shell", command };
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  console.log("WS readyState:", ws.readyState, "sending:", payload);
+  ws.send(json);
+  return true;
+}
