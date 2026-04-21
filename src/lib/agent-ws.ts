@@ -205,6 +205,7 @@ export function openAgentWS(
   }
   // Close previous if endpoint changed
   if (existing?.ws) {
+    if (existing) existing.intentionalClose = true;
     try { existing.ws.close(); } catch { /* noop */ }
   }
 
@@ -214,40 +215,24 @@ export function openAgentWS(
     status: "idle",
     handlers: new Set(),
     log: log ?? null,
+    reconnectAttempts: 0,
+    reconnectTimer: null,
+    intentionalClose: false,
+    heartbeatTimer: null,
+    pongTimer: null,
+    lastMessageAt: 0,
+    awaitingPong: false,
   };
   entry.endpoint = endpoint;
   if (log) entry.log = log;
-  entry.status = "connecting";
+  entry.intentionalClose = false;
+  entry.reconnectAttempts = 0;
+  clearTimers(entry);
   tabs.set(tabId, entry);
+  createSocket(tabId, entry);
+}
 
-  let ws: WebSocket;
-  try {
-    ws = new WebSocket(wsUrl(endpoint, tabId));
-  } catch (e) {
-    entry.status = "error";
-    entry.log?.({ ts: nowTs(), level: "ERR", msg: "WebSocket error — is agent running?" });
-    return;
-  }
-  entry.ws = ws;
-
-  ws.onopen = () => {
-    entry.status = "open";
-    entry.log?.({ ts: nowTs(), level: "OK", msg: "WebSocket connected to agent :8000" });
-    console.log("WS open and ready");
-    entry.handlers.forEach((h) => h.onOpen?.());
-  };
-  ws.onclose = () => {
-    entry.status = "closed";
-    entry.log?.({ ts: nowTs(), level: "ARROW", msg: "WebSocket disconnected" });
-    entry.handlers.forEach((h) => h.onClose?.());
-  };
-  ws.onerror = (event) => {
-    entry.status = "error";
-    entry.log?.({ ts: nowTs(), level: "ERR", msg: "WebSocket error — is agent running?" });
-    console.error("WS error event:", event);
-    entry.handlers.forEach((h) => h.onSocketError?.());
-  };
-  ws.onmessage = (event) => {
+function handleMessage(entry: Entry, event: MessageEvent): void {
     console.log("WS received:", event.data);
     let msg: AgentWSMessage;
     try {
@@ -345,7 +330,6 @@ export function openAgentWS(
         break;
       }
     }
-  };
 }
 
 export function closeAgentWS(tabId: string): void {
