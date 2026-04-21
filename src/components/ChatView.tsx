@@ -726,8 +726,8 @@ export function ChatView({
                 <div
                   className="w-full"
                   style={{
-                    background: "#0a0a0a",
-                    border: "1px solid #ffaa00",
+                    background: "var(--background)",
+                    border: "1px solid var(--primary)",
                     borderRadius: 8,
                     padding: 12,
                     marginBottom: 8,
@@ -735,7 +735,7 @@ export function ChatView({
                 >
                   <div
                     style={{
-                      color: "#ffaa00",
+                      color: "var(--primary)",
                       fontFamily: "JetBrains Mono, monospace",
                       fontSize: 11,
                       marginBottom: 8,
@@ -758,11 +758,11 @@ export function ChatView({
                 <div
                   className="w-full"
                   style={{
-                    background: "#0a0a0a",
-                    border: "1px solid #39ff14",
+                    background: "var(--background)",
+                    border: "1px solid var(--success)",
                     borderRadius: 8,
                     padding: 12,
-                    color: "#39ff14",
+                    color: "var(--success)",
                     fontFamily: "JetBrains Mono, monospace",
                     fontSize: 13,
                     whiteSpace: "pre-wrap",
@@ -796,8 +796,8 @@ export function ChatView({
                         borderRadius: "18px 18px 4px 18px",
                       }
                     : {
-                        background: "rgba(255,255,255,0.03)",
-                        borderLeft: "2px solid rgba(255,170,0,0.2)",
+                        background: "transparent",
+                        borderLeft: "2px solid var(--border)",
                         padding: "8px 0 8px 16px",
                         borderRadius: 0,
                         fontFamily: "'IBM Plex Sans', sans-serif",
@@ -852,17 +852,17 @@ export function ChatView({
         <div className="px-4 pb-2">
           <div
             style={{
-              background: "#0a0a0a",
+              background: "var(--surface)",
               border: "1px solid #9b59b6",
               borderRadius: 8,
               padding: 12,
               fontFamily: "JetBrains Mono, monospace",
               fontSize: 12,
-              color: "#d8b4ff",
+              color: "var(--foreground)",
             }}
           >
             <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
-              <div style={{ color: "#c084fc", fontSize: 11, letterSpacing: "0.1em" }}>
+              <div style={{ color: "#9b59b6", fontSize: 11, letterSpacing: "0.1em" }}>
                 🧠 MEMORY SEARCH — {memorySearchCard.query}
               </div>
               <button
@@ -978,9 +978,9 @@ export function ChatView({
         <div
           className="px-4 py-2 flex items-center justify-between gap-3 font-mono text-[11px]"
           style={{
-            background: "#1a1400",
-            color: "#ffaa00",
-            borderTop: "1px solid #ffaa0040",
+            background: "var(--surface)",
+            color: "var(--primary)",
+            borderTop: "1px solid var(--border)",
           }}
         >
           <span>⚠ Multiple errors detected ({errBurst} in a row)</span>
@@ -989,7 +989,7 @@ export function ChatView({
               type="button"
               onClick={() => triggerSelfRepair(`Auto-detected: ${errBurst} consecutive errors in tab log`)}
               className="px-2 py-0.5 rounded border"
-              style={{ borderColor: "#ffaa0066", color: "#ffaa00", background: "#0a0a0a" }}
+              style={{ borderColor: "var(--primary)", color: "var(--primary)", background: "var(--background)" }}
             >
               🔧 RUN SELF-REPAIR
             </button>
@@ -997,7 +997,7 @@ export function ChatView({
               type="button"
               onClick={() => { setBurstDismissed(true); setErrBurst(0); consecutiveErrRef.current = 0; }}
               className="px-2 py-0.5 rounded border"
-              style={{ borderColor: "#33333366", color: "#aaa" }}
+              style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}
             >
               DISMISS
             </button>
@@ -1009,9 +1009,9 @@ export function ChatView({
         <div
           className="px-4 py-2 flex items-center justify-between gap-3 font-mono text-[11px]"
           style={{
-            background: "#1a1400",
-            color: "#ffaa00",
-            borderTop: "1px solid #ffaa0040",
+            background: "var(--surface)",
+            color: "var(--primary)",
+            borderTop: "1px solid var(--border)",
           }}
         >
           <span>
@@ -1022,7 +1022,7 @@ export function ChatView({
               type="button"
               onClick={() => onMoveToFront?.()}
               className="px-2 py-0.5 rounded border"
-              style={{ borderColor: "#ffaa0066", color: "#ffaa00" }}
+              style={{ borderColor: "var(--primary)", color: "var(--primary)" }}
             >
               MOVE TO FRONT
             </button>
@@ -1030,7 +1030,7 @@ export function ChatView({
               type="button"
               onClick={() => onCancelQueued?.()}
               className="px-2 py-0.5 rounded border"
-              style={{ borderColor: "#ff3b3b66", color: "#ff8a8a" }}
+              style={{ borderColor: "var(--destructive)", color: "var(--destructive)" }}
             >
               CANCEL
             </button>
@@ -1104,20 +1104,20 @@ export function ChatView({
                 transition: "all 0.15s",
                 ...(streaming
                   ? {
-                      background: "#ff3b3b22",
-                      border: "1px solid #ff3b3b66",
-                      color: "#ff3b3b",
+                      background: "color-mix(in oklab, var(--destructive) 15%, transparent)",
+                      border: "1px solid var(--destructive)",
+                      color: "var(--destructive)",
                     }
                   : input.trim() || isQueued
                   ? {
                       background:
                         "linear-gradient(135deg, var(--primary), var(--primary-glow, var(--primary)))",
-                      color: "#000",
+                      color: "var(--primary-foreground)",
                       border: "none",
                     }
                   : {
-                      background: "#222",
-                      color: "#444",
+                      background: "var(--surface-2)",
+                      color: "var(--muted-foreground)",
                       border: "none",
                     }),
               }}
@@ -1174,19 +1174,19 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
         const guess = guessName(lang);
         const matchedPath = matchProjectFile?.(lang, p.text, guess) ?? null;
         return (
-          <div key={i} className="rounded overflow-hidden" style={{ border: "1px solid #1a1a1a" }}>
+          <div key={i} className="rounded overflow-hidden" style={{ border: "1px solid var(--border)" }}>
             <div
               className="flex items-center gap-2 px-2 py-1 font-mono text-[10px]"
-              style={{ background: "#0a0a0a", color: "#888", borderBottom: "1px solid #1a1a1a" }}
+              style={{ background: "var(--surface)", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)" }}
             >
-              <span style={{ color: "#ffaa00" }}>{lang}</span>
+              <span style={{ color: "var(--primary)" }}>{lang}</span>
               <div className="ml-auto flex gap-1">
                 {matchedPath && onCompareCodeBlock && (
                   <button
                     type="button"
                     onClick={() => onCompareCodeBlock(matchedPath, p.text)}
                     className="px-2 py-0.5 rounded text-[10px] tracking-[0.1em]"
-                    style={{ background: "#39ff14", color: "#001a00" }}
+                    style={{ background: "var(--success)", color: "var(--success-foreground)" }}
                     title={`Compare with ${matchedPath}`}
                   >
                     ↔ Compare
@@ -1197,7 +1197,7 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
                     type="button"
                     onClick={() => onSaveCodeBlock(lang, p.text, guess)}
                     className="px-2 py-0.5 rounded text-[10px] tracking-[0.1em]"
-                    style={{ background: "#ffaa00", color: "#000" }}
+                    style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
                     title={`Save to ${projectName}`}
                   >
                     💾 Save to Project
@@ -1207,7 +1207,7 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
                   type="button"
                   onClick={() => navigator.clipboard.writeText(p.text)}
                   className="px-2 py-0.5 rounded border text-[10px]"
-                  style={{ borderColor: "#333", color: "#aaa" }}
+                  style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}
                 >
                   📋 Copy
                 </button>
@@ -1223,7 +1223,7 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
                     URL.revokeObjectURL(url);
                   }}
                   className="px-2 py-0.5 rounded border text-[10px]"
-                  style={{ borderColor: "#333", color: "#aaa" }}
+                  style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}
                 >
                   ⬇ Download
                 </button>
@@ -1231,7 +1231,7 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
             </div>
             <pre
               className="px-3 py-2 overflow-x-auto font-mono text-[12px]"
-              style={{ background: "#080808", color: "#ccc" }}
+              style={{ background: "var(--background)", color: "var(--foreground)" }}
             >
               {p.text}
             </pre>
