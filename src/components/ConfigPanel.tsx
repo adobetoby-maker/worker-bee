@@ -358,29 +358,53 @@ export function ConfigPanel({
         </section>
 
         {/* Model picker */}
-        {status === "ok" && models.length > 0 && (
+        {status === "ok" && (
           <section>
             <label className="mb-2 block font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
               // active model
             </label>
-            <select
-              value={model ?? ""}
-              onChange={(e) => {
-                setModel(e.target.value);
-                appendLog({
-                  ts: nowTs(),
-                  level: "ARROW",
-                  msg: `model switched → ${e.target.value}`,
-                });
-              }}
-              className="w-full border border-border bg-surface px-3 py-2.5 font-mono text-sm text-foreground outline-none focus:border-primary"
-            >
-              {models.map((m) => (
-                <option key={m.name} value={m.name}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+            {tagsLoading ? (
+              <div className="w-full border border-border bg-surface px-3 py-2.5 font-mono text-sm text-muted-foreground">
+                Loading models…
+              </div>
+            ) : models.length === 0 ? (
+              <button
+                type="button"
+                onClick={refreshModels}
+                className="w-full border border-primary/60 bg-surface px-3 py-2.5 font-mono text-sm text-primary hover:bg-primary/10"
+              >
+                🔄 REFRESH MODELS
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <select
+                  value={model ?? ""}
+                  onChange={(e) => {
+                    setModel(e.target.value);
+                    appendLog({
+                      ts: nowTs(),
+                      level: "ARROW",
+                      msg: `model switched → ${e.target.value}`,
+                    });
+                  }}
+                  className="flex-1 border border-border bg-surface px-3 py-2.5 font-mono text-sm text-foreground outline-none focus:border-primary"
+                >
+                  {models.map((m) => (
+                    <option key={m.name} value={m.name}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={refreshModels}
+                  className="border border-border bg-surface px-3 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
+                  title="Refresh models"
+                >
+                  🔄
+                </button>
+              </div>
+            )}
           </section>
         )}
 
