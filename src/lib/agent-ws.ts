@@ -247,6 +247,9 @@ function createSocket(tabId: string, entry: Entry): void {
     entry.status = "closed";
     if (entry.heartbeatTimer) { clearInterval(entry.heartbeatTimer); entry.heartbeatTimer = null; }
     if (entry.pongTimer) { clearTimeout(entry.pongTimer); entry.pongTimer = null; }
+    if (entry.keepaliveTimer) { clearInterval(entry.keepaliveTimer); entry.keepaliveTimer = null; }
+    if (entry.keepaliveWarnTimer) { clearTimeout(entry.keepaliveWarnTimer); entry.keepaliveWarnTimer = null; }
+    entry.keepaliveAwaitingPong = false;
     entry.handlers.forEach((h) => h.onClose?.());
     if (!entry.intentionalClose) {
       entry.log?.({ ts: nowTs(), level: "ARROW", msg: "WebSocket disconnected — reconnecting..." });
