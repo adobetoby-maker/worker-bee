@@ -783,6 +783,86 @@ export function ChatView({
   }, [tabId]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    const ta = e.currentTarget;
+    if (e.key === "ArrowUp") {
+      // Only hijack if cursor is on first line (no newline before caret) — keeps multi-line editing usable.
+      const before = ta.value.slice(0, ta.selectionStart);
+      if (!before.includes("\n") && inputHistory.length > 0) {
+        e.preventDefault();
+        if (historyIndex === -1) setSavedDraft(input);
+        const next = Math.min(historyIndex + 1, inputHistory.length - 1);
+        setHistoryIndex(next);
+        setInput(inputHistory[next]);
+        setTimeout(() => {
+          const t = textareaRef.current;
+          if (t) {
+            t.style.height = "auto";
+            t.style.height = Math.min(t.scrollHeight, 200) + "px";
+            t.selectionStart = t.value.length;
+            t.selectionEnd = t.value.length;
+          }
+        }, 0);
+        return;
+      }
+    }
+    if (e.key === "ArrowDown") {
+      if (historyIndex !== -1) {
+        e.preventDefault();
+        const next = historyIndex - 1;
+        setHistoryIndex(next);
+        const newVal = next === -1 ? savedDraft : inputHistory[next];
+        setInput(newVal);
+        setTimeout(() => {
+          const t = textareaRef.current;
+          if (t) {
+            t.style.height = "auto";
+            t.style.height = Math.min(t.scrollHeight, 200) + "px";
+            t.selectionStart = t.value.length;
+            t.selectionEnd = t.value.length;
+          }
+        }, 0);
+        return;
+      }
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      if (input.length > 0) {
+        setInput("");
+      } else {
+        ta.blur();
+      }
+      setHistoryIndex(-1);
+      setSavedDraft("");
+      return;
+    }
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const match = TAB_COMPLETIONS.find(([prefix]) => input.toLowerCase().startsWith(prefix));
+      if (match && input.trim().toLowerCase() === match[0]) {
+        setInput(match[1]);
+        setTimeout(() => {
+          const t = textareaRef.current;
+          if (t) {
+            t.selectionStart = t.value.length;
+            t.selectionEnd = t.value.length;
+          }
+        }, 0);
+      } else {
+        // Insert 2 spaces at caret.
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        const newVal = input.slice(0, start) + "  " + input.slice(end);
+        setInput(newVal);
+        setTimeout(() => {
+          const t = textareaRef.current;
+          if (t) {
+            t.selectionStart = start + 2;
+            t.selectionEnd = start + 2;
+          }
+        }, 0);
+      }
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       send();
