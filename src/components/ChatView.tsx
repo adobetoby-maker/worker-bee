@@ -274,6 +274,21 @@ export function ChatView({
     if (!streaming) setShowScrollButton(false);
   }, [streaming]);
 
+  // Cmd+K / Ctrl+K — clear this agent's chat history (with confirm).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        if (window.confirm("Clear this agent's history?")) {
+          onMessagesChange(() => []);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onMessagesChange]);
+
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
