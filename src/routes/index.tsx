@@ -60,7 +60,7 @@ import {
 } from "@/lib/projects";
 import { diffLines } from "@/lib/diff";
 import { ejectAllForTab } from "@/lib/injection-registry";
-import { openAgentWS, closeAgentWS, sendPing } from "@/lib/agent-ws";
+import { openAgentWS, closeAgentWS, sendPing, subscribeReconnectStatus } from "@/lib/agent-ws";
 import {
   autoDiscoverEndpoint,
   loadSavedEndpoint,
