@@ -395,15 +395,38 @@ function TipBlock({
       ))}
       <div className="mt-3 space-y-1.5">
         {cmds.map((c) => (
-          <div
-            key={c}
-            className="flex items-center gap-2 border border-border bg-background/60 px-3 py-1.5"
-          >
-            <span className="text-primary font-mono text-[11px]">$</span>
-            <code className="font-mono text-[12px] text-foreground">{c}</code>
-          </div>
+          <CopyCmd key={c} cmd={c} />
         ))}
       </div>
+    </div>
+  );
+}
+
+function CopyCmd({ cmd }: { cmd: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(cmd);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* noop */
+    }
+  };
+  return (
+    <div className="flex items-center gap-2 border border-border bg-background/60 px-3 py-1.5">
+      <span className="text-primary font-mono text-[11px]">$</span>
+      <code className="flex-1 overflow-x-auto font-mono text-[12px] text-foreground whitespace-nowrap">
+        {cmd}
+      </code>
+      <button
+        type="button"
+        onClick={copy}
+        className="shrink-0 border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.15em] hover:border-primary"
+        style={{ color: copied ? "#39ff14" : "#888" }}
+      >
+        {copied ? "✓ COPIED" : "📋 COPY"}
+      </button>
     </div>
   );
 }
