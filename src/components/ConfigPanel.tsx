@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { nowTs, type LogLine } from "@/lib/agent-state";
+import { saveEndpoint, type EndpointMode } from "@/lib/auto-connect";
 
 type Mode = "http" | "https" | "tailscale" | "custom";
 
@@ -18,6 +19,9 @@ interface ConfigPanelProps {
   appendLog: (line: LogLine) => void;
   onModelsLoaded?: (models: string[]) => void;
   onConnected?: () => void;
+  autoConnected?: boolean;
+  initialMode?: Mode;
+  onModeChange?: (m: EndpointMode) => void;
 }
 
 const MODES: { id: Mode; label: string; icon: string }[] = [
@@ -52,8 +56,11 @@ export function ConfigPanel({
   appendLog,
   onModelsLoaded,
   onConnected,
+  autoConnected = false,
+  initialMode,
+  onModeChange,
 }: ConfigPanelProps) {
-  const [mode, setMode] = useState<Mode>("https");
+  const [mode, setMode] = useState<Mode>(initialMode ?? "https");
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "err">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [models, setModels] = useState<OllamaModel[]>([]);
@@ -61,6 +68,7 @@ export function ConfigPanel({
 
   const handleMode = (m: Mode) => {
     setMode(m);
+    onModeChange?.(m);
     if (m !== "custom") setEndpoint(ENDPOINT_FOR[m]);
     else if (
       endpoint === ENDPOINT_FOR.http ||
@@ -93,6 +101,7 @@ export function ConfigPanel({
       const first = list[0]?.name ?? null;
       if (first && !model) setModel(first);
       onModelsLoaded?.(list.map((m) => m.name));
+      saveEndpoint(endpoint.replace(/\/$/, ""), mode as EndpointMode);
       appendLog({
         ts: nowTs(),
         level: "OK",
@@ -123,6 +132,19 @@ export function ConfigPanel({
             <span className="text-muted-foreground">::</span>
             <span className="text-success">OLLAMA</span>
           </h1>
+          <div
+            className="mt-3 font-mono text-[12px]"
+            style={{
+              padding: "8px 10px",
+              border: `1px solid ${autoConnected ? "#39ff1466" : "#ff3b3b66"}`,
+              background: autoConnected ? "#003a0010" : "#3a000010",
+              color: autoConnected ? "#39ff14" : "#ff7b7b",
+            }}
+          >
+            {autoConnected
+              ? `🟢 Auto-connected to ${endpoint}`
+              : "🔴 Not connected — configure below"}
+          </div>
         </div>
 
         {/* Mode selector */}

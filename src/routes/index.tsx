@@ -61,6 +61,15 @@ import {
 import { diffLines } from "@/lib/diff";
 import { ejectAllForTab } from "@/lib/injection-registry";
 import { openAgentWS, closeAgentWS, sendPing } from "@/lib/agent-ws";
+import {
+  autoDiscoverEndpoint,
+  loadSavedEndpoint,
+  hasEverConnected,
+  saveEndpoint,
+  type EndpointMode,
+  type AutoConnectStatus,
+} from "@/lib/auto-connect";
+import { WelcomeCard } from "@/components/WelcomeCard";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -122,6 +131,9 @@ function Index() {
   const [endpoint, setEndpoint] = useState("http://localhost:11434");
   const [model, setModel] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
+  const [autoStatus, setAutoStatus] = useState<AutoConnectStatus>("idle");
+  const [endpointMode, setEndpointMode] = useState<EndpointMode>("custom");
+  const [showWelcome, setShowWelcome] = useState(false);
   const [bannerDismissedAt, setBannerDismissedAt] = useState(0);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [editingPromptTabId, setEditingPromptTabId] = useState<string | null>(null);
@@ -149,6 +161,61 @@ function Index() {
   const [flashTurnTabId, setFlashTurnTabId] = useState<string | null>(null);
 
   useEffect(() => subscribeQueue(setQueueState), []);
+
+  // ===== Auto-connect on first load =====
+  // Tries last saved endpoint, then https/http localhost fallbacks. Silent UI.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let cancelled = false;
+    const saved = loadSavedEndpoint();
+    if (saved.url) {
+      setEndpoint(saved.url);
+      if (saved.mode) setEndpointMode(saved.mode);
+    }
+    const everConnected = hasEverConnected();
+    setAutoStatus("trying");
+    appendLog({ ts: nowTs(), level: "ARROW", msg: "auto-connect: probing endpoints…" });
+    autoDiscoverEndpoint().then(async (found) => {
+      if (cancelled) return;
+      if (!found) {
+        setAutoStatus("failed");
+        appendLog({ ts: nowTs(), level: "ERR", msg: "auto-connect: no endpoint reachable" });
+        if (!everConnected) setShowWelcome(true);
+        return;
+      }
+      setEndpoint(found.url);
+      setEndpointMode(found.mode);
+      // Pull tags to fully connect
+      try {
+        const res = await fetch(`${found.url.replace(/\/$/, "")}/api/tags`);
+        if (!res.ok) throw new Error(`http ${res.status}`);
+        const data = (await res.json()) as { models?: { name: string }[] };
+        const list = data.models ?? [];
+        if (cancelled) return;
+        setAvailableModels(list.map((m) => m.name));
+        setConnected(true);
+        setAutoStatus("connected");
+        saveEndpoint(found.url, found.mode);
+        if (list[0]?.name) setModel((prev) => prev ?? list[0].name);
+        setShowWelcome(false);
+        appendLog({
+          ts: nowTs(),
+          level: "OK",
+          msg: `auto-connect: ${found.url} · ${list.length} model${list.length === 1 ? "" : "s"}`,
+        });
+      } catch (e) {
+        if (cancelled) return;
+        setAutoStatus("failed");
+        const msg = e instanceof Error ? e.message : "unknown";
+        appendLog({ ts: nowTs(), level: "ERR", msg: `auto-connect /api/tags failed · ${msg}` });
+        if (!everConnected) setShowWelcome(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // When models are discovered from /api/tags, auto-select the first model
   // for the global default and for any tab that doesn't have one yet.
@@ -662,6 +729,8 @@ function Index() {
         onQueueOpen={() => setQueueOpen((v) => !v)}
         queueDepth={queueState.queue.length}
         parallelMode={queueState.parallelMode}
+        autoStatus={autoStatus}
+        onOpenConfig={() => setActive("config")}
       />
       {active === "chat" && (
         <ChatTabsBar
@@ -706,6 +775,10 @@ function Index() {
             {active === "chat" && (
               <>
                 <ResourceBar snap={psSnap} profile={machineProfile} fallback={totals} />
+                {showWelcome && !connected ? (
+                  <WelcomeCard onOpenConfig={() => setActive("config")} />
+                ) : (
+                <>
                 <TabControls
                   tabName={activeTab.name}
                   model={activeTab.model}
@@ -858,6 +931,8 @@ function Index() {
                     </>
                   )}
                 </div>
+                </>
+                )}
               </>
             )}
             {active === "projects" && (
@@ -965,7 +1040,11 @@ function Index() {
                 setConnected={setConnected}
                 appendLog={appendLog}
                 onModelsLoaded={setAvailableModels}
+                autoConnected={connected}
+                initialMode={endpointMode === "tailscale" || endpointMode === "http" || endpointMode === "https" || endpointMode === "custom" ? endpointMode : "custom"}
+                onModeChange={(m) => setEndpointMode(m)}
                 onConnected={() => {
+                  setAutoStatus("connected");
                   // Re-open and ping every tab's WebSocket against the new endpoint.
                   tabs.forEach((t) => {
                     openAgentWS(t.id, endpoint, appendLog);
