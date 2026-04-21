@@ -114,7 +114,7 @@ function Card({
   );
 }
 
-export function ConnectionsPanel({ state, onChange, appendLog, onSaveToVault }: Props) {
+export function ConnectionsPanel({ state, onChange, appendLog, onSaveToVault, onOpenInboxCleaner }: Props) {
   // Form state
   const [gmailClientId, setGmailClientId] = useState("");
   const [gmailClientSecret, setGmailClientSecret] = useState("");
