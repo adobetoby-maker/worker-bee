@@ -390,6 +390,89 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         entry.handlers.forEach((h) => h.onRepairComplete?.({ ok, message, errorLog }));
         break;
       }
+      case "gmail_summary": {
+        const cats: GmailCategoryCount[] = [];
+        if (data && typeof data === "object") {
+          const arr = (data as { categories?: unknown }).categories;
+          if (Array.isArray(arr)) {
+            for (const c of arr) {
+              if (c && typeof c === "object" && typeof (c as { id?: unknown }).id === "string" && typeof (c as { count?: unknown }).count === "number") {
+                cats.push({ id: (c as { id: GmailCategoryId }).id, count: (c as { count: number }).count });
+              }
+            }
+          }
+        }
+        entry.log?.({ ts: nowTs(), level: "OK", msg: `gmail_summary categories=${cats.length}` });
+        entry.handlers.forEach((h) => h.onGmailSummary?.({ categories: cats }));
+        break;
+      }
+      case "gmail_preview": {
+        let category: GmailCategoryId = "inbox_total";
+        const items: GmailEmailPreview[] = [];
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.category === "string") category = d.category as GmailCategoryId;
+          if (Array.isArray(d.items)) {
+            for (const it of d.items) {
+              if (it && typeof it === "object") {
+                const r = it as Record<string, unknown>;
+                items.push({
+                  id: String(r.id ?? ""),
+                  from: String(r.from ?? ""),
+                  subject: String(r.subject ?? ""),
+                  snippet: typeof r.snippet === "string" ? r.snippet : undefined,
+                  date: typeof r.date === "string" ? r.date : undefined,
+                });
+              }
+            }
+          }
+        }
+        entry.handlers.forEach((h) => h.onGmailPreview?.({ category, items }));
+        break;
+      }
+      case "gmail_top_senders": {
+        const senders: GmailTopSender[] = [];
+        if (data && typeof data === "object") {
+          const arr = (data as { senders?: unknown }).senders;
+          if (Array.isArray(arr)) {
+            for (const s of arr) {
+              if (s && typeof s === "object") {
+                const r = s as Record<string, unknown>;
+                if (typeof r.email === "string" && typeof r.count === "number") {
+                  senders.push({
+                    email: r.email,
+                    name: typeof r.name === "string" ? r.name : undefined,
+                    count: r.count,
+                  });
+                }
+              }
+            }
+          }
+        }
+        entry.handlers.forEach((h) => h.onGmailTopSenders?.({ senders }));
+        break;
+      }
+      case "gmail_progress": {
+        if (!data || typeof data !== "object") break;
+        const d = data as Record<string, unknown>;
+        const op = (d.op === "delete" ? "delete" : "archive") as "archive" | "delete";
+        const processed = typeof d.processed === "number" ? d.processed : 0;
+        const total = typeof d.total === "number" ? d.total : 0;
+        const label = typeof d.label === "string" ? d.label : undefined;
+        entry.handlers.forEach((h) => h.onGmailProgress?.({ op, processed, total, label }));
+        break;
+      }
+      case "gmail_done": {
+        if (!data || typeof data !== "object") break;
+        const d = data as Record<string, unknown>;
+        const op = (d.op === "delete" ? "delete" : "archive") as "archive" | "delete";
+        const processed = typeof d.processed === "number" ? d.processed : 0;
+        const ok = typeof d.ok === "boolean" ? d.ok : true;
+        const message = typeof d.message === "string" ? d.message : undefined;
+        entry.log?.({ ts: nowTs(), level: ok ? "OK" : "ERR", msg: `gmail_done op=${op} processed=${processed}` });
+        entry.handlers.forEach((h) => h.onGmailDone?.({ op, processed, ok, message }));
+        break;
+      }
     }
 }
 
