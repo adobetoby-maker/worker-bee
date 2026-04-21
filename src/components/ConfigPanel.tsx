@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { nowTs, type LogLine } from "@/lib/agent-state";
 
-type Mode = "localhost" | "tailscale" | "custom";
+type Mode = "http" | "https" | "tailscale" | "custom";
 
 interface OllamaModel {
   name: string;
@@ -21,8 +21,9 @@ interface ConfigPanelProps {
 }
 
 const MODES: { id: Mode; label: string; icon: string }[] = [
-  { id: "localhost", label: "Localhost", icon: "🖥" },
-  { id: "tailscale", label: "Tailscale VPN", icon: "🔒" },
+  { id: "http", label: "Local (HTTP)", icon: "🖥" },
+  { id: "https", label: "Local (HTTPS)", icon: "🔒" },
+  { id: "tailscale", label: "Tailscale", icon: "🔒" },
   { id: "custom", label: "Custom", icon: "✏" },
 ];
 
@@ -36,8 +37,9 @@ const QUICK_PULL = [
 ];
 
 const ENDPOINT_FOR: Record<Mode, string> = {
-  localhost: "http://localhost:11434",
-  tailscale: "http://100.64.0.1:11434",
+  http: "http://localhost:8000",
+  https: "https://localhost:8000",
+  tailscale: "https://100.64.0.1:8000",
   custom: "",
 };
 
