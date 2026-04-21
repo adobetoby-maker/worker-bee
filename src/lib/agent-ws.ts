@@ -4,11 +4,24 @@
 // Inbound message shapes: { type: "token"|"done"|"status"|"error"|"pong", ... }
 
 import { nowTs, type LogLine } from "@/lib/agent-state";
+import type {
+  GmailCategoryCount,
+  GmailCategoryId,
+  GmailDone,
+  GmailEmailPreview,
+  GmailProgress,
+  GmailTopSender,
+} from "@/lib/gmail-protocol";
 
 export type WSStatus = "idle" | "connecting" | "open" | "closed" | "error";
 
 export interface AgentWSMessage {
-  type: "token" | "done" | "status" | "error" | "pong" | "browser_result" | "shell_output" | "shell_done" | "screenshot" | "repair_started" | "repair_log" | "repair_complete";
+  type:
+    | "token" | "done" | "status" | "error" | "pong"
+    | "browser_result" | "shell_output" | "shell_done" | "screenshot"
+    | "repair_started" | "repair_log" | "repair_complete"
+    | "gmail_summary" | "gmail_preview" | "gmail_top_senders"
+    | "gmail_progress" | "gmail_done";
   content?: string;
   text?: string;
   message?: string;
@@ -31,6 +44,11 @@ export interface AgentWSHandlers {
   onRepairStarted?: (info: { error: string }) => void;
   onRepairLog?: (line: string) => void;
   onRepairComplete?: (info: { ok: boolean; message?: string; errorLog?: string }) => void;
+  onGmailSummary?: (info: { categories: GmailCategoryCount[] }) => void;
+  onGmailPreview?: (info: { category: GmailCategoryId; items: GmailEmailPreview[] }) => void;
+  onGmailTopSenders?: (info: { senders: GmailTopSender[] }) => void;
+  onGmailProgress?: (info: GmailProgress) => void;
+  onGmailDone?: (info: GmailDone) => void;
 }
 
 interface Entry {
