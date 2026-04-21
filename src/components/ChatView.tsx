@@ -1603,6 +1603,41 @@ interface AssistantContentProps {
   onCompareCodeBlock?: (filePath: string, newContent: string) => void;
 }
 
+function CopyMessageButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async (e) => {
+        e.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          // ignore
+        }
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      className="opacity-0 group-hover:opacity-100 transition-opacity"
+      style={{
+        position: "absolute",
+        bottom: 4,
+        right: 4,
+        background: "transparent",
+        border: "1px solid var(--border)",
+        borderRadius: 4,
+        padding: "2px 6px",
+        fontSize: 10,
+        fontFamily: "JetBrains Mono, monospace",
+        color: "var(--muted-foreground)",
+        cursor: "pointer",
+      }}
+    >
+      {copied ? "✓ copied" : "📋 copy"}
+    </button>
+  );
+}
+
 function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, matchProjectFile, onCompareCodeBlock }: AssistantContentProps) {
   // Split on fenced ```lang\n...\n``` code blocks
   const parts: Array<{ type: "text" | "code"; lang?: string; text: string }> = [];
