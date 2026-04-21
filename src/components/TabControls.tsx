@@ -55,6 +55,7 @@ interface TabControlsProps {
   onOpenPrompt: () => void;
   onClear: () => void;
   onInjectPrompt?: (text: string) => void;
+  onRepair?: () => void;
   // Project binding
   projects?: { id: string; emoji: string; name: string }[];
   activeProjectId?: string | null;
@@ -69,6 +70,7 @@ export function TabControls({
   onOpenPrompt,
   onClear,
   onInjectPrompt,
+  onRepair,
   projects = [],
   activeProjectId = null,
   onProjectChange,
@@ -158,6 +160,17 @@ export function TabControls({
             />
           )}
         </div>
+        {onRepair && (
+          <button
+            type="button"
+            onClick={onRepair}
+            className="px-3 py-1 rounded border text-[10px] uppercase tracking-[0.15em] transition-colors"
+            style={{ borderColor: "#ff3b3b66", color: "#ff8a8a" }}
+            title="Run self-repair on the agent"
+          >
+            🔧 REPAIR
+          </button>
+        )}
         <button
           type="button"
           onClick={onOpenPrompt}
