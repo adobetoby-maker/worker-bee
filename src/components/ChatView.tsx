@@ -28,6 +28,18 @@ import {
   type PlanStep,
 } from "@/lib/agent-ws";
 import { toast } from "sonner";
+import { marked } from "marked";
+
+marked.setOptions({ gfm: true, breaks: true });
+
+function renderInlineMarkdown(text: string): string {
+  try {
+    // Parse as markdown but disable code fences (they're handled by parent splitter).
+    return marked.parse(text, { async: false }) as string;
+  } catch {
+    return text.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
+  }
+}
 import { InstallActionCard, type InstallCardState } from "./InstallActionCard";
 import { RepairCard, type RepairCardState } from "./RepairCard";
 import { LoginPromptCard, type LoginSubmitArgs } from "./LoginPromptCard";
@@ -1656,9 +1668,10 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
     <div className="space-y-2">
       {parts.map((p, i) => {
         if (p.type === "text") {
+          const html = renderInlineMarkdown(p.text);
           return (
-            <div key={i} className="whitespace-pre-wrap break-words">
-              {p.text}
+            <div key={i} className="break-words assistant-md">
+              <span dangerouslySetInnerHTML={{ __html: html }} />
               {showCursor && i === parts.length - 1 && (
                 <svg
                   width={18}
