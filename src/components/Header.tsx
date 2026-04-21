@@ -70,12 +70,12 @@ export function Header({ connected, model, toolCount, streaming = false, error =
             className="font-mono font-bold tracking-[0.18em] select-none"
             style={{ fontSize: 18 }}
           >
-            <span style={{ color: "#ffaa00" }}>WORKER</span>
-            <span style={{ color: "#39ff14", marginLeft: 4 }}>BEE</span>
+            <span style={{ color: "var(--primary)" }}>WORKER</span>
+            <span style={{ color: "var(--success)", marginLeft: 4 }}>BEE</span>
           </span>
           <span
             className="mt-1 font-mono uppercase select-none"
-            style={{ color: "#444", fontSize: 9, letterSpacing: "0.15em" }}
+            style={{ color: "var(--muted-foreground)", fontSize: 9, letterSpacing: "0.15em" }}
           >
             WEBSITE BUILDER AGENT
           </span>
@@ -87,7 +87,7 @@ export function Header({ connected, model, toolCount, streaming = false, error =
           key={taglineIdx}
           className="italic truncate"
           style={{
-            color: "#444",
+            color: "var(--muted-foreground)",
             fontSize: 11,
             fontFamily: 'var(--font-sans, "IBM Plex Sans"), sans-serif',
             animation: "tagline-fade 6s ease-in-out",
@@ -108,11 +108,11 @@ export function Header({ connected, model, toolCount, streaming = false, error =
             style={{
               fontSize: 10,
               letterSpacing: "0.18em",
-              color: "#ffaa00",
-              border: "1px solid #ffaa0055",
+              color: "var(--primary)",
+              border: "1px solid var(--primary)",
               padding: "3px 8px",
               borderRadius: 2,
-              background: "#ffaa0010",
+              background: "color-mix(in oklab, var(--primary) 8%, transparent)",
             }}
           >
             <span
@@ -120,7 +120,7 @@ export function Header({ connected, model, toolCount, streaming = false, error =
                 width: 6,
                 height: 6,
                 borderRadius: "50%",
-                background: "#ffaa00",
+                background: "var(--primary)",
                 animation: "pulse-neon 1.4s ease-in-out infinite",
                 opacity: 0.7,
               }}
@@ -137,11 +137,11 @@ export function Header({ connected, model, toolCount, streaming = false, error =
             style={{
               fontSize: 10,
               letterSpacing: "0.16em",
-              color: "#ffaa00",
-              border: "1px solid #ffaa0066",
+              color: "var(--primary)",
+              border: "1px solid var(--primary)",
               padding: "3px 8px",
               borderRadius: 2,
-              background: "#ffaa0010",
+              background: "color-mix(in oklab, var(--primary) 8%, transparent)",
             }}
             title="Open CONFIG"
           >
@@ -170,7 +170,7 @@ export function Header({ connected, model, toolCount, streaming = false, error =
                   className="text-base leading-none px-1 py-0.5 rounded hover:bg-surface-2/40 transition"
                   style={{
                     opacity: on ? 1 : 0.35,
-                    filter: on ? "drop-shadow(0 0 6px #39ff1499)" : "grayscale(0.6)",
+                    filter: on ? "drop-shadow(0 0 6px var(--success))" : "grayscale(0.6)",
                   }}
                 >
                   {icon}
@@ -185,13 +185,13 @@ export function Header({ connected, model, toolCount, streaming = false, error =
             onClick={onQueueOpen}
             title={`Agent queue${queueDepth ? ` · ${queueDepth} waiting` : ""}${parallelMode ? " · parallel mode ON" : ""}`}
             className="relative text-base leading-none px-1.5 py-0.5 rounded hover:bg-surface-2/40 transition"
-            style={{ filter: queueDepth ? "drop-shadow(0 0 6px #ffaa0099)" : undefined }}
+            style={{ filter: queueDepth ? "drop-shadow(0 0 6px var(--primary))" : undefined }}
           >
             📋
             {queueDepth > 0 && (
               <span
                 className="absolute -top-1 -right-1 font-mono text-[9px] px-1 rounded-full"
-                style={{ background: "#ffaa00", color: "#000", lineHeight: "12px" }}
+                style={{ background: "var(--primary)", color: "var(--primary-foreground)", lineHeight: "12px" }}
               >
                 {queueDepth}
               </span>
@@ -199,7 +199,7 @@ export function Header({ connected, model, toolCount, streaming = false, error =
             {parallelMode && (
               <span
                 className="absolute -bottom-1 -right-1 font-mono text-[8px] px-1 rounded"
-                style={{ background: "#ff3b3b", color: "#000", lineHeight: "10px" }}
+                style={{ background: "var(--destructive)", color: "var(--destructive-foreground)", lineHeight: "10px" }}
               >
                 ⚡
               </span>
