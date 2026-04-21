@@ -24,7 +24,8 @@ export interface AgentWSMessage {
     | "gmail_progress" | "gmail_done"
     | "login_log" | "login_result"
     | "tags_result" | "ps_result"
-    | "memory_stats" | "memory_search_result" | "memory_consulted" | "memory_stored";
+    | "memory_stats" | "memory_search_result" | "memory_consulted" | "memory_stored"
+    | "plan_started" | "plan_ready" | "plan_progress" | "plan_log" | "plan_complete" | "plan_error";
   content?: string;
   text?: string;
   message?: string;
@@ -58,6 +59,42 @@ export interface AgentWSHandlers {
   onMemorySearchResult?: (info: { query: string; results: MemorySearchResult[] }) => void;
   onMemoryConsulted?: (info: { count: number }) => void;
   onMemoryStored?: (info: { ok: boolean; message?: string }) => void;
+  onPlanStarted?: (info: { goal: string }) => void;
+  onPlanReady?: (info: PlanReady) => void;
+  onPlanProgress?: (info: PlanProgress) => void;
+  onPlanLog?: (info: { message: string; level: PlanLogLevel }) => void;
+  onPlanComplete?: (info: PlanComplete) => void;
+  onPlanError?: (info: { message: string }) => void;
+}
+
+export interface PlanStep {
+  id: number;
+  action: string;
+  description: string;
+  params: Record<string, unknown>;
+  depends_on: number[];
+}
+export interface PlanReady {
+  goal: string;
+  tasks: PlanStep[];
+  count: number;
+}
+export type PlanStepStatus = "running" | "done" | "failed";
+export interface PlanProgress {
+  step_id: number;
+  status: PlanStepStatus;
+  action: string;
+  desc: string;
+  result: Record<string, unknown> | null;
+  current: number;
+  total: number;
+}
+export type PlanLogLevel = "info" | "ok" | "error" | "warn";
+export interface PlanComplete {
+  completed: number;
+  failed: number;
+  total: number;
+  results: Record<string, unknown>;
 }
 
 export interface MemorySearchResult {
