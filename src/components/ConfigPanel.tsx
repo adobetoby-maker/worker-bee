@@ -132,6 +132,19 @@ export function ConfigPanel({
             <span className="text-muted-foreground">::</span>
             <span className="text-success">OLLAMA</span>
           </h1>
+          <div
+            className="mt-3 font-mono text-[12px]"
+            style={{
+              padding: "8px 10px",
+              border: `1px solid ${autoConnected ? "#39ff1466" : "#ff3b3b66"}`,
+              background: autoConnected ? "#003a0010" : "#3a000010",
+              color: autoConnected ? "#39ff14" : "#ff7b7b",
+            }}
+          >
+            {autoConnected
+              ? `🟢 Auto-connected to ${endpoint}`
+              : "🔴 Not connected — configure below"}
+          </div>
         </div>
 
         {/* Mode selector */}
