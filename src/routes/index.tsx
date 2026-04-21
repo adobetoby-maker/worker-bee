@@ -149,6 +149,20 @@ function Index() {
   const [flashTurnTabId, setFlashTurnTabId] = useState<string | null>(null);
 
   useEffect(() => subscribeQueue(setQueueState), []);
+
+  // When models are discovered from /api/tags, auto-select the first model
+  // for the global default and for any tab that doesn't have one yet.
+  useEffect(() => {
+    if (availableModels.length === 0) return;
+    const first = availableModels[0];
+    setModel((prev) => prev && availableModels.includes(prev) ? prev : first);
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.model && availableModels.includes(t.model) ? t : { ...t, model: first },
+      ),
+    );
+  }, [availableModels]);
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
   const [diffState, setDiffState] = useState<{
