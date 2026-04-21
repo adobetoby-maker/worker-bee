@@ -53,15 +53,20 @@ export function ConfigPanel({
   onModelsLoaded,
   onConnected,
 }: ConfigPanelProps) {
-  const [mode, setMode] = useState<Mode>("localhost");
+  const [mode, setMode] = useState<Mode>("https");
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "err">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [models, setModels] = useState<OllamaModel[]>([]);
+  const [showTroubleshoot, setShowTroubleshoot] = useState(false);
 
   const handleMode = (m: Mode) => {
     setMode(m);
     if (m !== "custom") setEndpoint(ENDPOINT_FOR[m]);
-    else if (endpoint === ENDPOINT_FOR.localhost || endpoint === ENDPOINT_FOR.tailscale) {
+    else if (
+      endpoint === ENDPOINT_FOR.http ||
+      endpoint === ENDPOINT_FOR.https ||
+      endpoint === ENDPOINT_FOR.tailscale
+    ) {
       setEndpoint("");
     }
   };
