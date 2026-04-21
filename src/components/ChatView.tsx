@@ -136,6 +136,7 @@ export function ChatView({
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   // Install action card state — driven by post-stream scan of assistant text.
   const [installCard, setInstallCard] = useState<{
@@ -202,8 +203,31 @@ export function ChatView({
 
   useEffect(() => {
     const el = scrollerRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    if (isNearBottom) {
+      el.scrollTop = el.scrollHeight;
+      setShowScrollButton(false);
+    } else {
+      setShowScrollButton(true);
+    }
   }, [messages]);
+
+  // Hide scroll button when user scrolls back to bottom or streaming stops.
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+      if (nearBottom) setShowScrollButton(false);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!streaming) setShowScrollButton(false);
+  }, [streaming]);
 
   useEffect(() => {
     return () => {
@@ -824,7 +848,7 @@ export function ChatView({
 
   return (
     <div
-      className="flex flex-1 min-h-0 flex-col"
+      className="flex flex-1 min-h-0 flex-col relative"
       style={{ animation: "var(--animate-slide-down)" }}
     >
       <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto py-6">
@@ -1274,7 +1298,41 @@ export function ChatView({
         </div>
       )}
 
-      <div className="border-t border-border bg-surface/40">
+      {showScrollButton && (
+        <button
+          type="button"
+          onClick={() => {
+            const el = scrollerRef.current;
+            if (el) el.scrollTop = el.scrollHeight;
+            setShowScrollButton(false);
+          }}
+          style={{
+            position: "absolute",
+            bottom: 80,
+            right: 24,
+            zIndex: 10,
+            background: "var(--primary)",
+            color: "var(--primary-foreground)",
+            border: "1px solid var(--border)",
+            borderRadius: 999,
+            padding: "6px 14px",
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 11,
+            cursor: "pointer",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+          }}
+        >
+          ↓ scroll to latest
+        </button>
+      )}
+
+      <div
+        style={{
+          background: "var(--surface)",
+          borderTop: "1px solid var(--border)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+      >
         <div className="mx-auto w-full" style={{ maxWidth: 680, padding: "12px 16px" }}>
           <div
             className="chat-pill flex flex-row items-end"
