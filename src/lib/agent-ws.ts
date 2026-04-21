@@ -638,3 +638,23 @@ export function sendSelfRepair(tabId: string, error: string): boolean {
   ws.send(json);
   return true;
 }
+
+export type GmailAction =
+  | { gmail_action: "summary" }
+  | { gmail_action: "preview"; category: GmailCategoryId; limit?: number }
+  | { gmail_action: "top_senders"; limit?: number }
+  | { gmail_action: "archive" | "delete"; category?: GmailCategoryId; sender?: string; dry_run?: boolean };
+
+export function sendGmail(tabId: string, args: GmailAction): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "gmail: WebSocket not open" });
+    return false;
+  }
+  const payload = { action: "gmail", ...args };
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
