@@ -162,16 +162,32 @@ export function openAgentWS(
       case "browser_result": {
         let bText = "";
         let bUrl: string | undefined;
+        let bVision: string | undefined;
         if (data && typeof data === "object") {
           const d = data as Record<string, unknown>;
           if (typeof d.text === "string") bText = d.text;
           else if (typeof d.content === "string") bText = d.content;
           if (typeof d.url === "string") bUrl = d.url;
+          if (typeof d.vision_description === "string") bVision = d.vision_description;
+          else if (typeof d.visionDescription === "string") bVision = d.visionDescription;
         } else if (typeof data === "string") {
           bText = data;
         }
         entry.log?.({ ts: nowTs(), level: "OK", msg: `browser_result chars=${bText.length}` });
-        entry.handlers.forEach((h) => h.onBrowserResult?.({ text: bText, url: bUrl, raw: data }));
+        entry.handlers.forEach((h) => h.onBrowserResult?.({ text: bText, url: bUrl, visionDescription: bVision, raw: data }));
+        break;
+      }
+      case "screenshot": {
+        let sUrl: string | undefined;
+        let sB64 = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.url === "string") sUrl = d.url;
+          if (typeof d.screenshot_b64 === "string") sB64 = d.screenshot_b64;
+          else if (typeof d.screenshotB64 === "string") sB64 = d.screenshotB64;
+        }
+        entry.log?.({ ts: nowTs(), level: "OK", msg: `screenshot received bytes=${sB64.length}` });
+        entry.handlers.forEach((h) => h.onScreenshot?.({ url: sUrl, screenshotB64: sB64 }));
         break;
       }
       case "shell_output": {
