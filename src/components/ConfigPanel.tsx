@@ -261,6 +261,46 @@ export function ConfigPanel({
               <span className="text-muted-foreground">// awaiting connection</span>
             )}
           </div>
+
+          {status === "err" && (
+            <div
+              className="mt-3 border p-3 font-mono text-[11px]"
+              style={{
+                background: "#1a1500",
+                borderColor: "#ffaa0055",
+                color: "#ffd166",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowTroubleshoot((v) => !v)}
+                className="flex w-full items-center justify-between text-left uppercase tracking-[0.18em]"
+                style={{ color: "#ffaa00" }}
+              >
+                <span>⚠ Connection failed — common fixes</span>
+                <span>{showTroubleshoot ? "▾" : "▸"}</span>
+              </button>
+              {showTroubleshoot && (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <div>• Mixed content blocked? Open</div>
+                    <CopyCmd cmd="https://localhost:8000/health" />
+                    <div className="mt-1" style={{ color: "#888" }}>
+                      in a new tab first, click through the security warning, then try connecting again.
+                    </div>
+                  </div>
+                  <div>
+                    <div>• Agent not running? In iTerm2 run:</div>
+                    <CopyCmd cmd="cd ~/worker-bee && ./start.sh" />
+                  </div>
+                  <div>
+                    <div>• Ollama not running? In iTerm2 run:</div>
+                    <CopyCmd cmd="ollama serve" />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Model picker */}
