@@ -267,6 +267,8 @@ export function ChatView({
     }
     const next: ChatMessage[] = [...messages, { role: "user", content: text }];
     onMessagesChange(() => [...next, { role: "assistant", content: "" }]);
+    // Track which message index any incoming memory_consulted should attach to.
+    pendingConsultedRef.current = next.length; // index of the assistant placeholder
     setStreaming(true);
     onSendStart?.(text);
     trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: `chat send chars=${text.length}` });
