@@ -1040,7 +1040,11 @@ function Index() {
                 setConnected={setConnected}
                 appendLog={appendLog}
                 onModelsLoaded={setAvailableModels}
+                autoConnected={connected}
+                initialMode={endpointMode === "tailscale" || endpointMode === "http" || endpointMode === "https" || endpointMode === "custom" ? endpointMode : "custom"}
+                onModeChange={(m) => setEndpointMode(m)}
                 onConnected={() => {
+                  setAutoStatus("connected");
                   // Re-open and ping every tab's WebSocket against the new endpoint.
                   tabs.forEach((t) => {
                     openAgentWS(t.id, endpoint, appendLog);
