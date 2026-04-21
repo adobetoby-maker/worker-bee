@@ -742,3 +742,205 @@ export function detectLoginIntent(text: string): string | null {
   if (d) return `https://${d[1]}${d[2] ?? ""}`.replace(/[.,)]+$/, "");
   return null;
 }
+
+// ────────────────────────────────────────────
+// Control socket — a single shared WebSocket per endpoint used for
+// out-of-band requests that used to be HTTP fetches (e.g. /api/tags,
+// /api/ps, /health probes). Routing these through WS avoids Chrome
+// mixed-content blocks against http://localhost from an https page.
+// ────────────────────────────────────────────
+
+export interface OllamaTag { name: string; size?: number; modified_at?: string }
+export interface PsResultPayload {
+  models: { name: string; size: number; size_vram: number; expires_at?: string }[];
+}
+
+interface ControlEntry {
+  ws: WebSocket | null;
+  endpoint: string;
+  status: WSStatus;
+  pendingTags: { resolve: (m: OllamaTag[]) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }[];
+  psListeners: Set<(snap: PsResultPayload) => void>;
+  openWaiters: ((ok: boolean) => void)[];
+}
+
+const controlByEndpoint = new Map<string, ControlEntry>();
+
+function controlWsUrl(endpoint: string): string {
+  const trimmed = endpoint.replace(/\/$/, "");
+  const pageIsHttps = typeof window !== "undefined" && window.location?.protocol === "https:";
+  let proto: "ws" | "wss";
+  let host: string;
+  if (trimmed.startsWith("https://")) { proto = "wss"; host = trimmed.slice(8); }
+  else if (trimmed.startsWith("http://")) { proto = pageIsHttps ? "wss" : "ws"; host = trimmed.slice(7); }
+  else { proto = pageIsHttps ? "wss" : "ws"; host = trimmed; }
+  return `${proto}://${host}/ws/control-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function ensureControl(endpoint: string): ControlEntry {
+  let entry = controlByEndpoint.get(endpoint);
+  if (entry && entry.ws && (entry.ws.readyState === WebSocket.OPEN || entry.ws.readyState === WebSocket.CONNECTING)) {
+    return entry;
+  }
+  entry = entry ?? {
+    ws: null,
+    endpoint,
+    status: "idle",
+    pendingTags: [],
+    psListeners: new Set(),
+    openWaiters: [],
+  };
+  controlByEndpoint.set(endpoint, entry);
+  let ws: WebSocket;
+  try {
+    ws = new WebSocket(controlWsUrl(endpoint));
+  } catch {
+    entry.status = "error";
+    return entry;
+  }
+  entry.ws = ws;
+  entry.status = "connecting";
+  ws.onopen = () => {
+    entry!.status = "open";
+    const waiters = entry!.openWaiters.splice(0);
+    waiters.forEach((w) => w(true));
+  };
+  ws.onerror = () => {
+    entry!.status = "error";
+  };
+  ws.onclose = () => {
+    entry!.status = "closed";
+    entry!.ws = null;
+    const waiters = entry!.openWaiters.splice(0);
+    waiters.forEach((w) => w(false));
+    const pend = entry!.pendingTags.splice(0);
+    pend.forEach((p) => { clearTimeout(p.timer); p.reject(new Error("control socket closed")); });
+  };
+  ws.onmessage = (event) => {
+    let msg: AgentWSMessage;
+    try { msg = JSON.parse(typeof event.data === "string" ? event.data : ""); }
+    catch { return; }
+    const data = (msg as { data?: unknown }).data;
+    if (msg.type === "tags_result") {
+      let models: OllamaTag[] = [];
+      if (data && typeof data === "object") {
+        const arr = (data as { models?: unknown }).models;
+        if (Array.isArray(arr)) {
+          models = arr.filter((m) => m && typeof m === "object" && typeof (m as { name?: unknown }).name === "string") as OllamaTag[];
+        }
+      }
+      const pend = entry!.pendingTags.splice(0);
+      pend.forEach((p) => { clearTimeout(p.timer); p.resolve(models); });
+    } else if (msg.type === "ps_result") {
+      let payload: PsResultPayload = { models: [] };
+      if (data && typeof data === "object") {
+        const arr = (data as { models?: unknown }).models;
+        if (Array.isArray(arr)) {
+          payload = {
+            models: arr.map((m) => {
+              const r = (m ?? {}) as Record<string, unknown>;
+              return {
+                name: typeof r.name === "string" ? r.name : "",
+                size: typeof r.size === "number" ? r.size : 0,
+                size_vram: typeof r.size_vram === "number" ? r.size_vram : 0,
+                expires_at: typeof r.expires_at === "string" ? r.expires_at : undefined,
+              };
+            }).filter((m) => m.name),
+          };
+        }
+      }
+      entry!.psListeners.forEach((fn) => fn(payload));
+    } else if (msg.type === "pong") {
+      // Probe responses — consumed via wsProbe directly.
+    }
+  };
+  return entry;
+}
+
+function waitOpen(entry: ControlEntry, timeoutMs: number): Promise<boolean> {
+  if (entry.ws && entry.ws.readyState === WebSocket.OPEN) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(false), timeoutMs);
+    entry.openWaiters.push((ok) => { clearTimeout(timer); resolve(ok); });
+  });
+}
+
+/** Fetch model list via WebSocket instead of GET /api/tags. */
+export async function getTagsViaWS(endpoint: string, timeoutMs = 5000): Promise<OllamaTag[]> {
+  const entry = ensureControl(endpoint);
+  const ok = await waitOpen(entry, timeoutMs);
+  if (!ok || !entry.ws || entry.ws.readyState !== WebSocket.OPEN) {
+    throw new Error("control socket not open");
+  }
+  return new Promise<OllamaTag[]>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const idx = entry.pendingTags.findIndex((p) => p.timer === timer);
+      if (idx >= 0) entry.pendingTags.splice(idx, 1);
+      reject(new Error("get_tags timeout"));
+    }, timeoutMs);
+    entry.pendingTags.push({ resolve, reject, timer });
+    try { entry.ws!.send(JSON.stringify({ action: "get_tags" })); }
+    catch (e) { clearTimeout(timer); reject(e instanceof Error ? e : new Error("send failed")); }
+  });
+}
+
+/** Subscribe to ps_result events; returns unsubscribe. Triggers periodic
+ *  get_ps polls until unsubscribed. */
+export function subscribePsViaWS(
+  endpoint: string,
+  fn: (snap: PsResultPayload) => void,
+  intervalMs = 8000,
+): () => void {
+  const entry = ensureControl(endpoint);
+  entry.psListeners.add(fn);
+  let cancelled = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const tick = async () => {
+    if (cancelled) return;
+    const ok = await waitOpen(entry, 4000);
+    if (cancelled) return;
+    if (ok && entry.ws && entry.ws.readyState === WebSocket.OPEN) {
+      try { entry.ws.send(JSON.stringify({ action: "get_ps" })); } catch { /* noop */ }
+    } else {
+      // Notify unreachable as empty payload; caller decides how to interpret.
+      fn({ models: [] });
+    }
+    timer = setTimeout(tick, intervalMs);
+  };
+  tick();
+  return () => {
+    cancelled = true;
+    if (timer) clearTimeout(timer);
+    entry.psListeners.delete(fn);
+  };
+}
+
+/** Probe an endpoint by opening a temporary WebSocket and pinging.
+ *  Resolves true if a pong arrives within timeoutMs. */
+export function probeEndpointViaWS(endpoint: string, timeoutMs = 3000): Promise<boolean> {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (ok: boolean) => {
+      if (done) return;
+      done = true;
+      try { ws.close(); } catch { /* noop */ }
+      resolve(ok);
+    };
+    let ws: WebSocket;
+    try { ws = new WebSocket(controlWsUrl(endpoint)); }
+    catch { resolve(false); return; }
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    ws.onopen = () => {
+      try { ws.send(JSON.stringify({ action: "ping" })); }
+      catch { clearTimeout(timer); finish(false); }
+    };
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(typeof event.data === "string" ? event.data : "");
+        if (msg && msg.type === "pong") { clearTimeout(timer); finish(true); }
+      } catch { /* ignore */ }
+    };
+    ws.onerror = () => { clearTimeout(timer); finish(false); };
+    ws.onclose = () => { clearTimeout(timer); finish(false); };
+  });
+}
