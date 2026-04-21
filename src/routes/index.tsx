@@ -622,6 +622,10 @@ function Index() {
   // ===== Sequential agent queue wiring =====
   const handleRequestSend = useCallback(
     (tabId: string, tabName: string, tabColor: string, tabModel: string | null, text: string): "start" | "queued" => {
+      // Single-tab bypass: never queue when only one agent exists.
+      if (tabs.length <= 1) {
+        return "start";
+      }
       if (canStartImmediately(tabId)) {
         return "start";
       }
@@ -635,7 +639,7 @@ function Index() {
       emitActivity({ kind: "agent", icon: "⏳", text: `${tabName} · queued` });
       return "queued";
     },
-    [appendLog],
+    [appendLog, tabs.length],
   );
 
   const handleSendStart = useCallback(
