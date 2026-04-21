@@ -1460,6 +1460,20 @@ export function ChatView({
         }}
       >
         <div className="mx-auto w-full" style={{ maxWidth: 680, padding: "12px 16px" }}>
+          {historyIndex > -1 && (
+            <div
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 10,
+                color: "var(--muted-foreground)",
+                paddingBottom: 4,
+                opacity: historyIndex > -1 ? 1 : 0,
+                transition: "opacity 0.15s",
+              }}
+            >
+              ⌃ history {historyIndex + 1}/{inputHistory.length}  ↑↓ navigate  ESC clear
+            </div>
+          )}
           <div
             className="chat-pill flex flex-row items-end"
             style={{
