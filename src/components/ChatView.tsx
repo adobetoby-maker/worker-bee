@@ -138,6 +138,51 @@ export function ChatView({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
+  // Terminal-style input history.
+  const HISTORY_KEY = "workerbee_input_history";
+  const [inputHistory, setInputHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [savedDraft, setSavedDraft] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load history from localStorage on mount.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(HISTORY_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) setInputHistory(arr.filter((s) => typeof s === "string").slice(0, 100));
+      }
+    } catch { /* noop */ }
+  }, []);
+
+  const pushHistory = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setInputHistory((prev) => {
+      const next = [trimmed, ...prev.filter((s) => s !== trimmed)].slice(0, 100);
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+        }
+      } catch { /* noop */ }
+      return next;
+    });
+    setHistoryIndex(-1);
+    setSavedDraft("");
+  };
+
+  const TAB_COMPLETIONS: Array<[string, string]> = [
+    ["/re", "/remember "],
+    ["/le", "/learn "],
+    ["ana", "Analyze https://"],
+    ["scr", "Take a screenshot of https://"],
+    ["log", "Log into https://"],
+    ["pla", "Plan: "],
+    ["bui", "Build a "],
+  ];
+
   // Install action card state — driven by post-stream scan of assistant text.
   const [installCard, setInstallCard] = useState<{
     command: string;
@@ -228,6 +273,21 @@ export function ChatView({
   useEffect(() => {
     if (!streaming) setShowScrollButton(false);
   }, [streaming]);
+
+  // Cmd+K / Ctrl+K — clear this agent's chat history (with confirm).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        if (window.confirm("Clear this agent's history?")) {
+          onMessagesChange(() => []);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onMessagesChange]);
 
   useEffect(() => {
     return () => {
@@ -471,6 +531,7 @@ export function ChatView({
   const send = async () => {
     const text = input.trim();
     if (!text || streaming) return;
+    pushHistory(text);
     // Hidden developer smoke test trigger.
     if (text === "🐝🐝🐝" && onSmokeTest) {
       setInput("");
@@ -738,6 +799,86 @@ export function ChatView({
   }, [tabId]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    const ta = e.currentTarget;
+    if (e.key === "ArrowUp") {
+      // Only hijack if cursor is on first line (no newline before caret) — keeps multi-line editing usable.
+      const before = ta.value.slice(0, ta.selectionStart);
+      if (!before.includes("\n") && inputHistory.length > 0) {
+        e.preventDefault();
+        if (historyIndex === -1) setSavedDraft(input);
+        const next = Math.min(historyIndex + 1, inputHistory.length - 1);
+        setHistoryIndex(next);
+        setInput(inputHistory[next]);
+        setTimeout(() => {
+          const t = textareaRef.current;
+          if (t) {
+            t.style.height = "auto";
+            t.style.height = Math.min(t.scrollHeight, 200) + "px";
+            t.selectionStart = t.value.length;
+            t.selectionEnd = t.value.length;
+          }
+        }, 0);
+        return;
+      }
+    }
+    if (e.key === "ArrowDown") {
+      if (historyIndex !== -1) {
+        e.preventDefault();
+        const next = historyIndex - 1;
+        setHistoryIndex(next);
+        const newVal = next === -1 ? savedDraft : inputHistory[next];
+        setInput(newVal);
+        setTimeout(() => {
+          const t = textareaRef.current;
+          if (t) {
+            t.style.height = "auto";
+            t.style.height = Math.min(t.scrollHeight, 200) + "px";
+            t.selectionStart = t.value.length;
+            t.selectionEnd = t.value.length;
+          }
+        }, 0);
+        return;
+      }
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      if (input.length > 0) {
+        setInput("");
+      } else {
+        ta.blur();
+      }
+      setHistoryIndex(-1);
+      setSavedDraft("");
+      return;
+    }
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const match = TAB_COMPLETIONS.find(([prefix]) => input.toLowerCase().startsWith(prefix));
+      if (match && input.trim().toLowerCase() === match[0]) {
+        setInput(match[1]);
+        setTimeout(() => {
+          const t = textareaRef.current;
+          if (t) {
+            t.selectionStart = t.value.length;
+            t.selectionEnd = t.value.length;
+          }
+        }, 0);
+      } else {
+        // Insert 2 spaces at caret.
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        const newVal = input.slice(0, start) + "  " + input.slice(end);
+        setInput(newVal);
+        setTimeout(() => {
+          const t = textareaRef.current;
+          if (t) {
+            t.selectionStart = start + 2;
+            t.selectionEnd = start + 2;
+          }
+        }, 0);
+      }
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       send();
@@ -1334,6 +1475,20 @@ export function ChatView({
         }}
       >
         <div className="mx-auto w-full" style={{ maxWidth: 680, padding: "12px 16px" }}>
+          {historyIndex > -1 && (
+            <div
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 10,
+                color: "var(--muted-foreground)",
+                paddingBottom: 4,
+                opacity: historyIndex > -1 ? 1 : 0,
+                transition: "opacity 0.15s",
+              }}
+            >
+              ⌃ history {historyIndex + 1}/{inputHistory.length}  ↑↓ navigate  ESC clear
+            </div>
+          )}
           <div
             className="chat-pill flex flex-row items-end"
             style={{
@@ -1367,12 +1522,14 @@ export function ChatView({
             </button>
             <Textarea
               rows={1}
+              ref={textareaRef}
               value={input}
               onChange={(e) => {
                 const ta = e.target as HTMLTextAreaElement;
                 ta.style.height = "auto";
                 ta.style.height = Math.min(ta.scrollHeight, 200) + "px";
                 setInput(ta.value);
+                if (historyIndex !== -1) setHistoryIndex(-1);
               }}
               onKeyDown={onKeyDown}
               placeholder={connected ? "Message Worker Bee…" : "Connect to Ollama in CONFIG first"}
