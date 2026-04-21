@@ -8,7 +8,7 @@ import { nowTs, type LogLine } from "@/lib/agent-state";
 export type WSStatus = "idle" | "connecting" | "open" | "closed" | "error";
 
 export interface AgentWSMessage {
-  type: "token" | "done" | "status" | "error" | "pong" | "browser_result" | "shell_output" | "shell_done" | "screenshot";
+  type: "token" | "done" | "status" | "error" | "pong" | "browser_result" | "shell_output" | "shell_done" | "screenshot" | "repair_started" | "repair_log" | "repair_complete";
   content?: string;
   text?: string;
   message?: string;
@@ -28,6 +28,9 @@ export interface AgentWSHandlers {
   onScreenshot?: (result: { url?: string; screenshotB64: string }) => void;
   onShellOutput?: (chunk: string) => void;
   onShellDone?: (result: { exitCode: number; ok: boolean; output: string }) => void;
+  onRepairStarted?: (info: { error: string }) => void;
+  onRepairLog?: (line: string) => void;
+  onRepairComplete?: (info: { ok: boolean; message?: string; errorLog?: string }) => void;
 }
 
 interface Entry {
