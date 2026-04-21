@@ -4,18 +4,20 @@ import { StatusBadge } from "./StatusBadge";
 import { ActivityFeed } from "./ActivityFeed";
 
 function useTheme() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">("light");
   useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = localStorage.getItem("workerbee_theme");
-    const initial = stored === "light" ? "light" : "dark";
+    const initial = stored === "dark" ? "dark" : "light";
     setTheme(initial);
-    document.documentElement.classList.toggle("light", initial === "light");
+    document.documentElement.classList.toggle("dark", initial === "dark");
+    document.documentElement.classList.remove("light");
   }, []);
   const toggle = () => {
     setTheme((prev) => {
       const next = prev === "dark" ? "light" : "dark";
-      document.documentElement.classList.toggle("light", next === "light");
+      document.documentElement.classList.toggle("dark", next === "dark");
+      document.documentElement.classList.remove("light");
       try { localStorage.setItem("workerbee_theme", next); } catch {}
       return next;
     });
@@ -228,7 +230,7 @@ export function Header({ connected, model, toolCount, streaming = false, error =
               lineHeight: 1,
             }}
           >
-            {theme === "dark" ? "🌙" : "☀️"}
+            {theme === "light" ? "☀️" : "🌙"}
           </button>
         </div>
       </div>
