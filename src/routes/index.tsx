@@ -931,6 +931,8 @@ function Index() {
                     </>
                   )}
                 </div>
+                </>
+                )}
               </>
             )}
             {active === "projects" && (
