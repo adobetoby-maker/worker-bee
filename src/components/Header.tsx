@@ -3,6 +3,26 @@ import { BeeLogo } from "./BeeLogo";
 import { StatusBadge } from "./StatusBadge";
 import { ActivityFeed } from "./ActivityFeed";
 
+function useTheme() {
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = localStorage.getItem("workerbee_theme");
+    const initial = stored === "light" ? "light" : "dark";
+    setTheme(initial);
+    document.documentElement.classList.toggle("light", initial === "light");
+  }, []);
+  const toggle = () => {
+    setTheme((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      document.documentElement.classList.toggle("light", next === "light");
+      try { localStorage.setItem("workerbee_theme", next); } catch {}
+      return next;
+    });
+  };
+  return { theme, toggle };
+}
+
 interface HeaderProps {
   connected: boolean;
   model: string | null;
@@ -29,6 +49,7 @@ const TAGLINES = [
 
 export function Header({ connected, model, toolCount, streaming = false, error = false, services, onServiceClick, onSearchOpen, onQueueOpen, queueDepth = 0, parallelMode = false, autoStatus = "idle", reconnectInfo = null, onOpenConfig }: HeaderProps) {
   const [taglineIdx, setTaglineIdx] = useState(0);
+  const { theme, toggle: toggleTheme } = useTheme();
 
   useEffect(() => {
     const id = setInterval(() => setTaglineIdx((i) => (i + 1) % TAGLINES.length), 6000);
@@ -190,6 +211,24 @@ export function Header({ connected, model, toolCount, streaming = false, error =
             className="text-base leading-none px-1.5 py-0.5 rounded hover:bg-surface-2/40 transition"
           >
             🔍
+          </button>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            className="flex items-center justify-center transition hover:border-primary"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              cursor: "pointer",
+              fontSize: 16,
+              lineHeight: 1,
+            }}
+          >
+            {theme === "dark" ? "🌙" : "☀️"}
           </button>
         </div>
       </div>
