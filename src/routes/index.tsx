@@ -775,6 +775,10 @@ function Index() {
             {active === "chat" && (
               <>
                 <ResourceBar snap={psSnap} profile={machineProfile} fallback={totals} />
+                {showWelcome && !connected ? (
+                  <WelcomeCard onOpenConfig={() => setActive("config")} />
+                ) : (
+                <>
                 <TabControls
                   tabName={activeTab.name}
                   model={activeTab.model}
