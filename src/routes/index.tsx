@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Header } from "@/components/Header";
 import { VaultPanel } from "@/components/VaultPanel";
 import { ConnectionsPanel } from "@/components/ConnectionsPanel";
+import { InboxCleaner } from "@/components/InboxCleaner";
 import { Sidebar, type View } from "@/components/Sidebar";
 import { loadConnections, saveConnections, type ConnectionsState } from "@/lib/connections";
 import { ConfigPanel } from "@/components/ConfigPanel";
