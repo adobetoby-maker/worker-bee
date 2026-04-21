@@ -15,7 +15,13 @@ import {
   sendSelfRepair,
   sendLogin,
   detectLoginIntent,
+  sendMemorySearch,
+  sendMemoryStore,
+  sendMemoryStats,
+  detectMemoryCommand,
+  type MemorySearchResult,
 } from "@/lib/agent-ws";
+import { toast } from "sonner";
 import { InstallActionCard, type InstallCardState } from "./InstallActionCard";
 import { RepairCard, type RepairCardState } from "./RepairCard";
 import { LoginPromptCard, type LoginSubmitArgs } from "./LoginPromptCard";
@@ -71,6 +77,8 @@ interface Props {
   // Manual self-repair trigger token — when increments, ChatView sends self_repair.
   repairToken?: number;
   onOpenConfig?: () => void;
+  // Memory
+  onMemoryStatsChange?: (total: number) => void;
 }
 
 export function ChatView({
@@ -105,6 +113,7 @@ export function ChatView({
   onSmokeTest,
   repairToken = 0,
   onOpenConfig,
+  onMemoryStatsChange,
 }: Props) {
   const [localInput, setLocalInput] = useState("");
   const input = inputDraft !== undefined ? inputDraft : localInput;
