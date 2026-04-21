@@ -523,3 +523,17 @@ export function sendShell(tabId: string, command: string): boolean {
   ws.send(json);
   return true;
 }
+
+export function sendSelfRepair(tabId: string, error: string): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "self_repair: WebSocket not open" });
+    return false;
+  }
+  const payload = { action: "self_repair", error };
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
