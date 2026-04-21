@@ -477,6 +477,40 @@ export function ChatView({
 
   const handleLoginCancel = () => setLoginPrompt(null);
 
+  // Memory subscription — stats, search results, consulted indicator.
+  useEffect(() => {
+    const unsub = subscribeAgentWS(tabId, {
+      onMemoryStats: ({ total }) => {
+        onMemoryStatsChange?.(total);
+      },
+      onMemorySearchResult: ({ query, results }) => {
+        setMemorySearchCard({ query, results, loading: false });
+      },
+      onMemoryConsulted: ({ count }) => {
+        if (count <= 0) return;
+        // Attach to current in-flight assistant message (last one).
+        const idx = pendingConsultedRef.current;
+        if (idx !== null && idx >= 0) {
+          setConsultedByMessage((prev) => ({ ...prev, [idx]: count }));
+        }
+      },
+      onMemoryStored: ({ ok, message }) => {
+        if (ok) toast.success("🧠 Stored in memory");
+        else toast.error(message ?? "Failed to store memory");
+        // Refresh stats after a store.
+        sendMemoryStats(tabId);
+      },
+      onOpen: () => {
+        // Fetch stats on (re)connect.
+        sendMemoryStats(tabId);
+      },
+    });
+    // Try immediately if already open.
+    if (isWSOpen(tabId)) sendMemoryStats(tabId);
+    return () => { unsub(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabId]);
+
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
