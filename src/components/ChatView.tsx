@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { nowTs, type LogLine } from "@/lib/agent-state";
 import { BrowserTaskCard, detectBrowserAction } from "./BrowserTaskCard";
-import { sendChat, sendStop, subscribeAgentWS, isWSOpen } from "@/lib/agent-ws";
+import { sendChat, sendStop, subscribeAgentWS, isWSOpen, sendBrowser, extractBrowserUrl } from "@/lib/agent-ws";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -186,7 +186,21 @@ export function ChatView({
       onDone: () => finish(),
       onError: (msg) => finish(msg || "agent error"),
       onClose: () => finish("WebSocket closed during stream"),
+      onBrowserResult: (res) => {
+        appendLog({ ts: nowTs(), level: "OK", msg: `browser_result received (${res.text.length} chars) — sending to model` });
+        const followUp = `${text}\n\nI navigated to the URL. Here is what I found: ${res.text}`;
+        const ok = sendChat(tabId, followUp, model);
+        if (!ok) finish("failed to send chat after browser_result");
+      },
     });
+
+    const browserUrl = extractBrowserUrl(text);
+    if (browserUrl) {
+      appendLog({ ts: nowTs(), level: "ARROW", msg: `browser action → ${browserUrl}` });
+      const ok = sendBrowser(tabId, browserUrl);
+      if (!ok) finish("failed to send browser action");
+      return;
+    }
 
     const ok = sendChat(tabId, text, model);
     if (!ok) finish("failed to send over WebSocket");

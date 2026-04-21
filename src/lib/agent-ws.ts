@@ -8,7 +8,7 @@ import { nowTs, type LogLine } from "@/lib/agent-state";
 export type WSStatus = "idle" | "connecting" | "open" | "closed" | "error";
 
 export interface AgentWSMessage {
-  type: "token" | "done" | "status" | "error" | "pong";
+  type: "token" | "done" | "status" | "error" | "pong" | "browser_result";
   content?: string;
   text?: string;
   message?: string;
@@ -24,6 +24,7 @@ export interface AgentWSHandlers {
   onOpen?: () => void;
   onClose?: () => void;
   onSocketError?: () => void;
+  onBrowserResult?: (result: { text: string; url?: string; raw: unknown }) => void;
 }
 
 interface Entry {
@@ -155,6 +156,21 @@ export function openAgentWS(
         entry.log?.({ ts: nowTs(), level: "OK", msg: "Agent alive" });
         entry.handlers.forEach((h) => h.onPong?.());
         break;
+      case "browser_result": {
+        let bText = "";
+        let bUrl: string | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.text === "string") bText = d.text;
+          else if (typeof d.content === "string") bText = d.content;
+          if (typeof d.url === "string") bUrl = d.url;
+        } else if (typeof data === "string") {
+          bText = data;
+        }
+        entry.log?.({ ts: nowTs(), level: "OK", msg: `browser_result chars=${bText.length}` });
+        entry.handlers.forEach((h) => h.onBrowserResult?.({ text: bText, url: bUrl, raw: data }));
+        break;
+      }
     }
   };
 }
@@ -215,4 +231,36 @@ export function sendStop(tabId: string): boolean {
   if (!ws || ws.readyState !== WebSocket.OPEN) return false;
   ws.send(JSON.stringify({ action: "stop" }));
   return true;
+}
+
+export function sendBrowser(tabId: string, url: string): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "browser: WebSocket not open" });
+    return false;
+  }
+  const payload = { action: "browser", url };
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  console.log("WS readyState:", ws.readyState, "sending:", payload);
+  ws.send(json);
+  return true;
+}
+
+const BROWSER_TRIGGER_RE = /(screenshot|scrape|navigate|browse|visit)/i;
+const URL_RE = /\bhttps?:\/\/[^\s]+/i;
+const DOMAIN_RE = /\b([a-z0-9-]+\.(?:com|io|app|dev|net|org|ai|co|xyz|tech))(\/[^\s]*)?/i;
+
+export function extractBrowserUrl(text: string): string | null {
+  const urlMatch = text.match(URL_RE);
+  if (urlMatch) return urlMatch[0].replace(/[.,)]+$/, "");
+  const hasTrigger = BROWSER_TRIGGER_RE.test(text);
+  const domainMatch = text.match(DOMAIN_RE);
+  if (domainMatch) {
+    const path = domainMatch[2] ?? "";
+    return `https://${domainMatch[1]}${path}`.replace(/[.,)]+$/, "");
+  }
+  if (hasTrigger) return null;
+  return null;
 }
