@@ -56,6 +56,8 @@ interface TabControlsProps {
   onClear: () => void;
   onInjectPrompt?: (text: string) => void;
   onRepair?: () => void;
+  onRefreshModels?: () => void;
+  refreshingModels?: boolean;
   // Project binding
   projects?: { id: string; emoji: string; name: string }[];
   activeProjectId?: string | null;
@@ -71,6 +73,8 @@ export function TabControls({
   onClear,
   onInjectPrompt,
   onRepair,
+  onRefreshModels,
+  refreshingModels = false,
   projects = [],
   activeProjectId = null,
   onProjectChange,
@@ -114,6 +118,18 @@ export function TabControls({
         <span className="text-[10px]" style={{ color: "#555" }}>
           ~{load.ram} GB RAM
         </span>
+        {onRefreshModels && (
+          <button
+            type="button"
+            onClick={onRefreshModels}
+            disabled={refreshingModels}
+            title="Refresh models"
+            className="border border-border px-2 py-1 text-[10px] uppercase tracking-[0.15em] hover:border-primary disabled:opacity-50"
+            style={{ color: options.length === 0 ? "#ffaa00" : "#888" }}
+          >
+            {refreshingModels ? "…" : "↻ Refresh"}
+          </button>
+        )}
       </div>
 
       {onProjectChange && (

@@ -162,6 +162,7 @@ function Index() {
   const [autoSendByTab, setAutoSendByTab] = useState<Record<string, { token: number; text: string }>>({});
   const [repairTokenByTab, setRepairTokenByTab] = useState<Record<string, number>>({});
   const [flashTurnTabId, setFlashTurnTabId] = useState<string | null>(null);
+  const [refreshingModels, setRefreshingModels] = useState(false);
 
   useEffect(() => subscribeQueue(setQueueState), []);
 
@@ -204,28 +205,29 @@ function Index() {
       }
       setEndpoint(found.url);
       setEndpointMode(found.mode);
-      // Pull tags to fully connect — routed via WebSocket to avoid Chrome
-      // mixed-content blocks on http://localhost from an https page.
+      // WebSocket probe already succeeded (ping/pong) — mark connected and
+      // hide the welcome card immediately. Tag discovery is best-effort and
+      // must NOT block the UI: if it fails or times out, the chat still
+      // works and the user can hit "Refresh models" in the dropdown.
+      setConnected(true);
+      setAutoStatus("connected");
+      saveEndpoint(found.url, found.mode);
+      setShowWelcome(false);
+      appendLog({ ts: nowTs(), level: "OK", msg: `auto-connect: ${found.url} (ws ok)` });
       try {
         const list = await getTagsViaWS(found.url.replace(/\/$/, ""));
         if (cancelled) return;
         setAvailableModels(list.map((m) => m.name));
-        setConnected(true);
-        setAutoStatus("connected");
-        saveEndpoint(found.url, found.mode);
         if (list[0]?.name) setModel((prev) => prev ?? list[0].name);
-        setShowWelcome(false);
         appendLog({
           ts: nowTs(),
           level: "OK",
-          msg: `auto-connect: ${found.url} · ${list.length} model${list.length === 1 ? "" : "s"}`,
+          msg: `models discovered · ${list.length} model${list.length === 1 ? "" : "s"}`,
         });
       } catch (e) {
         if (cancelled) return;
-        setAutoStatus("failed");
         const msg = e instanceof Error ? e.message : "unknown";
-        appendLog({ ts: nowTs(), level: "ERR", msg: `auto-connect get_tags failed · ${msg}` });
-        if (!everConnected) setShowWelcome(true);
+        appendLog({ ts: nowTs(), level: "ERR", msg: `get_tags failed · ${msg} — use Refresh models` });
       }
     });
     return () => {
@@ -288,6 +290,23 @@ function Index() {
   const appendLog = useCallback((line: LogLine) => {
     setLog((prev) => [...prev, line]);
   }, []);
+
+  const refreshModels = useCallback(async () => {
+    if (!endpoint) return;
+    setRefreshingModels(true);
+    appendLog({ ts: nowTs(), level: "ARROW", msg: "Refreshing models…" });
+    try {
+      const list = await getTagsViaWS(endpoint.replace(/\/$/, ""));
+      setAvailableModels(list.map((m) => m.name));
+      if (list[0]?.name) setModel((prev) => prev ?? list[0].name);
+      appendLog({ ts: nowTs(), level: "OK", msg: `models · ${list.length}` });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "unknown";
+      appendLog({ ts: nowTs(), level: "ERR", msg: `refresh models failed · ${msg}` });
+    } finally {
+      setRefreshingModels(false);
+    }
+  }, [endpoint, appendLog]);
 
   const [tabs, setTabs] = useState<TabState[]>(() => {
     const restored = loadStoredTabs();
@@ -816,6 +835,8 @@ function Index() {
                     setRepairTokenByTab((prev) => ({ ...prev, [activeTab.id]: (prev[activeTab.id] ?? 0) + 1 }));
                     appendLog({ ts: nowTs(), level: "ARROW", msg: `${activeTab.name} → manual self-repair requested` });
                   }}
+                  onRefreshModels={refreshModels}
+                  refreshingModels={refreshingModels}
                   projects={projects.filter((p) => !p.archived).map((p) => ({ id: p.id, emoji: p.emoji, name: p.name }))}
                   activeProjectId={projectForTab(activeTab.id)?.id ?? null}
                   onProjectChange={(pid) => {

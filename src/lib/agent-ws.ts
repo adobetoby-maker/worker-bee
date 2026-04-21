@@ -866,7 +866,7 @@ function waitOpen(entry: ControlEntry, timeoutMs: number): Promise<boolean> {
 }
 
 /** Fetch model list via WebSocket instead of GET /api/tags. */
-export async function getTagsViaWS(endpoint: string, timeoutMs = 5000): Promise<OllamaTag[]> {
+export async function getTagsViaWS(endpoint: string, timeoutMs = 15000): Promise<OllamaTag[]> {
   const entry = ensureControl(endpoint);
   const ok = await waitOpen(entry, timeoutMs);
   if (!ok || !entry.ws || entry.ws.readyState !== WebSocket.OPEN) {
