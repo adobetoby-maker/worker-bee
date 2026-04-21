@@ -61,7 +61,8 @@ import {
 } from "@/lib/projects";
 import { diffLines } from "@/lib/diff";
 import { ejectAllForTab } from "@/lib/injection-registry";
-import { openAgentWS, closeAgentWS, sendPing, subscribeReconnectStatus, getTagsViaWS } from "@/lib/agent-ws";
+import { openAgentWS, closeAgentWS, sendPing, subscribeReconnectStatus } from "@/lib/agent-ws";
+import { fetchTagsHTTP } from "@/lib/fetch-tags";
 import {
   autoDiscoverEndpoint,
   loadSavedEndpoint,
@@ -217,7 +218,7 @@ function Index() {
       setShowWelcome(false);
       appendLog({ ts: nowTs(), level: "OK", msg: `auto-connect: ${found.url} (ws ok)` });
       try {
-        const list = await getTagsViaWS(found.url.replace(/\/$/, ""));
+        const list = await fetchTagsHTTP(found.url.replace(/\/$/, ""));
         if (cancelled) return;
         setAvailableModels(list.map((m) => m.name));
         if (list[0]?.name) setModel((prev) => prev ?? list[0].name);
@@ -298,7 +299,7 @@ function Index() {
     setRefreshingModels(true);
     appendLog({ ts: nowTs(), level: "ARROW", msg: "Refreshing models…" });
     try {
-      const list = await getTagsViaWS(endpoint.replace(/\/$/, ""));
+      const list = await fetchTagsHTTP(endpoint.replace(/\/$/, ""));
       setAvailableModels(list.map((m) => m.name));
       if (list[0]?.name) setModel((prev) => prev ?? list[0].name);
       appendLog({ ts: nowTs(), level: "OK", msg: `models · ${list.length}` });
