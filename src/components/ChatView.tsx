@@ -1128,7 +1128,7 @@ export function ChatView({
                 className={
                   isUser
                     ? "text-sm text-primary-foreground bg-gradient-to-br from-primary to-primary-glow shadow-[var(--shadow-elegant,0_8px_24px_-12px_rgba(255,170,0,0.5))]"
-                    : "w-full"
+                    : "w-full group relative"
                 }
                 style={
                   isUser
@@ -1172,6 +1172,9 @@ export function ChatView({
                       >
                         🧠 {consultedByMessage[i]} memories consulted
                       </div>
+                    )}
+                    {!showCursor && m.content && (
+                      <CopyMessageButton text={m.content} />
                     )}
                   </>
                 )}
@@ -1598,6 +1601,41 @@ interface AssistantContentProps {
   onSaveCodeBlock?: (language: string, code: string, suggestedName: string) => void;
   matchProjectFile?: (language: string, code: string, suggestedName: string) => string | null;
   onCompareCodeBlock?: (filePath: string, newContent: string) => void;
+}
+
+function CopyMessageButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async (e) => {
+        e.stopPropagation();
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          // ignore
+        }
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      className="opacity-0 group-hover:opacity-100 transition-opacity"
+      style={{
+        position: "absolute",
+        bottom: 4,
+        right: 4,
+        background: "transparent",
+        border: "1px solid var(--border)",
+        borderRadius: 4,
+        padding: "2px 6px",
+        fontSize: 10,
+        fontFamily: "JetBrains Mono, monospace",
+        color: "var(--muted-foreground)",
+        cursor: "pointer",
+      }}
+    >
+      {copied ? "✓ copied" : "📋 copy"}
+    </button>
+  );
 }
 
 function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, matchProjectFile, onCompareCodeBlock }: AssistantContentProps) {
