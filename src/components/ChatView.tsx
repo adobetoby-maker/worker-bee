@@ -281,6 +281,108 @@ export function ChatView({
     }
   };
 
+  // Cleanup any in-flight shell subscription on unmount.
+  useEffect(() => {
+    return () => {
+      installUnsubRef.current?.();
+      installUnsubRef.current = null;
+    };
+  }, []);
+
+  const sendFollowUpChat = (content: string) => {
+    if (!model) return;
+    if (!isWSOpen(tabId)) {
+      appendLog({ ts: nowTs(), level: "ERR", msg: "follow-up chat: WS not open" });
+      return;
+    }
+    onMessagesChange((prev) => [
+      ...prev,
+      { role: "user", content },
+      { role: "assistant", content: "" },
+    ]);
+    setStreaming(true);
+    onSendStart?.(content);
+    let assistantText = "";
+    let finished = false;
+    const finish = (errorText?: string) => {
+      if (finished) return;
+      finished = true;
+      unsub?.();
+      if (errorText) {
+        onMessagesChange((prev) => {
+          const copy = prev.slice();
+          copy[copy.length - 1] = { role: "assistant", content: `⚠ ${errorText}` };
+          return copy;
+        });
+      }
+      setStreaming(false);
+      onSendEnd?.();
+    };
+    const unsub = subscribeAgentWS(tabId, {
+      onToken: (tok) => {
+        if (!tok) return;
+        assistantText += tok;
+        onMessagesChange((prev) => {
+          const copy = prev.slice();
+          copy[copy.length - 1] = { role: "assistant", content: assistantText };
+          return copy;
+        });
+      },
+      onDone: () => finish(),
+      onError: (m) => finish(m || "agent error"),
+      onClose: () => finish("WebSocket closed during stream"),
+    });
+    const ok = sendChat(tabId, content, model);
+    if (!ok) finish("failed to send over WebSocket");
+  };
+
+  const handleApproveInstall = () => {
+    if (!installCard || installCard.state !== "prompt") return;
+    const cmd = installCard.command;
+    if (!isWSOpen(tabId)) {
+      appendLog({ ts: nowTs(), level: "ERR", msg: "shell: WS not open" });
+      return;
+    }
+    setInstallCard({ command: cmd, state: "running", output: "" });
+    appendLog({ ts: nowTs(), level: "ARROW", msg: `shell approved: ${cmd}` });
+    let buf = "";
+    installUnsubRef.current?.();
+    const unsub = subscribeAgentWS(tabId, {
+      onShellOutput: (chunk) => {
+        if (!chunk) return;
+        buf += chunk;
+        setInstallCard((prev) => prev ? { ...prev, output: buf } : prev);
+      },
+      onShellDone: ({ exitCode, ok, output }) => {
+        const finalOutput = output && output.length > buf.length ? output : buf;
+        setInstallCard((prev) => prev ? { ...prev, state: "done", output: finalOutput, exitCode } : prev);
+        installUnsubRef.current?.();
+        installUnsubRef.current = null;
+        if (ok) {
+          sendFollowUpChat("The installation completed successfully. Please continue with the original task.");
+        } else {
+          sendFollowUpChat(`The installation failed (exit code ${exitCode}). Please suggest an alternative approach.`);
+        }
+      },
+    });
+    installUnsubRef.current = unsub;
+    const sent = sendShell(tabId, cmd);
+    if (!sent) {
+      setInstallCard({ command: cmd, state: "done", output: "failed to send shell command", exitCode: 1 });
+      installUnsubRef.current?.();
+      installUnsubRef.current = null;
+    }
+  };
+
+  const handleDenyInstall = () => {
+    if (!installCard) return;
+    appendLog({ ts: nowTs(), level: "ARROW", msg: `shell denied: ${installCard.command}` });
+    setInstallCard(null);
+    sendFollowUpChat("The user denied the install request. Please suggest an alternative approach that does not require installing new packages.");
+  };
+
+  const handleDismissInstall = () => setInstallCard(null);
+
   return (
     <div
       className="flex flex-1 min-h-0 flex-col"
