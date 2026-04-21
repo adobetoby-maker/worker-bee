@@ -729,6 +729,8 @@ function Index() {
         onQueueOpen={() => setQueueOpen((v) => !v)}
         queueDepth={queueState.queue.length}
         parallelMode={queueState.parallelMode}
+        autoStatus={autoStatus}
+        onOpenConfig={() => setActive("config")}
       />
       {active === "chat" && (
         <ChatTabsBar
