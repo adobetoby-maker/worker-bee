@@ -440,6 +440,70 @@ export function ChatView({
           const isUser = m.role === "user";
           const isLast = i === messages.length - 1;
           const showCursor = !isUser && isLast && streaming;
+          // Special rich messages: screenshot / vision analysis.
+          if (!isUser && m.screenshotB64) {
+            return (
+              <div key={i} className="flex items-start gap-3 justify-start">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-base">
+                  🌐
+                </div>
+                <div
+                  className="max-w-[75%]"
+                  style={{
+                    background: "#0a0a0a",
+                    border: "1px solid #ffaa00",
+                    borderRadius: 8,
+                    padding: 12,
+                    marginBottom: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "#ffaa00",
+                      fontFamily: "JetBrains Mono, monospace",
+                      fontSize: 11,
+                      marginBottom: 8,
+                    }}
+                  >
+                    🌐 SCREENSHOT — {m.screenshotUrl ?? ""}
+                  </div>
+                  <img
+                    src={`data:image/png;base64,${m.screenshotB64}`}
+                    alt="browser screenshot"
+                    style={{ width: "100%", borderRadius: 6, display: "block" }}
+                  />
+                </div>
+              </div>
+            );
+          }
+          if (!isUser && m.visionDescription) {
+            return (
+              <div key={i} className="flex items-start gap-3 justify-start">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-base">
+                  👁
+                </div>
+                <div
+                  className="max-w-[75%]"
+                  style={{
+                    background: "#0a0a0a",
+                    border: "1px solid #39ff14",
+                    borderRadius: 8,
+                    padding: 12,
+                    color: "#39ff14",
+                    fontFamily: "JetBrains Mono, monospace",
+                    fontSize: 13,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  <div style={{ fontSize: 11, marginBottom: 8, opacity: 0.85 }}>
+                    🔍 VISUAL ANALYSIS (via llava):
+                  </div>
+                  {m.visionDescription}
+                </div>
+              </div>
+            );
+          }
           return (
             <div
               key={i}
