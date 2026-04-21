@@ -332,6 +332,10 @@ function Index() {
   });
   const [activeTabId, setActiveTabId] = useState<string>(() => tabs[0].id);
 
+  // Tracks which tab ids have already had their boot sequence streamed,
+  // preventing StrictMode/double-renders from logging the boot lines twice.
+  const bootedTabsRef = useRef<Set<string>>(new Set(tabs.map((t) => t.id)));
+
   // Persist tabs to localStorage
   const isFirstSave = useRef(true);
   useEffect(() => {
@@ -433,33 +437,47 @@ function Index() {
   );
 
   const handleNewTab = useCallback(() => {
+    const newTab: TabState = {
+      id: crypto.randomUUID(),
+      name: "",
+      color: TAB_COLORS[0],
+      model,
+      messages: [NEW_TAB_MESSAGE],
+      systemPrompt: defaultSystemPrompt(ENABLED_TOOLS),
+      isStreaming: false,
+      hasError: false,
+      stopToken: 0,
+    };
     setTabs((prev) => {
       const idx = prev.length;
-      const newTab: TabState = {
-        id: crypto.randomUUID(),
-        name: `Agent ${idx + 1}`,
-        color: TAB_COLORS[idx % TAB_COLORS.length],
-        model,
-        messages: [NEW_TAB_MESSAGE],
-        systemPrompt: defaultSystemPrompt(ENABLED_TOOLS),
-        isStreaming: false,
-        hasError: false,
-        stopToken: 0,
-      };
+      newTab.name = `Agent ${idx + 1}`;
+      newTab.color = TAB_COLORS[idx % TAB_COLORS.length];
+      if (prev.some((t) => t.id === newTab.id)) return prev;
+      const next = [...prev, newTab];
+      return next;
+    });
+    // Side effects run OUTSIDE the updater, guarded by a ref so StrictMode
+    // double-invocation cannot re-trigger boot sequence for the same tab.
+    if (!bootedTabsRef.current.has(newTab.id)) {
+      bootedTabsRef.current.add(newTab.id);
       setActiveTabId(newTab.id);
       appendLog({
         ts: nowTs(),
         level: "ARROW",
-        msg: `${newTab.name} session opened (${model ?? "no model"})`,
+        msg: `${newTab.name || "Agent"} session opened (${model ?? "no model"})`,
       });
-      runBootSequence(newTab.name, appendLog);
-      emitActivity({ kind: "agent", icon: "🐝", text: `${newTab.name} · spawned` });
-      const next = [...prev, newTab];
-      if (next.length >= 3 && !machineProfile) {
-        setShowAdvisor(true);
+      runBootSequence(newTab.name || "Agent", appendLog);
+      emitActivity({ kind: "agent", icon: "🐝", text: `${newTab.name || "Agent"} · spawned` });
+      if (!machineProfile) {
+        // advisor check uses live tabs count via setTabs callback above; defer slightly
+        setTimeout(() => {
+          setTabs((cur) => {
+            if (cur.length >= 3) setShowAdvisor(true);
+            return cur;
+          });
+        }, 0);
       }
-      return next;
-    });
+    }
   }, [model, appendLog, machineProfile]);
 
   const handleCloseTab = useCallback(
@@ -622,6 +640,10 @@ function Index() {
   // ===== Sequential agent queue wiring =====
   const handleRequestSend = useCallback(
     (tabId: string, tabName: string, tabColor: string, tabModel: string | null, text: string): "start" | "queued" => {
+      // Single-tab bypass: never queue when only one agent exists.
+      if (tabs.length <= 1) {
+        return "start";
+      }
       if (canStartImmediately(tabId)) {
         return "start";
       }
@@ -635,7 +657,7 @@ function Index() {
       emitActivity({ kind: "agent", icon: "⏳", text: `${tabName} · queued` });
       return "queued";
     },
-    [appendLog],
+    [appendLog, tabs.length],
   );
 
   const handleSendStart = useCallback(
