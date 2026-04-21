@@ -42,30 +42,61 @@
 
 :root {
   --radius: 0.25rem;
-  /* Dark cyberpunk palette — single theme */
-  --background: oklch(0.12 0 0);          /* #080808 */
-  --foreground: oklch(0.92 0 0);
-  --surface: oklch(0.16 0 0);             /* #0f0f0f */
-  --surface-2: oklch(0.20 0 0);
-  --card: oklch(0.16 0 0);
-  --card-foreground: oklch(0.92 0 0);
-  --popover: oklch(0.16 0 0);
-  --popover-foreground: oklch(0.92 0 0);
-  --primary: oklch(0.80 0.17 78);         /* amber #ffaa00 */
-  --primary-foreground: oklch(0.12 0 0);
-  --secondary: oklch(0.22 0 0);
-  --secondary-foreground: oklch(0.92 0 0);
-  --muted: oklch(0.20 0 0);
-  --muted-foreground: oklch(0.62 0 0);
-  --accent: oklch(0.24 0.02 47);
-  --accent-foreground: oklch(0.92 0 0);
-  --success: oklch(0.88 0.27 145);        /* electric green #39ff14 */
-  --success-foreground: oklch(0.12 0 0);
-  --destructive: oklch(0.65 0.24 22);     /* #ff3333 */
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.26 0 0);              /* ~#1f1f1f */
-  --input: oklch(0.26 0 0);
-  --ring: oklch(0.80 0.17 78);
+  /* Light minimal palette — default theme */
+  --background: #f5f4f0;
+  --foreground: #1a1714;
+  --surface: #ffffff;
+  --surface-2: #eeece8;
+  --surface-raised: #eeece8;
+  --card: #ffffff;
+  --card-foreground: #1a1714;
+  --popover: #ffffff;
+  --popover-foreground: #1a1714;
+  --primary: #c17f24;
+  --primary-foreground: #ffffff;
+  --primary-glow: #d4920f;
+  --secondary: #eeece8;
+  --secondary-foreground: #1a1714;
+  --muted: #eeece8;
+  --muted-foreground: #6b6460;
+  --accent: #eeece8;
+  --accent-foreground: #1a1714;
+  --success: #2d7a2d;
+  --success-foreground: #ffffff;
+  --destructive: #c0392b;
+  --destructive-foreground: #ffffff;
+  --border: #e2dedd;
+  --input: #e2dedd;
+  --ring: #c17f24;
+}
+
+/* Dark theme overrides — applied when <html> has class "dark" */
+html.dark {
+  --background: #080808;
+  --foreground: #e0e0e0;
+  --surface: #0d0d0d;
+  --surface-2: #1a1a1a;
+  --surface-raised: #1a1a1a;
+  --card: #0d0d0d;
+  --card-foreground: #e0e0e0;
+  --popover: #0d0d0d;
+  --popover-foreground: #e0e0e0;
+  --primary: #ffaa00;
+  --primary-foreground: #080808;
+  --primary-glow: #ffc04a;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #e0e0e0;
+  --muted: #1a1a1a;
+  --muted-foreground: #888888;
+  --accent: #1a1a1a;
+  --accent-foreground: #e0e0e0;
+  --success: #39ff14;
+  --success-foreground: #080808;
+  --destructive: #ff3b3b;
+  --destructive-foreground: #ffffff;
+  --border: #1e1e1e;
+  --input: #1e1e1e;
+  --ring: #ffaa00;
 }
 
 @keyframes blink {
