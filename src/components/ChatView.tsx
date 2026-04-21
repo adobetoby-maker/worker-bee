@@ -175,6 +175,22 @@ export function ChatView({
   const [consultedByMessage, setConsultedByMessage] = useState<Record<number, number>>({});
   const pendingConsultedRef = useRef<number | null>(null);
 
+  // Task planner state.
+  const [planCard, setPlanCard] = useState<{
+    goal: string;
+    state: PlanCardState;
+    steps: PlanStep[];
+    runtime: Record<number, PlanStepRuntime>;
+    current: number;
+    total: number;
+    logs: PlanLogLine[];
+    completed: number;
+    failed: number;
+    errorMsg?: string;
+    showResults: boolean;
+  } | null>(null);
+  const [planSuggestion, setPlanSuggestion] = useState<string | null>(null);
+
   useEffect(() => {
     onStreamingChange(streaming);
   }, [streaming, onStreamingChange]);
