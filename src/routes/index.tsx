@@ -161,6 +161,7 @@ function Index() {
   });
   const [autoSendByTab, setAutoSendByTab] = useState<Record<string, { token: number; text: string }>>({});
   const [repairTokenByTab, setRepairTokenByTab] = useState<Record<string, number>>({});
+  const [memoryCountByTab, setMemoryCountByTab] = useState<Record<string, number>>({});
   const [flashTurnTabId, setFlashTurnTabId] = useState<string | null>(null);
   const [refreshingModels, setRefreshingModels] = useState(false);
 
