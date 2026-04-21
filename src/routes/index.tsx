@@ -132,7 +132,7 @@ function Index() {
   const [active, setActive] = useState<View>("chat");
   const [log, setLog] = useState<LogLine[]>(INITIAL_LOG);
   const [endpoint, setEndpoint] = useState("http://localhost:11434");
-  const [model, setModel] = useState<string | null>(null);
+  const [model, setModel] = useState<string | null>("__auto__");
   const [connected, setConnected] = useState(false);
   const [autoStatus, setAutoStatus] = useState<AutoConnectStatus>("idle");
   const [reconnectInfo, setReconnectInfo] = useState<{ attempt: number; max: number } | null>(null);
@@ -222,7 +222,7 @@ function Index() {
         const list = await fetchTagsHTTP(found.url.replace(/\/$/, ""));
         if (cancelled) return;
         setAvailableModels(list.map((m) => m.name));
-        if (list[0]?.name) setModel((prev) => prev ?? list[0].name);
+        if (list[0]?.name) setModel((prev) => prev ?? "__auto__");
         appendLog({
           ts: nowTs(),
           level: "OK",
@@ -244,11 +244,12 @@ function Index() {
   // for the global default and for any tab that doesn't have one yet.
   useEffect(() => {
     if (availableModels.length === 0) return;
-    const first = availableModels[0];
-    setModel((prev) => prev && availableModels.includes(prev) ? prev : first);
+    setModel((prev) => (prev === "__auto__" || (prev && availableModels.includes(prev))) ? prev : "__auto__");
     setTabs((prev) =>
       prev.map((t) =>
-        t.model && availableModels.includes(t.model) ? t : { ...t, model: first },
+        t.model === "__auto__" || (t.model && availableModels.includes(t.model))
+          ? t
+          : { ...t, model: "__auto__" },
       ),
     );
   }, [availableModels]);
