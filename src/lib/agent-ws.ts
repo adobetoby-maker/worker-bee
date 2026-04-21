@@ -115,6 +115,9 @@ interface Entry {
   intentionalClose: boolean;
   heartbeatTimer: ReturnType<typeof setInterval> | null;
   pongTimer: ReturnType<typeof setTimeout> | null;
+  keepaliveTimer: ReturnType<typeof setInterval> | null;
+  keepaliveWarnTimer: ReturnType<typeof setTimeout> | null;
+  keepaliveAwaitingPong: boolean;
   lastMessageAt: number;
   awaitingPong: boolean;
 }
@@ -126,6 +129,8 @@ const BASE_RECONNECT_DELAY_MS = 1000;
 const MAX_RECONNECT_DELAY_MS = 30000;
 const HEARTBEAT_INTERVAL_MS = 30000;
 const PONG_TIMEOUT_MS = 5000;
+const KEEPALIVE_INTERVAL_MS = 20000;
+const KEEPALIVE_WARN_MS = 10000;
 
 type ReconnectListener = (info: { tabId: string; attempt: number; max: number; status: "trying" | "connected" | "failed" }) => void;
 const reconnectListeners = new Set<ReconnectListener>();
@@ -148,6 +153,9 @@ function clearTimers(entry: Entry): void {
   if (entry.reconnectTimer) { clearTimeout(entry.reconnectTimer); entry.reconnectTimer = null; }
   if (entry.heartbeatTimer) { clearInterval(entry.heartbeatTimer); entry.heartbeatTimer = null; }
   if (entry.pongTimer) { clearTimeout(entry.pongTimer); entry.pongTimer = null; }
+  if (entry.keepaliveTimer) { clearInterval(entry.keepaliveTimer); entry.keepaliveTimer = null; }
+  if (entry.keepaliveWarnTimer) { clearTimeout(entry.keepaliveWarnTimer); entry.keepaliveWarnTimer = null; }
+  entry.keepaliveAwaitingPong = false;
   entry.awaitingPong = false;
 }
 
@@ -170,6 +178,24 @@ function startHeartbeat(tabId: string, entry: Entry): void {
       }, PONG_TIMEOUT_MS);
     } catch { /* noop */ }
   }, HEARTBEAT_INTERVAL_MS);
+}
+
+function startKeepalive(_tabId: string, entry: Entry): void {
+  if (entry.keepaliveTimer) clearInterval(entry.keepaliveTimer);
+  entry.keepaliveTimer = setInterval(() => {
+    const ws = entry.ws;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    try {
+      ws.send(JSON.stringify({ action: "ping" }));
+      entry.keepaliveAwaitingPong = true;
+      if (entry.keepaliveWarnTimer) clearTimeout(entry.keepaliveWarnTimer);
+      entry.keepaliveWarnTimer = setTimeout(() => {
+        if (entry.keepaliveAwaitingPong) {
+          console.warn("[agent-ws] keepalive: no pong within 10s, continuing");
+        }
+      }, KEEPALIVE_WARN_MS);
+    } catch { /* noop */ }
+  }, KEEPALIVE_INTERVAL_MS);
 }
 
 function scheduleReconnect(tabId: string, entry: Entry): void {
@@ -213,6 +239,7 @@ function createSocket(tabId: string, entry: Entry): void {
     entry.log?.({ ts: nowTs(), level: "OK", msg: wasReconnect ? "WebSocket reconnected ✓" : "WebSocket connected to agent :8000" });
     try { ws.send(JSON.stringify({ action: "ping" })); } catch { /* noop */ }
     startHeartbeat(tabId, entry);
+    startKeepalive(tabId, entry);
     emitReconnect(tabId, entry, "connected");
     entry.handlers.forEach((h) => h.onOpen?.());
   };
@@ -220,6 +247,9 @@ function createSocket(tabId: string, entry: Entry): void {
     entry.status = "closed";
     if (entry.heartbeatTimer) { clearInterval(entry.heartbeatTimer); entry.heartbeatTimer = null; }
     if (entry.pongTimer) { clearTimeout(entry.pongTimer); entry.pongTimer = null; }
+    if (entry.keepaliveTimer) { clearInterval(entry.keepaliveTimer); entry.keepaliveTimer = null; }
+    if (entry.keepaliveWarnTimer) { clearTimeout(entry.keepaliveWarnTimer); entry.keepaliveWarnTimer = null; }
+    entry.keepaliveAwaitingPong = false;
     entry.handlers.forEach((h) => h.onClose?.());
     if (!entry.intentionalClose) {
       entry.log?.({ ts: nowTs(), level: "ARROW", msg: "WebSocket disconnected — reconnecting..." });
@@ -294,6 +324,9 @@ export function openAgentWS(
     intentionalClose: false,
     heartbeatTimer: null,
     pongTimer: null,
+    keepaliveTimer: null,
+    keepaliveWarnTimer: null,
+    keepaliveAwaitingPong: false,
     lastMessageAt: 0,
     awaitingPong: false,
   };
@@ -347,6 +380,8 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         break;
       case "pong":
         entry.log?.({ ts: nowTs(), level: "OK", msg: "Agent alive" });
+        entry.keepaliveAwaitingPong = false;
+        if (entry.keepaliveWarnTimer) { clearTimeout(entry.keepaliveWarnTimer); entry.keepaliveWarnTimer = null; }
         entry.handlers.forEach((h) => h.onPong?.());
         break;
       case "browser_result": {

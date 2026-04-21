@@ -1466,9 +1466,16 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
               {p.text}
               {showCursor && i === parts.length - 1 && (
                 <span
-                  className="inline-block w-2 h-4 align-middle bg-primary ml-1"
-                  style={{ animation: "var(--animate-blink)" }}
-                />
+                  style={{
+                    display: "inline-block",
+                    marginLeft: 4,
+                    fontSize: 14,
+                    animation: "bee-wing 0.15s ease-in-out infinite",
+                    transformOrigin: "center",
+                  }}
+                >
+                  🐝
+                </span>
               )}
             </div>
           );
