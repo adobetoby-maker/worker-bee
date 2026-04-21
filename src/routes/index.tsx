@@ -61,7 +61,7 @@ import {
 } from "@/lib/projects";
 import { diffLines } from "@/lib/diff";
 import { ejectAllForTab } from "@/lib/injection-registry";
-import { openAgentWS, closeAgentWS, sendPing, subscribeReconnectStatus } from "@/lib/agent-ws";
+import { openAgentWS, closeAgentWS, sendPing, subscribeReconnectStatus, getTagsViaWS } from "@/lib/agent-ws";
 import {
   autoDiscoverEndpoint,
   loadSavedEndpoint,
@@ -204,12 +204,10 @@ function Index() {
       }
       setEndpoint(found.url);
       setEndpointMode(found.mode);
-      // Pull tags to fully connect
+      // Pull tags to fully connect — routed via WebSocket to avoid Chrome
+      // mixed-content blocks on http://localhost from an https page.
       try {
-        const res = await fetch(`${found.url.replace(/\/$/, "")}/api/tags`);
-        if (!res.ok) throw new Error(`http ${res.status}`);
-        const data = (await res.json()) as { models?: { name: string }[] };
-        const list = data.models ?? [];
+        const list = await getTagsViaWS(found.url.replace(/\/$/, ""));
         if (cancelled) return;
         setAvailableModels(list.map((m) => m.name));
         setConnected(true);
@@ -226,7 +224,7 @@ function Index() {
         if (cancelled) return;
         setAutoStatus("failed");
         const msg = e instanceof Error ? e.message : "unknown";
-        appendLog({ ts: nowTs(), level: "ERR", msg: `auto-connect /api/tags failed · ${msg}` });
+        appendLog({ ts: nowTs(), level: "ERR", msg: `auto-connect get_tags failed · ${msg}` });
         if (!everConnected) setShowWelcome(true);
       }
     });
