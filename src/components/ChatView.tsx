@@ -1507,12 +1507,14 @@ export function ChatView({
             </button>
             <Textarea
               rows={1}
+              ref={textareaRef}
               value={input}
               onChange={(e) => {
                 const ta = e.target as HTMLTextAreaElement;
                 ta.style.height = "auto";
                 ta.style.height = Math.min(ta.scrollHeight, 200) + "px";
                 setInput(ta.value);
+                if (historyIndex !== -1) setHistoryIndex(-1);
               }}
               onKeyDown={onKeyDown}
               placeholder={connected ? "Message Worker Bee…" : "Connect to Ollama in CONFIG first"}
