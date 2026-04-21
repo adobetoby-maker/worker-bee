@@ -13,9 +13,13 @@ import {
   detectInstallCommand,
   isUnsafeCommand,
   sendSelfRepair,
+  sendLogin,
+  detectLoginIntent,
 } from "@/lib/agent-ws";
 import { InstallActionCard, type InstallCardState } from "./InstallActionCard";
 import { RepairCard, type RepairCardState } from "./RepairCard";
+import { LoginPromptCard, type LoginSubmitArgs } from "./LoginPromptCard";
+import { LoginStatusCard, type LoginCardState } from "./LoginStatusCard";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -129,6 +133,17 @@ export function ChatView({
     logs: string[];
   } | null>(null);
   const repairUnsubRef = useRef<(() => void) | null>(null);
+
+  // Login flow state.
+  const [loginPrompt, setLoginPrompt] = useState<{ url: string } | null>(null);
+  const [loginStatus, setLoginStatus] = useState<{
+    state: LoginCardState;
+    url: string;
+    logs: string[];
+    attempts?: number;
+    error?: string;
+  } | null>(null);
+  const loginUnsubRef = useRef<(() => void) | null>(null);
 
   // Error-burst banner: count consecutive recent ERR log lines for THIS tab.
   const [errBurst, setErrBurst] = useState(0);
@@ -385,6 +400,14 @@ export function ChatView({
       trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
       return;
     }
+    // Login intent detection — open credential prompt instead of streaming.
+    const loginUrl = detectLoginIntent(text);
+    if (loginUrl && !loginPrompt && !loginStatus) {
+      onMessagesChange((prev) => [...prev, { role: "user", content: text }]);
+      setInput("");
+      setLoginPrompt({ url: loginUrl });
+      return;
+    }
     const decision = onRequestSend ? onRequestSend(text) : "start";
     if (decision === "queued") {
       setInput("");
@@ -393,6 +416,48 @@ export function ChatView({
     setInput("");
     await startStream(text);
   };
+
+  // Subscribe to login events for this tab.
+  useEffect(() => {
+    loginUnsubRef.current?.();
+    const unsub = subscribeAgentWS(tabId, {
+      onLoginLog: (line) => {
+        if (!line) return;
+        setLoginStatus((prev) => prev ? { ...prev, logs: [...prev.logs, line] } : prev);
+      },
+      onLoginResult: ({ ok, url, attempts, error }) => {
+        setLoginStatus((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            state: ok ? "success" : "failed",
+            url: url ?? prev.url,
+            attempts,
+            error,
+          };
+        });
+      },
+    });
+    loginUnsubRef.current = unsub;
+    return () => { unsub(); loginUnsubRef.current = null; };
+  }, [tabId]);
+
+  const handleLoginSubmit = (args: LoginSubmitArgs) => {
+    if (!isWSOpen(tabId)) {
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "login: WS not open" });
+      return;
+    }
+    setLoginPrompt(null);
+    setLoginStatus({ state: "running", url: args.url, logs: [`[🔐] Attempting login to ${args.url}...`] });
+    sendLogin(tabId, {
+      url: args.url,
+      username: args.username,
+      password: args.password,
+      max_attempts: args.maxAttempts,
+    });
+  };
+
+  const handleLoginCancel = () => setLoginPrompt(null);
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
