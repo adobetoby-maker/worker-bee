@@ -61,6 +61,15 @@ import {
 import { diffLines } from "@/lib/diff";
 import { ejectAllForTab } from "@/lib/injection-registry";
 import { openAgentWS, closeAgentWS, sendPing } from "@/lib/agent-ws";
+import {
+  autoDiscoverEndpoint,
+  loadSavedEndpoint,
+  hasEverConnected,
+  saveEndpoint,
+  type EndpointMode,
+  type AutoConnectStatus,
+} from "@/lib/auto-connect";
+import { WelcomeCard } from "@/components/WelcomeCard";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -122,6 +131,9 @@ function Index() {
   const [endpoint, setEndpoint] = useState("http://localhost:11434");
   const [model, setModel] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
+  const [autoStatus, setAutoStatus] = useState<AutoConnectStatus>("idle");
+  const [endpointMode, setEndpointMode] = useState<EndpointMode>("custom");
+  const [showWelcome, setShowWelcome] = useState(false);
   const [bannerDismissedAt, setBannerDismissedAt] = useState(0);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [editingPromptTabId, setEditingPromptTabId] = useState<string | null>(null);
