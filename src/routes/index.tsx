@@ -291,6 +291,23 @@ function Index() {
     setLog((prev) => [...prev, line]);
   }, []);
 
+  const refreshModels = useCallback(async () => {
+    if (!endpoint) return;
+    setRefreshingModels(true);
+    appendLog({ ts: nowTs(), level: "ARROW", msg: "Refreshing models…" });
+    try {
+      const list = await getTagsViaWS(endpoint.replace(/\/$/, ""));
+      setAvailableModels(list.map((m) => m.name));
+      if (list[0]?.name) setModel((prev) => prev ?? list[0].name);
+      appendLog({ ts: nowTs(), level: "OK", msg: `models · ${list.length}` });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "unknown";
+      appendLog({ ts: nowTs(), level: "ERR", msg: `refresh models failed · ${msg}` });
+    } finally {
+      setRefreshingModels(false);
+    }
+  }, [endpoint, appendLog]);
+
   const [tabs, setTabs] = useState<TabState[]>(() => {
     const restored = loadStoredTabs();
     if (restored) return restored;
@@ -818,6 +835,8 @@ function Index() {
                     setRepairTokenByTab((prev) => ({ ...prev, [activeTab.id]: (prev[activeTab.id] ?? 0) + 1 }));
                     appendLog({ ts: nowTs(), level: "ARROW", msg: `${activeTab.name} → manual self-repair requested` });
                   }}
+                  onRefreshModels={refreshModels}
+                  refreshingModels={refreshingModels}
                   projects={projects.filter((p) => !p.archived).map((p) => ({ id: p.id, emoji: p.emoji, name: p.name }))}
                   activeProjectId={projectForTab(activeTab.id)?.id ?? null}
                   onProjectChange={(pid) => {
