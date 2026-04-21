@@ -299,6 +299,9 @@ export function openAgentWS(
     intentionalClose: false,
     heartbeatTimer: null,
     pongTimer: null,
+    keepaliveTimer: null,
+    keepaliveWarnTimer: null,
+    keepaliveAwaitingPong: false,
     lastMessageAt: 0,
     awaitingPong: false,
   };
