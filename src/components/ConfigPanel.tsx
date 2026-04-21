@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { nowTs, type LogLine } from "@/lib/agent-state";
 import { saveEndpoint, type EndpointMode } from "@/lib/auto-connect";
-import { getTagsViaWS } from "@/lib/agent-ws";
+import { getTagsViaWS, probeEndpointViaWS } from "@/lib/agent-ws";
 
 type Mode = "http" | "https" | "tailscale" | "custom";
 
@@ -89,29 +89,62 @@ export function ConfigPanel({
     }
     setStatus("loading");
     setErrorMsg(null);
-    appendLog({ ts: nowTs(), level: "ARROW", msg: `WS get_tags → ${endpoint}` });
+    const url = endpoint.replace(/\/$/, "");
+    appendLog({ ts: nowTs(), level: "ARROW", msg: `WS probe → ${url}` });
 
+    // FIX 4 — Connection status is determined by WebSocket ping/pong only.
+    // get_tags success/failure only affects the model dropdown.
+    const ok = await probeEndpointViaWS(url, 5000);
+    if (!ok) {
+      setStatus("err");
+      setErrorMsg("WebSocket ping timed out (5s)");
+      setConnected(false);
+      appendLog({ ts: nowTs(), level: "ERR", msg: "connect failed · ws ping timeout" });
+      return;
+    }
+    setStatus("ok");
+    setConnected(true);
+    saveEndpoint(url, mode as EndpointMode);
+    appendLog({ ts: nowTs(), level: "OK", msg: `connected · ws ping ok` });
+    onConnected?.();
+
+    // Best-effort tag discovery (does NOT affect connected status)
+    setTagsLoading(true);
     try {
-      const list = (await getTagsViaWS(endpoint.replace(/\/$/, ""))) as OllamaModel[];
+      const list = (await getTagsViaWS(url, 15000)) as OllamaModel[];
       setModels(list);
-      setStatus("ok");
-      setConnected(true);
       const first = list[0]?.name ?? null;
       if (first && !model) setModel(first);
       onModelsLoaded?.(list.map((m) => m.name));
-      saveEndpoint(endpoint.replace(/\/$/, ""), mode as EndpointMode);
       appendLog({
         ts: nowTs(),
         level: "OK",
-        msg: `connected · ${list.length} model${list.length === 1 ? "" : "s"}`,
+        msg: `models · ${list.length} discovered`,
       });
-      onConnected?.();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "unknown error";
-      setStatus("err");
-      setErrorMsg(msg);
-      setConnected(false);
-      appendLog({ ts: nowTs(), level: "ERR", msg: `connect failed · ${msg}` });
+      appendLog({ ts: nowTs(), level: "ERR", msg: `get_tags failed · ${msg}` });
+    } finally {
+      setTagsLoading(false);
+    }
+  };
+
+  const refreshModels = async () => {
+    if (!endpoint.trim()) return;
+    setTagsLoading(true);
+    appendLog({ ts: nowTs(), level: "ARROW", msg: "Refreshing models…" });
+    try {
+      const list = (await getTagsViaWS(endpoint.replace(/\/$/, ""), 15000)) as OllamaModel[];
+      setModels(list);
+      const first = list[0]?.name ?? null;
+      if (first && !model) setModel(first);
+      onModelsLoaded?.(list.map((m) => m.name));
+      appendLog({ ts: nowTs(), level: "OK", msg: `models · ${list.length}` });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "unknown error";
+      appendLog({ ts: nowTs(), level: "ERR", msg: `refresh failed · ${msg}` });
+    } finally {
+      setTagsLoading(false);
     }
   };
 
