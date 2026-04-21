@@ -22,7 +22,8 @@ export interface AgentWSMessage {
     | "repair_started" | "repair_log" | "repair_complete"
     | "gmail_summary" | "gmail_preview" | "gmail_top_senders"
     | "gmail_progress" | "gmail_done"
-    | "login_log" | "login_result";
+    | "login_log" | "login_result"
+    | "tags_result" | "ps_result";
   content?: string;
   text?: string;
   message?: string;
