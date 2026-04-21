@@ -204,28 +204,29 @@ function Index() {
       }
       setEndpoint(found.url);
       setEndpointMode(found.mode);
-      // Pull tags to fully connect — routed via WebSocket to avoid Chrome
-      // mixed-content blocks on http://localhost from an https page.
+      // WebSocket probe already succeeded (ping/pong) — mark connected and
+      // hide the welcome card immediately. Tag discovery is best-effort and
+      // must NOT block the UI: if it fails or times out, the chat still
+      // works and the user can hit "Refresh models" in the dropdown.
+      setConnected(true);
+      setAutoStatus("connected");
+      saveEndpoint(found.url, found.mode);
+      setShowWelcome(false);
+      appendLog({ ts: nowTs(), level: "OK", msg: `auto-connect: ${found.url} (ws ok)` });
       try {
         const list = await getTagsViaWS(found.url.replace(/\/$/, ""));
         if (cancelled) return;
         setAvailableModels(list.map((m) => m.name));
-        setConnected(true);
-        setAutoStatus("connected");
-        saveEndpoint(found.url, found.mode);
         if (list[0]?.name) setModel((prev) => prev ?? list[0].name);
-        setShowWelcome(false);
         appendLog({
           ts: nowTs(),
           level: "OK",
-          msg: `auto-connect: ${found.url} · ${list.length} model${list.length === 1 ? "" : "s"}`,
+          msg: `models discovered · ${list.length} model${list.length === 1 ? "" : "s"}`,
         });
       } catch (e) {
         if (cancelled) return;
-        setAutoStatus("failed");
         const msg = e instanceof Error ? e.message : "unknown";
-        appendLog({ ts: nowTs(), level: "ERR", msg: `auto-connect get_tags failed · ${msg}` });
-        if (!everConnected) setShowWelcome(true);
+        appendLog({ ts: nowTs(), level: "ERR", msg: `get_tags failed · ${msg} — use Refresh models` });
       }
     });
     return () => {
