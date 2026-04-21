@@ -161,6 +161,7 @@ function Index() {
   });
   const [autoSendByTab, setAutoSendByTab] = useState<Record<string, { token: number; text: string }>>({});
   const [repairTokenByTab, setRepairTokenByTab] = useState<Record<string, number>>({});
+  const [planRequestByTab, setPlanRequestByTab] = useState<Record<string, { token: number; goal: string }>>({});
   const [memoryCountByTab, setMemoryCountByTab] = useState<Record<string, number>>({});
   const [flashTurnTabId, setFlashTurnTabId] = useState<string | null>(null);
   const [refreshingModels, setRefreshingModels] = useState(false);
@@ -836,6 +837,13 @@ function Index() {
                     setRepairTokenByTab((prev) => ({ ...prev, [activeTab.id]: (prev[activeTab.id] ?? 0) + 1 }));
                     appendLog({ ts: nowTs(), level: "ARROW", msg: `${activeTab.name} → manual self-repair requested` });
                   }}
+                  onPlan={(goal) => {
+                    setPlanRequestByTab((prev) => ({
+                      ...prev,
+                      [activeTab.id]: { token: (prev[activeTab.id]?.token ?? 0) + 1, goal },
+                    }));
+                    appendLog({ ts: nowTs(), level: "ARROW", msg: `${activeTab.name} → plan requested: ${goal}` });
+                  }}
                   onRefreshModels={refreshModels}
                   refreshingModels={refreshingModels}
                   projects={projects.filter((p) => !p.archived).map((p) => ({ id: p.id, emoji: p.emoji, name: p.name }))}
@@ -897,6 +905,8 @@ function Index() {
                             autoSendToken={autoSendByTab[t.id]?.token ?? 0}
                             autoSendText={autoSendByTab[t.id]?.text ?? ""}
                             repairToken={repairTokenByTab[t.id] ?? 0}
+                            planToken={planRequestByTab[t.id]?.token ?? 0}
+                            planGoal={planRequestByTab[t.id]?.goal ?? ""}
                             onOpenConfig={() => setActive("config")}
                             onRequestSend={(text) => handleRequestSend(t.id, t.name, t.color, t.model ?? model, text)}
                             onCancelQueued={() => {
