@@ -1072,6 +1072,65 @@ export function ChatView({
         </div>
       )}
 
+      {planCard && (
+        <PlanCard
+          goal={planCard.goal}
+          state={planCard.state}
+          steps={planCard.steps}
+          runtime={planCard.runtime}
+          current={planCard.current}
+          total={planCard.total}
+          logs={planCard.logs}
+          completed={planCard.completed}
+          failed={planCard.failed}
+          errorMsg={planCard.errorMsg}
+          showResults={planCard.showResults}
+          onExecute={() => {
+            if (!planCard) return;
+            sendPlan(tabId, planCard.goal);
+            setPlanCard((prev) => prev ? { ...prev, state: "running", logs: prev.logs } : prev);
+          }}
+          onCancel={() => setPlanCard(null)}
+          onPause={() => sendPlanPause(tabId)}
+          onResume={() => sendPlanResume(tabId)}
+          onStop={() => sendPlanStop(tabId)}
+          onToggleResults={() => setPlanCard((prev) => prev ? { ...prev, showResults: !prev.showResults } : prev)}
+          onDismiss={() => setPlanCard(null)}
+        />
+      )}
+
+      {planSuggestion && (
+        <div
+          className="mx-4 mb-2 px-3 py-2 rounded-md flex items-center justify-between gap-3 font-mono"
+          style={{
+            background: "color-mix(in oklab, var(--primary) 12%, var(--surface))",
+            border: "1px solid var(--primary)",
+            color: "var(--foreground)",
+            fontSize: 12,
+          }}
+        >
+          <span>🗺 This sounds like a multi-step task.</span>
+          <span className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleConfirmPlan}
+              className="px-3 py-1 rounded uppercase tracking-[0.18em]"
+              style={{ background: "var(--primary)", color: "var(--primary-foreground)", border: "none", fontSize: 10 }}
+            >
+              Create Plan
+            </button>
+            <button
+              type="button"
+              onClick={handleJustChat}
+              className="px-3 py-1 rounded border uppercase tracking-[0.18em]"
+              style={{ borderColor: "var(--border)", color: "var(--muted-foreground)", background: "transparent", fontSize: 10 }}
+            >
+              Just Chat
+            </button>
+          </span>
+        </div>
+      )}
+
       {installCard && (
         <div className="space-y-1">
           <InstallActionCard
