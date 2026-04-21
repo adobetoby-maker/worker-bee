@@ -956,6 +956,11 @@ function Index() {
                               setActive("projects");
                             }}
                             onSmokeTest={() => runSmokeTest(t.name)}
+                            onMemoryStatsChange={(total) =>
+                              setMemoryCountByTab((prev) =>
+                                prev[t.id] === total ? prev : { ...prev, [t.id]: total }
+                              )
+                            }
                           />
                         </div>
                       ))}
