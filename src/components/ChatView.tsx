@@ -1368,13 +1368,22 @@ export function ChatView({
             <Textarea
               rows={1}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                const ta = e.target as HTMLTextAreaElement;
+                ta.style.height = "auto";
+                ta.style.height = Math.min(ta.scrollHeight, 200) + "px";
+                setInput(ta.value);
+              }}
               onKeyDown={onKeyDown}
               placeholder={connected ? "Message Worker Bee…" : "Connect to Ollama in CONFIG first"}
               className="flex-1 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
               style={{
                 padding: 0,
+                height: "auto",
                 minHeight: 24,
+                maxHeight: 200,
+                overflowY: "auto",
+                resize: "none",
                 fontSize: 14,
                 boxShadow: "none",
               }}
