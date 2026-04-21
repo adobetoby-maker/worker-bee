@@ -2,7 +2,18 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { nowTs, type LogLine } from "@/lib/agent-state";
 import { BrowserTaskCard, detectBrowserAction } from "./BrowserTaskCard";
-import { sendChat, sendStop, subscribeAgentWS, isWSOpen, sendBrowser, extractBrowserUrl } from "@/lib/agent-ws";
+import {
+  sendChat,
+  sendStop,
+  subscribeAgentWS,
+  isWSOpen,
+  sendBrowser,
+  extractBrowserUrl,
+  sendShell,
+  detectInstallCommand,
+  isUnsafeCommand,
+} from "@/lib/agent-ws";
+import { InstallActionCard, type InstallCardState } from "./InstallActionCard";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -90,6 +101,16 @@ export function ChatView({
   const abortRef = useRef<AbortController | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
+  // Install action card state — driven by post-stream scan of assistant text.
+  const [installCard, setInstallCard] = useState<{
+    command: string;
+    state: InstallCardState;
+    output: string;
+    exitCode?: number;
+    blockedReason?: string;
+  } | null>(null);
+  const installUnsubRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     onStreamingChange(streaming);
   }, [streaming, onStreamingChange]);
@@ -160,6 +181,22 @@ export function ChatView({
         appendLog({ ts: nowTs(), level: "ERR", msg: `chat: ${errorText}` });
       } else {
         appendLog({ ts: nowTs(), level: "OK", msg: `response complete chars=${assistantText.length}` });
+        // Scan completed assistant message for install commands.
+        const cmd = detectInstallCommand(assistantText);
+        if (cmd) {
+          if (isUnsafeCommand(cmd)) {
+            appendLog({ ts: nowTs(), level: "ERR", msg: `BLOCKED unsafe command: ${cmd}` });
+            setInstallCard({
+              command: cmd,
+              state: "blocked",
+              output: "",
+              blockedReason: "This command is on the unsafe-command blocklist and was not executed.",
+            });
+          } else {
+            appendLog({ ts: nowTs(), level: "ARROW", msg: `install detected: ${cmd}` });
+            setInstallCard({ command: cmd, state: "prompt", output: "" });
+          }
+        }
       }
       setStreaming(false);
       abortRef.current = null;
@@ -244,6 +281,108 @@ export function ChatView({
     }
   };
 
+  // Cleanup any in-flight shell subscription on unmount.
+  useEffect(() => {
+    return () => {
+      installUnsubRef.current?.();
+      installUnsubRef.current = null;
+    };
+  }, []);
+
+  const sendFollowUpChat = (content: string) => {
+    if (!model) return;
+    if (!isWSOpen(tabId)) {
+      appendLog({ ts: nowTs(), level: "ERR", msg: "follow-up chat: WS not open" });
+      return;
+    }
+    onMessagesChange((prev) => [
+      ...prev,
+      { role: "user", content },
+      { role: "assistant", content: "" },
+    ]);
+    setStreaming(true);
+    onSendStart?.(content);
+    let assistantText = "";
+    let finished = false;
+    const finish = (errorText?: string) => {
+      if (finished) return;
+      finished = true;
+      unsub?.();
+      if (errorText) {
+        onMessagesChange((prev) => {
+          const copy = prev.slice();
+          copy[copy.length - 1] = { role: "assistant", content: `⚠ ${errorText}` };
+          return copy;
+        });
+      }
+      setStreaming(false);
+      onSendEnd?.();
+    };
+    const unsub = subscribeAgentWS(tabId, {
+      onToken: (tok) => {
+        if (!tok) return;
+        assistantText += tok;
+        onMessagesChange((prev) => {
+          const copy = prev.slice();
+          copy[copy.length - 1] = { role: "assistant", content: assistantText };
+          return copy;
+        });
+      },
+      onDone: () => finish(),
+      onError: (m) => finish(m || "agent error"),
+      onClose: () => finish("WebSocket closed during stream"),
+    });
+    const ok = sendChat(tabId, content, model);
+    if (!ok) finish("failed to send over WebSocket");
+  };
+
+  const handleApproveInstall = () => {
+    if (!installCard || installCard.state !== "prompt") return;
+    const cmd = installCard.command;
+    if (!isWSOpen(tabId)) {
+      appendLog({ ts: nowTs(), level: "ERR", msg: "shell: WS not open" });
+      return;
+    }
+    setInstallCard({ command: cmd, state: "running", output: "" });
+    appendLog({ ts: nowTs(), level: "ARROW", msg: `shell approved: ${cmd}` });
+    let buf = "";
+    installUnsubRef.current?.();
+    const unsub = subscribeAgentWS(tabId, {
+      onShellOutput: (chunk) => {
+        if (!chunk) return;
+        buf += chunk;
+        setInstallCard((prev) => prev ? { ...prev, output: buf } : prev);
+      },
+      onShellDone: ({ exitCode, ok, output }) => {
+        const finalOutput = output && output.length > buf.length ? output : buf;
+        setInstallCard((prev) => prev ? { ...prev, state: "done", output: finalOutput, exitCode } : prev);
+        installUnsubRef.current?.();
+        installUnsubRef.current = null;
+        if (ok) {
+          sendFollowUpChat("The installation completed successfully. Please continue with the original task.");
+        } else {
+          sendFollowUpChat(`The installation failed (exit code ${exitCode}). Please suggest an alternative approach.`);
+        }
+      },
+    });
+    installUnsubRef.current = unsub;
+    const sent = sendShell(tabId, cmd);
+    if (!sent) {
+      setInstallCard({ command: cmd, state: "done", output: "failed to send shell command", exitCode: 1 });
+      installUnsubRef.current?.();
+      installUnsubRef.current = null;
+    }
+  };
+
+  const handleDenyInstall = () => {
+    if (!installCard) return;
+    appendLog({ ts: nowTs(), level: "ARROW", msg: `shell denied: ${installCard.command}` });
+    setInstallCard(null);
+    sendFollowUpChat("The user denied the install request. Please suggest an alternative approach that does not require installing new packages.");
+  };
+
+  const handleDismissInstall = () => setInstallCard(null);
+
   return (
     <div
       className="flex flex-1 min-h-0 flex-col"
@@ -311,6 +450,31 @@ export function ChatView({
         if (!action) return null;
         return <BrowserTaskCard action={action} onStop={stop} />;
       })()}
+
+      {installCard && (
+        <div className="space-y-1">
+          <InstallActionCard
+            command={installCard.command}
+            state={installCard.state}
+            output={installCard.output}
+            exitCode={installCard.exitCode}
+            blockedReason={installCard.blockedReason}
+            onApprove={handleApproveInstall}
+            onDeny={handleDenyInstall}
+          />
+          {(installCard.state === "done" || installCard.state === "blocked") && (
+            <div className="px-4 pb-1 text-right">
+              <button
+                type="button"
+                onClick={handleDismissInstall}
+                className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
+              >
+                dismiss ✕
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {isQueued && (
         <div

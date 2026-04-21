@@ -8,7 +8,7 @@ import { nowTs, type LogLine } from "@/lib/agent-state";
 export type WSStatus = "idle" | "connecting" | "open" | "closed" | "error";
 
 export interface AgentWSMessage {
-  type: "token" | "done" | "status" | "error" | "pong" | "browser_result";
+  type: "token" | "done" | "status" | "error" | "pong" | "browser_result" | "shell_output" | "shell_done";
   content?: string;
   text?: string;
   message?: string;
@@ -25,6 +25,8 @@ export interface AgentWSHandlers {
   onClose?: () => void;
   onSocketError?: () => void;
   onBrowserResult?: (result: { text: string; url?: string; raw: unknown }) => void;
+  onShellOutput?: (chunk: string) => void;
+  onShellDone?: (result: { exitCode: number; ok: boolean; output: string }) => void;
 }
 
 interface Entry {
@@ -171,6 +173,30 @@ export function openAgentWS(
         entry.handlers.forEach((h) => h.onBrowserResult?.({ text: bText, url: bUrl, raw: data }));
         break;
       }
+      case "shell_output": {
+        const chunk = typeof data === "string"
+          ? data
+          : (data && typeof data === "object" && typeof (data as { text?: unknown }).text === "string"
+              ? (data as { text: string }).text
+              : text);
+        entry.handlers.forEach((h) => h.onShellOutput?.(chunk));
+        break;
+      }
+      case "shell_done": {
+        let exitCode = 0;
+        let output = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.exit_code === "number") exitCode = d.exit_code;
+          else if (typeof d.exitCode === "number") exitCode = d.exitCode;
+          if (typeof d.output === "string") output = d.output;
+          else if (typeof d.text === "string") output = d.text;
+        }
+        const ok = exitCode === 0;
+        entry.log?.({ ts: nowTs(), level: ok ? "OK" : "ERR", msg: `shell_done exit=${exitCode}` });
+        entry.handlers.forEach((h) => h.onShellDone?.({ exitCode, ok, output }));
+        break;
+      }
     }
   };
 }
@@ -263,4 +289,61 @@ export function extractBrowserUrl(text: string): string | null {
   }
   if (hasTrigger) return null;
   return null;
+}
+
+// ────────────────────────────────────────────
+// Shell action + install detection / safety
+// ────────────────────────────────────────────
+
+const INSTALL_PATTERNS: RegExp[] = [
+  /\bpip(?:3)?\s+install\s+[^\n`]+/i,
+  /\bollama\s+pull\s+[^\n`]+/i,
+  /\bbrew\s+install\s+[^\n`]+/i,
+  /\bplaywright\s+install(?:\s+[^\n`]+)?/i,
+  /\bnpm\s+install\s+[^\n`]+/i,
+  /\bapt(?:-get)?\s+install\s+[^\n`]+/i,
+];
+
+const UNSAFE_PATTERNS: RegExp[] = [
+  /\brm\s+-rf\b/i,
+  /\bsudo\s+rm\b/i,
+  /\bmkfs\b/i,
+  /\bdd\s+if=/i,
+  /\bchmod\s+777\s+\//i,
+  /curl[^\n|]*\|\s*bash/i,
+  /wget[^\n|]*\|\s*bash/i,
+];
+
+export function detectInstallCommand(text: string): string | null {
+  if (!text) return null;
+  for (const re of INSTALL_PATTERNS) {
+    const m = text.match(re);
+    if (m) {
+      // Strip trailing punctuation/markdown noise.
+      return m[0]
+        .replace(/[`*]+/g, "")
+        .replace(/[.,;)\]}>]+$/, "")
+        .trim();
+    }
+  }
+  return null;
+}
+
+export function isUnsafeCommand(cmd: string): boolean {
+  return UNSAFE_PATTERNS.some((re) => re.test(cmd));
+}
+
+export function sendShell(tabId: string, command: string): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "shell: WebSocket not open" });
+    return false;
+  }
+  const payload = { action: "shell", command };
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  console.log("WS readyState:", ws.readyState, "sending:", payload);
+  ws.send(json);
+  return true;
 }
