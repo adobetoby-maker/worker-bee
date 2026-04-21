@@ -229,17 +229,17 @@ export function ChatView({
 
   const startStream = async (text: string) => {
     if (!connected || !model) {
-      appendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
       return;
     }
     const next: ChatMessage[] = [...messages, { role: "user", content: text }];
     onMessagesChange(() => [...next, { role: "assistant", content: "" }]);
     setStreaming(true);
     onSendStart?.(text);
-    appendLog({ ts: nowTs(), level: "ARROW", msg: `chat send chars=${text.length}` });
+    trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: `chat send chars=${text.length}` });
 
     if (!isWSOpen(tabId)) {
-      appendLog({ ts: nowTs(), level: "ERR", msg: "chat: WebSocket not open — is agent running?" });
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "chat: WebSocket not open — is agent running?" });
       onMessagesChange((prev) => {
         const copy = prev.slice();
         copy[copy.length - 1] = { role: "assistant", content: "⚠ WebSocket not connected to agent. Start the Worker Bee agent server and reconnect in CONFIG." };
@@ -262,14 +262,14 @@ export function ChatView({
           copy[copy.length - 1] = { role: "assistant", content: `⚠ ${errorText}` };
           return copy;
         });
-        appendLog({ ts: nowTs(), level: "ERR", msg: `chat: ${errorText}` });
+        trackedAppendLog({ ts: nowTs(), level: "ERR", msg: `chat: ${errorText}` });
       } else {
-        appendLog({ ts: nowTs(), level: "OK", msg: `response complete chars=${assistantText.length}` });
+        trackedAppendLog({ ts: nowTs(), level: "OK", msg: `response complete chars=${assistantText.length}` });
         // Scan completed assistant message for install commands.
         const cmd = detectInstallCommand(assistantText);
         if (cmd) {
           if (isUnsafeCommand(cmd)) {
-            appendLog({ ts: nowTs(), level: "ERR", msg: `BLOCKED unsafe command: ${cmd}` });
+            trackedAppendLog({ ts: nowTs(), level: "ERR", msg: `BLOCKED unsafe command: ${cmd}` });
             setInstallCard({
               command: cmd,
               state: "blocked",
@@ -277,7 +277,7 @@ export function ChatView({
               blockedReason: "This command is on the unsafe-command blocklist and was not executed.",
             });
           } else {
-            appendLog({ ts: nowTs(), level: "ARROW", msg: `install detected: ${cmd}` });
+            trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: `install detected: ${cmd}` });
             setInstallCard({ command: cmd, state: "prompt", output: "" });
           }
         }
@@ -290,7 +290,7 @@ export function ChatView({
     const controller = new AbortController();
     abortRef.current = controller;
     controller.signal.addEventListener("abort", () => {
-      appendLog({ ts: nowTs(), level: "ARROW", msg: "stream aborted" });
+      trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: "stream aborted" });
       finish();
     });
 
@@ -308,7 +308,7 @@ export function ChatView({
       onError: (msg) => finish(msg || "agent error"),
       onClose: () => finish("WebSocket closed during stream"),
       onBrowserResult: (res) => {
-        appendLog({ ts: nowTs(), level: "OK", msg: `browser_result received (${res.text.length} chars) — sending to model` });
+        trackedAppendLog({ ts: nowTs(), level: "OK", msg: `browser_result received (${res.text.length} chars) — sending to model` });
         const urlForPrompt = res.url ?? extractBrowserUrl(text) ?? "the requested URL";
         if (res.visionDescription) {
           onMessagesChange((prev) => {
@@ -353,7 +353,7 @@ export function ChatView({
 
     const browserUrl = extractBrowserUrl(text);
     if (browserUrl) {
-      appendLog({ ts: nowTs(), level: "ARROW", msg: `browser action → ${browserUrl}` });
+      trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: `browser action → ${browserUrl}` });
       const ok = sendBrowser(tabId, browserUrl);
       if (!ok) finish("failed to send browser action");
       return;
@@ -382,7 +382,7 @@ export function ChatView({
       return;
     }
     if (!connected || !model) {
-      appendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
       return;
     }
     const decision = onRequestSend ? onRequestSend(text) : "start";
@@ -412,7 +412,7 @@ export function ChatView({
   const sendFollowUpChat = (content: string) => {
     if (!model) return;
     if (!isWSOpen(tabId)) {
-      appendLog({ ts: nowTs(), level: "ERR", msg: "follow-up chat: WS not open" });
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "follow-up chat: WS not open" });
       return;
     }
     onMessagesChange((prev) => [
@@ -460,11 +460,11 @@ export function ChatView({
     if (!installCard || installCard.state !== "prompt") return;
     const cmd = installCard.command;
     if (!isWSOpen(tabId)) {
-      appendLog({ ts: nowTs(), level: "ERR", msg: "shell: WS not open" });
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "shell: WS not open" });
       return;
     }
     setInstallCard({ command: cmd, state: "running", output: "" });
-    appendLog({ ts: nowTs(), level: "ARROW", msg: `shell approved: ${cmd}` });
+    trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: `shell approved: ${cmd}` });
     let buf = "";
     installUnsubRef.current?.();
     const unsub = subscribeAgentWS(tabId, {
@@ -496,7 +496,7 @@ export function ChatView({
 
   const handleDenyInstall = () => {
     if (!installCard) return;
-    appendLog({ ts: nowTs(), level: "ARROW", msg: `shell denied: ${installCard.command}` });
+    trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: `shell denied: ${installCard.command}` });
     setInstallCard(null);
     sendFollowUpChat("The user denied the install request. Please suggest an alternative approach that does not require installing new packages.");
   };
