@@ -474,6 +474,12 @@ export function ChatView({
       setLoginPrompt({ url: loginUrl });
       return;
     }
+    // Plan intent detection — show suggestion bar (one chance per message).
+    if (!planCard && !planSuggestion && detectPlanIntent(text)) {
+      onMessagesChange((prev) => [...prev, { role: "user", content: text }]);
+      setPlanSuggestion(text);
+      return;
+    }
     const decision = onRequestSend ? onRequestSend(text) : "start";
     if (decision === "queued") {
       setInput("");
