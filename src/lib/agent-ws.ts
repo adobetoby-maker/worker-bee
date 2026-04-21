@@ -8,7 +8,7 @@ import { nowTs, type LogLine } from "@/lib/agent-state";
 export type WSStatus = "idle" | "connecting" | "open" | "closed" | "error";
 
 export interface AgentWSMessage {
-  type: "token" | "done" | "status" | "error" | "pong" | "browser_result" | "shell_output" | "shell_done";
+  type: "token" | "done" | "status" | "error" | "pong" | "browser_result" | "shell_output" | "shell_done" | "screenshot";
   content?: string;
   text?: string;
   message?: string;
@@ -24,7 +24,8 @@ export interface AgentWSHandlers {
   onOpen?: () => void;
   onClose?: () => void;
   onSocketError?: () => void;
-  onBrowserResult?: (result: { text: string; url?: string; raw: unknown }) => void;
+  onBrowserResult?: (result: { text: string; url?: string; visionDescription?: string; raw: unknown }) => void;
+  onScreenshot?: (result: { url?: string; screenshotB64: string }) => void;
   onShellOutput?: (chunk: string) => void;
   onShellDone?: (result: { exitCode: number; ok: boolean; output: string }) => void;
 }
@@ -161,16 +162,32 @@ export function openAgentWS(
       case "browser_result": {
         let bText = "";
         let bUrl: string | undefined;
+        let bVision: string | undefined;
         if (data && typeof data === "object") {
           const d = data as Record<string, unknown>;
           if (typeof d.text === "string") bText = d.text;
           else if (typeof d.content === "string") bText = d.content;
           if (typeof d.url === "string") bUrl = d.url;
+          if (typeof d.vision_description === "string") bVision = d.vision_description;
+          else if (typeof d.visionDescription === "string") bVision = d.visionDescription;
         } else if (typeof data === "string") {
           bText = data;
         }
         entry.log?.({ ts: nowTs(), level: "OK", msg: `browser_result chars=${bText.length}` });
-        entry.handlers.forEach((h) => h.onBrowserResult?.({ text: bText, url: bUrl, raw: data }));
+        entry.handlers.forEach((h) => h.onBrowserResult?.({ text: bText, url: bUrl, visionDescription: bVision, raw: data }));
+        break;
+      }
+      case "screenshot": {
+        let sUrl: string | undefined;
+        let sB64 = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.url === "string") sUrl = d.url;
+          if (typeof d.screenshot_b64 === "string") sB64 = d.screenshot_b64;
+          else if (typeof d.screenshotB64 === "string") sB64 = d.screenshotB64;
+        }
+        entry.log?.({ ts: nowTs(), level: "OK", msg: `screenshot received bytes=${sB64.length}` });
+        entry.handlers.forEach((h) => h.onScreenshot?.({ url: sUrl, screenshotB64: sB64 }));
         break;
       }
       case "shell_output": {

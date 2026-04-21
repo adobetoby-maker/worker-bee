@@ -18,6 +18,10 @@ import { InstallActionCard, type InstallCardState } from "./InstallActionCard";
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
+  // Optional rich payloads — when present, rendered with custom UI.
+  screenshotB64?: string;
+  screenshotUrl?: string;
+  visionDescription?: string;
 }
 
 interface Props {
@@ -226,9 +230,44 @@ export function ChatView({
       onBrowserResult: (res) => {
         appendLog({ ts: nowTs(), level: "OK", msg: `browser_result received (${res.text.length} chars) — sending to model` });
         const urlForPrompt = res.url ?? extractBrowserUrl(text) ?? "the requested URL";
+        if (res.visionDescription) {
+          onMessagesChange((prev) => {
+            // Insert vision card BEFORE the in-progress assistant placeholder.
+            const copy = prev.slice();
+            const visionMsg: ChatMessage = {
+              role: "assistant",
+              content: "",
+              visionDescription: res.visionDescription,
+            };
+            if (copy.length > 0 && copy[copy.length - 1].role === "assistant" && copy[copy.length - 1].content === "") {
+              copy.splice(copy.length - 1, 0, visionMsg);
+            } else {
+              copy.push(visionMsg);
+            }
+            return copy;
+          });
+        }
         const followUp = `${text}\n\nYou are Worker Bee, an AI agent with a real Playwright browser. You just navigated to ${urlForPrompt} and retrieved this content. You CAN browse websites, take screenshots, and interact with pages. Analyze what you found and respond helpfully:\n\n${res.text}`;
         const ok = sendChat(tabId, followUp, model);
         if (!ok) finish("failed to send chat after browser_result");
+      },
+      onScreenshot: (shot) => {
+        if (!shot.screenshotB64) return;
+        onMessagesChange((prev) => {
+          const copy = prev.slice();
+          const shotMsg: ChatMessage = {
+            role: "assistant",
+            content: "",
+            screenshotB64: shot.screenshotB64,
+            screenshotUrl: shot.url,
+          };
+          if (copy.length > 0 && copy[copy.length - 1].role === "assistant" && copy[copy.length - 1].content === "") {
+            copy.splice(copy.length - 1, 0, shotMsg);
+          } else {
+            copy.push(shotMsg);
+          }
+          return copy;
+        });
       },
     });
 
@@ -401,6 +440,70 @@ export function ChatView({
           const isUser = m.role === "user";
           const isLast = i === messages.length - 1;
           const showCursor = !isUser && isLast && streaming;
+          // Special rich messages: screenshot / vision analysis.
+          if (!isUser && m.screenshotB64) {
+            return (
+              <div key={i} className="flex items-start gap-3 justify-start">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-base">
+                  🌐
+                </div>
+                <div
+                  className="max-w-[75%]"
+                  style={{
+                    background: "#0a0a0a",
+                    border: "1px solid #ffaa00",
+                    borderRadius: 8,
+                    padding: 12,
+                    marginBottom: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "#ffaa00",
+                      fontFamily: "JetBrains Mono, monospace",
+                      fontSize: 11,
+                      marginBottom: 8,
+                    }}
+                  >
+                    🌐 SCREENSHOT — {m.screenshotUrl ?? ""}
+                  </div>
+                  <img
+                    src={`data:image/png;base64,${m.screenshotB64}`}
+                    alt="browser screenshot"
+                    style={{ width: "100%", borderRadius: 6, display: "block" }}
+                  />
+                </div>
+              </div>
+            );
+          }
+          if (!isUser && m.visionDescription) {
+            return (
+              <div key={i} className="flex items-start gap-3 justify-start">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-base">
+                  👁
+                </div>
+                <div
+                  className="max-w-[75%]"
+                  style={{
+                    background: "#0a0a0a",
+                    border: "1px solid #39ff14",
+                    borderRadius: 8,
+                    padding: 12,
+                    color: "#39ff14",
+                    fontFamily: "JetBrains Mono, monospace",
+                    fontSize: 13,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  <div style={{ fontSize: 11, marginBottom: 8, opacity: 0.85 }}>
+                    🔍 VISUAL ANALYSIS (via llava):
+                  </div>
+                  {m.visionDescription}
+                </div>
+              </div>
+            );
+          }
           return (
             <div
               key={i}
