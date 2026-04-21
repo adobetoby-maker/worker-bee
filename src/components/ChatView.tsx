@@ -1656,9 +1656,10 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
     <div className="space-y-2">
       {parts.map((p, i) => {
         if (p.type === "text") {
+          const html = renderInlineMarkdown(p.text);
           return (
-            <div key={i} className="whitespace-pre-wrap break-words">
-              {p.text}
+            <div key={i} className="break-words assistant-md">
+              <span dangerouslySetInnerHTML={{ __html: html }} />
               {showCursor && i === parts.length - 1 && (
                 <svg
                   width={18}
