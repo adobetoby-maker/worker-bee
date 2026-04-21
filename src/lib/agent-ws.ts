@@ -4,11 +4,24 @@
 // Inbound message shapes: { type: "token"|"done"|"status"|"error"|"pong", ... }
 
 import { nowTs, type LogLine } from "@/lib/agent-state";
+import type {
+  GmailCategoryCount,
+  GmailCategoryId,
+  GmailDone,
+  GmailEmailPreview,
+  GmailProgress,
+  GmailTopSender,
+} from "@/lib/gmail-protocol";
 
 export type WSStatus = "idle" | "connecting" | "open" | "closed" | "error";
 
 export interface AgentWSMessage {
-  type: "token" | "done" | "status" | "error" | "pong" | "browser_result" | "shell_output" | "shell_done" | "screenshot" | "repair_started" | "repair_log" | "repair_complete";
+  type:
+    | "token" | "done" | "status" | "error" | "pong"
+    | "browser_result" | "shell_output" | "shell_done" | "screenshot"
+    | "repair_started" | "repair_log" | "repair_complete"
+    | "gmail_summary" | "gmail_preview" | "gmail_top_senders"
+    | "gmail_progress" | "gmail_done";
   content?: string;
   text?: string;
   message?: string;
@@ -31,6 +44,11 @@ export interface AgentWSHandlers {
   onRepairStarted?: (info: { error: string }) => void;
   onRepairLog?: (line: string) => void;
   onRepairComplete?: (info: { ok: boolean; message?: string; errorLog?: string }) => void;
+  onGmailSummary?: (info: { categories: GmailCategoryCount[] }) => void;
+  onGmailPreview?: (info: { category: GmailCategoryId; items: GmailEmailPreview[] }) => void;
+  onGmailTopSenders?: (info: { senders: GmailTopSender[] }) => void;
+  onGmailProgress?: (info: GmailProgress) => void;
+  onGmailDone?: (info: GmailDone) => void;
 }
 
 interface Entry {
@@ -372,6 +390,89 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         entry.handlers.forEach((h) => h.onRepairComplete?.({ ok, message, errorLog }));
         break;
       }
+      case "gmail_summary": {
+        const cats: GmailCategoryCount[] = [];
+        if (data && typeof data === "object") {
+          const arr = (data as { categories?: unknown }).categories;
+          if (Array.isArray(arr)) {
+            for (const c of arr) {
+              if (c && typeof c === "object" && typeof (c as { id?: unknown }).id === "string" && typeof (c as { count?: unknown }).count === "number") {
+                cats.push({ id: (c as { id: GmailCategoryId }).id, count: (c as { count: number }).count });
+              }
+            }
+          }
+        }
+        entry.log?.({ ts: nowTs(), level: "OK", msg: `gmail_summary categories=${cats.length}` });
+        entry.handlers.forEach((h) => h.onGmailSummary?.({ categories: cats }));
+        break;
+      }
+      case "gmail_preview": {
+        let category: GmailCategoryId = "inbox_total";
+        const items: GmailEmailPreview[] = [];
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.category === "string") category = d.category as GmailCategoryId;
+          if (Array.isArray(d.items)) {
+            for (const it of d.items) {
+              if (it && typeof it === "object") {
+                const r = it as Record<string, unknown>;
+                items.push({
+                  id: String(r.id ?? ""),
+                  from: String(r.from ?? ""),
+                  subject: String(r.subject ?? ""),
+                  snippet: typeof r.snippet === "string" ? r.snippet : undefined,
+                  date: typeof r.date === "string" ? r.date : undefined,
+                });
+              }
+            }
+          }
+        }
+        entry.handlers.forEach((h) => h.onGmailPreview?.({ category, items }));
+        break;
+      }
+      case "gmail_top_senders": {
+        const senders: GmailTopSender[] = [];
+        if (data && typeof data === "object") {
+          const arr = (data as { senders?: unknown }).senders;
+          if (Array.isArray(arr)) {
+            for (const s of arr) {
+              if (s && typeof s === "object") {
+                const r = s as Record<string, unknown>;
+                if (typeof r.email === "string" && typeof r.count === "number") {
+                  senders.push({
+                    email: r.email,
+                    name: typeof r.name === "string" ? r.name : undefined,
+                    count: r.count,
+                  });
+                }
+              }
+            }
+          }
+        }
+        entry.handlers.forEach((h) => h.onGmailTopSenders?.({ senders }));
+        break;
+      }
+      case "gmail_progress": {
+        if (!data || typeof data !== "object") break;
+        const d = data as Record<string, unknown>;
+        const op = (d.op === "delete" ? "delete" : "archive") as "archive" | "delete";
+        const processed = typeof d.processed === "number" ? d.processed : 0;
+        const total = typeof d.total === "number" ? d.total : 0;
+        const label = typeof d.label === "string" ? d.label : undefined;
+        entry.handlers.forEach((h) => h.onGmailProgress?.({ op, processed, total, label }));
+        break;
+      }
+      case "gmail_done": {
+        if (!data || typeof data !== "object") break;
+        const d = data as Record<string, unknown>;
+        const op = (d.op === "delete" ? "delete" : "archive") as "archive" | "delete";
+        const processed = typeof d.processed === "number" ? d.processed : 0;
+        const ok = typeof d.ok === "boolean" ? d.ok : true;
+        const message = typeof d.message === "string" ? d.message : undefined;
+        entry.log?.({ ts: nowTs(), level: ok ? "OK" : "ERR", msg: `gmail_done op=${op} processed=${processed}` });
+        entry.handlers.forEach((h) => h.onGmailDone?.({ op, processed, ok, message }));
+        break;
+      }
     }
 }
 
@@ -532,6 +633,26 @@ export function sendSelfRepair(tabId: string, error: string): boolean {
     return false;
   }
   const payload = { action: "self_repair", error };
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
+
+export type GmailAction =
+  | { gmail_action: "summary" }
+  | { gmail_action: "preview"; category: GmailCategoryId; limit?: number }
+  | { gmail_action: "top_senders"; limit?: number }
+  | { gmail_action: "archive" | "delete"; category?: GmailCategoryId; sender?: string; dry_run?: boolean };
+
+export function sendGmail(tabId: string, args: GmailAction): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "gmail: WebSocket not open" });
+    return false;
+  }
+  const payload = { action: "gmail", ...args };
   const json = JSON.stringify(payload);
   entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
   ws.send(json);
