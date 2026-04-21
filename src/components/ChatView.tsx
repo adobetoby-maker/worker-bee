@@ -136,6 +136,7 @@ export function ChatView({
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   // Install action card state — driven by post-stream scan of assistant text.
   const [installCard, setInstallCard] = useState<{
@@ -202,8 +203,31 @@ export function ChatView({
 
   useEffect(() => {
     const el = scrollerRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    if (isNearBottom) {
+      el.scrollTop = el.scrollHeight;
+      setShowScrollButton(false);
+    } else {
+      setShowScrollButton(true);
+    }
   }, [messages]);
+
+  // Hide scroll button when user scrolls back to bottom or streaming stops.
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+      if (nearBottom) setShowScrollButton(false);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!streaming) setShowScrollButton(false);
+  }, [streaming]);
 
   useEffect(() => {
     return () => {
