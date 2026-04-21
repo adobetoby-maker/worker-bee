@@ -23,7 +23,8 @@ export interface AgentWSMessage {
     | "gmail_summary" | "gmail_preview" | "gmail_top_senders"
     | "gmail_progress" | "gmail_done"
     | "login_log" | "login_result"
-    | "tags_result" | "ps_result";
+    | "tags_result" | "ps_result"
+    | "memory_stats" | "memory_search_result" | "memory_consulted" | "memory_stored";
   content?: string;
   text?: string;
   message?: string;
@@ -53,6 +54,17 @@ export interface AgentWSHandlers {
   onGmailDone?: (info: GmailDone) => void;
   onLoginLog?: (line: string) => void;
   onLoginResult?: (info: { ok: boolean; url?: string; attempts?: number; error?: string }) => void;
+  onMemoryStats?: (info: { conversations: number; actions: number; knowledge: number; total: number }) => void;
+  onMemorySearchResult?: (info: { query: string; results: MemorySearchResult[] }) => void;
+  onMemoryConsulted?: (info: { count: number }) => void;
+  onMemoryStored?: (info: { ok: boolean; message?: string }) => void;
+}
+
+export interface MemorySearchResult {
+  score?: number;
+  timestamp?: string;
+  content: string;
+  source?: string;
 }
 
 interface Entry {
