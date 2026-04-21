@@ -156,6 +156,66 @@ export function ChatView({
     }
   }, [stopToken]);
 
+  // Subscribe to repair events for this tab — always live, regardless of streaming.
+  useEffect(() => {
+    repairUnsubRef.current?.();
+    const unsub = subscribeAgentWS(tabId, {
+      onRepairStarted: ({ error }) => {
+        setRepairCard({ state: "started", error, logs: [] });
+        consecutiveErrRef.current = 0;
+        setErrBurst(0);
+      },
+      onRepairLog: (line) => {
+        if (!line) return;
+        setRepairCard((prev) => prev ? { ...prev, logs: [...prev.logs, line] } : prev);
+      },
+      onRepairComplete: ({ ok, message }) => {
+        setRepairCard((prev) => {
+          if (!prev) return prev;
+          const finalLogs = message ? [...prev.logs, message] : prev.logs;
+          return { ...prev, state: ok ? "complete" : "failed", logs: finalLogs };
+        });
+      },
+    });
+    repairUnsubRef.current = unsub;
+    return () => { unsub(); repairUnsubRef.current = null; };
+  }, [tabId]);
+
+  // Wrap appendLog to track consecutive ERR lines and trigger banner at 3.
+  const trackedAppendLog = (line: LogLine) => {
+    if (line.level === "ERR") {
+      consecutiveErrRef.current += 1;
+      if (consecutiveErrRef.current >= 3 && !burstDismissed && !repairCard) {
+        setErrBurst(consecutiveErrRef.current);
+      }
+    } else if (line.level === "OK") {
+      consecutiveErrRef.current = 0;
+    }
+    appendLog(line);
+  };
+
+  // Manual repair trigger from TabControls.
+  const triggerSelfRepair = (errorText: string) => {
+    if (!isWSOpen(tabId)) {
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "self_repair: WS not open" });
+      return;
+    }
+    setRepairCard({ state: "started", error: errorText, logs: [] });
+    consecutiveErrRef.current = 0;
+    setErrBurst(0);
+    setBurstDismissed(false);
+    sendSelfRepair(tabId, errorText);
+  };
+
+  const lastRepairTokenRef = useRef(0);
+  useEffect(() => {
+    if (repairToken > 0 && repairToken !== lastRepairTokenRef.current) {
+      lastRepairTokenRef.current = repairToken;
+      triggerSelfRepair("Manual repair requested by user");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repairToken]);
+
   const resolvedSystemPrompt =
     systemPrompt ??
     `You are Worker Bee, a website-building AI agent running via Ollama. Available tools: ${enabledTools.join(", ") || "none"}.`;
