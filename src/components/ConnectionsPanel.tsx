@@ -344,13 +344,25 @@ export function ConnectionsPanel({ state, onChange, appendLog, onSaveToVault, on
               <div>✓ Search inbox by query</div>
               <div>✓ Reply to thread</div>
             </div>
-            <button
-              onClick={() => disconnect("gmail")}
-              className="font-mono text-[10px] uppercase tracking-[0.18em] px-3 py-1.5 rounded self-start"
-              style={{ background: "transparent", color: "#888", border: "1px solid #333" }}
-            >
-              Disconnect
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {onOpenInboxCleaner && (
+                <button
+                  onClick={onOpenInboxCleaner}
+                  className="font-mono text-[10px] uppercase tracking-[0.18em] px-3 py-1.5 rounded"
+                  style={{ background: AMBER, color: "#000", fontWeight: 700 }}
+                  title="Open the Inbox Cleaner agent mode"
+                >
+                  🧹 CLEAN INBOX
+                </button>
+              )}
+              <button
+                onClick={() => disconnect("gmail")}
+                className="font-mono text-[10px] uppercase tracking-[0.18em] px-3 py-1.5 rounded"
+                style={{ background: "transparent", color: "#888", border: "1px solid #333" }}
+              >
+                Disconnect
+              </button>
+            </div>
           </div>
         )}
       </Card>
