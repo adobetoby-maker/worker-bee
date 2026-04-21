@@ -329,6 +329,7 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
     } else if (data && typeof data === "object" && "content" in data && typeof (data as { content: unknown }).content === "string") {
       text = (data as { content: string }).content;
     }
+    if (msg.type === "heartbeat") return;
     console.log("WS msg type:", msg.type, "text:", text);
     switch (msg.type) {
       case "token":
