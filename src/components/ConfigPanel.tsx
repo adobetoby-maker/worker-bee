@@ -66,6 +66,7 @@ export function ConfigPanel({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [showTroubleshoot, setShowTroubleshoot] = useState(false);
+  const [tagsLoading, setTagsLoading] = useState(false);
 
   const handleMode = (m: Mode) => {
     setMode(m);
