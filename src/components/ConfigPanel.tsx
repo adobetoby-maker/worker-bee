@@ -369,13 +369,19 @@ export function ConfigPanel({
                 Loading models…
               </div>
             ) : models.length === 0 ? (
-              <button
-                type="button"
-                onClick={refreshModels}
-                className="w-full border border-primary/60 bg-surface px-3 py-2.5 font-mono text-sm text-primary hover:bg-primary/10"
-              >
-                🔄 REFRESH MODELS
-              </button>
+              <div className="flex gap-2">
+                <div className="flex-1 border border-border bg-surface px-3 py-2.5 font-mono text-sm text-muted-foreground">
+                  No models — click Refresh
+                </div>
+                <button
+                  type="button"
+                  onClick={refreshModels}
+                  className="border border-primary/60 bg-surface px-3 font-mono text-[11px] text-primary hover:bg-primary/10"
+                  title="Refresh models"
+                >
+                  🔄 REFRESH
+                </button>
+              </div>
             ) : (
               <div className="flex gap-2">
                 <select
