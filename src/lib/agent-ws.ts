@@ -216,3 +216,35 @@ export function sendStop(tabId: string): boolean {
   ws.send(JSON.stringify({ action: "stop" }));
   return true;
 }
+
+export function sendBrowser(tabId: string, url: string): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "browser: WebSocket not open" });
+    return false;
+  }
+  const payload = { action: "browser", url };
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  console.log("WS readyState:", ws.readyState, "sending:", payload);
+  ws.send(json);
+  return true;
+}
+
+const BROWSER_TRIGGER_RE = /(screenshot|scrape|navigate|browse|visit)/i;
+const URL_RE = /\bhttps?:\/\/[^\s]+/i;
+const DOMAIN_RE = /\b([a-z0-9-]+\.(?:com|io|app|dev|net|org|ai|co|xyz|tech))(\/[^\s]*)?/i;
+
+export function extractBrowserUrl(text: string): string | null {
+  const urlMatch = text.match(URL_RE);
+  if (urlMatch) return urlMatch[0].replace(/[.,)]+$/, "");
+  const hasTrigger = BROWSER_TRIGGER_RE.test(text);
+  const domainMatch = text.match(DOMAIN_RE);
+  if (domainMatch) {
+    const path = domainMatch[2] ?? "";
+    return `https://${domainMatch[1]}${path}`.replace(/[.,)]+$/, "");
+  }
+  if (hasTrigger) return null;
+  return null;
+}
