@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { nowTs, type LogLine } from "@/lib/agent-state";
 import { saveEndpoint, type EndpointMode } from "@/lib/auto-connect";
-import { getTagsViaWS, probeEndpointViaWS } from "@/lib/agent-ws";
+import { probeEndpointViaWS } from "@/lib/agent-ws";
+import { fetchTagsHTTP } from "@/lib/fetch-tags";
 
 type Mode = "http" | "https" | "tailscale" | "custom";
 
@@ -112,7 +113,7 @@ export function ConfigPanel({
     // Best-effort tag discovery (does NOT affect connected status)
     setTagsLoading(true);
     try {
-      const list = (await getTagsViaWS(url, 15000)) as OllamaModel[];
+      const list = (await fetchTagsHTTP(url, 8000)) as OllamaModel[];
       setModels(list);
       const first = list[0]?.name ?? null;
       if (first && !model) setModel(first);
@@ -135,7 +136,7 @@ export function ConfigPanel({
     setTagsLoading(true);
     appendLog({ ts: nowTs(), level: "ARROW", msg: "Refreshing models…" });
     try {
-      const list = (await getTagsViaWS(endpoint.replace(/\/$/, ""), 15000)) as OllamaModel[];
+      const list = (await fetchTagsHTTP(endpoint.replace(/\/$/, ""), 8000)) as OllamaModel[];
       setModels(list);
       const first = list[0]?.name ?? null;
       if (first && !model) setModel(first);
@@ -368,13 +369,19 @@ export function ConfigPanel({
                 Loading models…
               </div>
             ) : models.length === 0 ? (
-              <button
-                type="button"
-                onClick={refreshModels}
-                className="w-full border border-primary/60 bg-surface px-3 py-2.5 font-mono text-sm text-primary hover:bg-primary/10"
-              >
-                🔄 REFRESH MODELS
-              </button>
+              <div className="flex gap-2">
+                <div className="flex-1 border border-border bg-surface px-3 py-2.5 font-mono text-sm text-muted-foreground">
+                  No models — click Refresh
+                </div>
+                <button
+                  type="button"
+                  onClick={refreshModels}
+                  className="border border-primary/60 bg-surface px-3 font-mono text-[11px] text-primary hover:bg-primary/10"
+                  title="Refresh models"
+                >
+                  🔄 REFRESH
+                </button>
+              </div>
             ) : (
               <div className="flex gap-2">
                 <select
