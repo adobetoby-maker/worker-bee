@@ -1057,7 +1057,7 @@ function Index() {
               ) : (
                 <BuilderView
                   tabId={activeTab.id}
-                  connected={agentStatus === "open"}
+                  connected={connected}
                   appendLog={appendLog}
                 />
               )
