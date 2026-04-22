@@ -164,6 +164,9 @@ export function ChatView({
   const voiceUnsubRef = useRef<(() => void) | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const [recordCountdown, setRecordCountdown] = useState<number>(0);
+  const countdownIntervalRef = useRef<number | null>(null);
+  const transcribeTimeoutRef = useRef<number | null>(null);
 
   // Load history from localStorage on mount.
   useEffect(() => {
