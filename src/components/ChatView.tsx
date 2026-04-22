@@ -37,7 +37,17 @@ marked.setOptions({ gfm: true, breaks: true });
 function renderInlineMarkdown(text: string): string {
   try {
     // Parse as markdown but disable code fences (they're handled by parent splitter).
-    return marked.parse(text, { async: false }) as string;
+    let html = marked.parse(text, { async: false, gfm: true, breaks: true } as any) as unknown as string;
+    // Autolink any bare URLs that marked didn't already wrap in <a>.
+    // Skip URLs already inside an href="..." or between <a>...</a>.
+    html = html.replace(
+      /(href="[^"]*"|<a\b[^>]*>[\s\S]*?<\/a>)|(https?:\/\/[^\s<)"']+)/g,
+      (_match, skip, url) => {
+        if (skip) return skip;
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:var(--primary);text-decoration:underline;text-underline-offset:3px;cursor:pointer">${url}</a>`;
+      }
+    );
+    return html;
   } catch {
     return text.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
   }
@@ -1943,12 +1953,12 @@ function CopyMessageButton({ text }: { text: string }) {
 function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, matchProjectFile, onCompareCodeBlock }: AssistantContentProps) {
   // Split on fenced ```lang\n...\n``` code blocks
   const parts: Array<{ type: "text" | "code"; lang?: string; text: string }> = [];
-  const re = /```([a-zA-Z0-9]*)\n([\s\S]*?)```/g;
+  const re = /```([a-zA-Z0-9]*)\n?([\s\S]*?)```/g;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(content))) {
     if (m.index > last) parts.push({ type: "text", text: content.slice(last, m.index) });
-    parts.push({ type: "code", lang: m[1] || "text", text: m[2] });
+    parts.push({ type: "code", lang: m[1] || "", text: m[2] });
     last = m.index + m[0].length;
   }
   if (last < content.length) parts.push({ type: "text", text: content.slice(last) });
@@ -1968,7 +1978,12 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
             </div>
           );
         }
-        const lang = p.lang ?? "text";
+        const rawLang = (p.lang ?? "").toLowerCase();
+        const isPrompt = rawLang === "" || rawLang === "lovable" || rawLang === "prompt";
+        if (isPrompt) {
+          return <PromptContainer key={i} text={p.text} />;
+        }
+        const lang = p.lang || "text";
         const guess = guessName(lang);
         const matchedPath = matchProjectFile?.(lang, p.text, guess) ?? null;
         return (
@@ -2050,6 +2065,96 @@ function guessName(lang: string): string {
     case "md": case "markdown": return "README.md";
     default: return "snippet.txt";
   }
+}
+
+function PromptContainer({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // ignore
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div
+      style={{
+        background: "color-mix(in oklab, var(--primary) 8%, transparent)",
+        border: "1px solid var(--primary)",
+        borderLeft: "4px solid var(--primary)",
+        borderRadius: 8,
+        padding: 16,
+        margin: "8px 0",
+        position: "relative",
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 13,
+        color: "var(--foreground)",
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 10,
+          gap: 8,
+        }}
+      >
+        <span
+          style={{
+            color: "var(--primary)",
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 10,
+            textTransform: "uppercase",
+            letterSpacing: "0.12em",
+          }}
+        >
+          📋 PROMPT
+        </span>
+        <span style={{ display: "inline-flex", gap: 6 }}>
+          <button
+            type="button"
+            onClick={onCopy}
+            style={{
+              background: "transparent",
+              border: "1px solid var(--primary)",
+              color: "var(--primary)",
+              borderRadius: 4,
+              padding: "2px 8px",
+              fontSize: 10,
+              fontFamily: "'JetBrains Mono', monospace",
+              cursor: "pointer",
+            }}
+          >
+            {copied ? "✓ Copied" : "📋 Copy"}
+          </button>
+          <a
+            href="https://lovable.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              background: "var(--primary)",
+              color: "var(--primary-foreground)",
+              borderRadius: 4,
+              padding: "2px 8px",
+              fontSize: 10,
+              fontFamily: "'JetBrains Mono', monospace",
+              cursor: "pointer",
+              textDecoration: "none",
+              border: "1px solid var(--primary)",
+            }}
+          >
+            ▶ Open Lovable
+          </a>
+        </span>
+      </div>
+      {text}
+    </div>
+  );
 }
 
 interface PreviewPanelProps {
