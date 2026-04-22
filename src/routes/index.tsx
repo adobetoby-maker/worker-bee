@@ -48,6 +48,7 @@ import {
 } from "@/lib/agent-queue";
 import { ProjectsDashboard } from "@/components/ProjectsDashboard";
 import { ProjectWorkspace } from "@/components/ProjectWorkspace";
+import { BuilderView } from "@/components/BuilderView";
 import { useWorkingIndicator } from "@/lib/use-working-indicator";
 import { DiffViewer } from "@/components/DiffViewer";
 import {
@@ -991,6 +992,8 @@ function Index() {
                                 fromTabName: t.name,
                               });
                               setActive("projects");
+                              // BUILDER replaced PROJECTS in the sidebar; route diff
+                              // requests there instead so the user can review changes.
                             }}
                             onSmokeTest={() => runSmokeTest(t.name)}
                             onMemoryStatsChange={(total) =>
