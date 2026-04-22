@@ -1875,6 +1875,23 @@ export function ChatView({
           </div>
         </div>
       </div>
+      </div>
+      {previewUrl && (
+        <PreviewPanel
+          url={previewUrl}
+          projectName={projectName}
+          mode={previewMode}
+          onModeChange={setPreviewMode}
+          refreshKey={previewRefreshKey}
+          onRefresh={() => {
+            setPreviewRefreshKey((n) => n + 1);
+            setPreviewLastUpdated(Date.now());
+          }}
+          lastUpdated={previewLastUpdated}
+          flash={previewFlash}
+          onClose={closePreview}
+        />
+      )}
     </div>
   );
 }
