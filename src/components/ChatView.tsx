@@ -1418,7 +1418,20 @@ export function ChatView({
                       </div>
                     )}
                     {!showCursor && m.content && (
-                      <CopyMessageButton text={m.content} />
+                      <MessageActions
+                        text={m.content}
+                        messageIndex={i}
+                        isLast={i === messages.length - 1}
+                        onRerun={() => {
+                          // Find the user message immediately before this assistant message.
+                          for (let k = i - 1; k >= 0; k--) {
+                            if (messages[k].role === "user") {
+                              sendFollowUpChat(messages[k].content);
+                              break;
+                            }
+                          }
+                        }}
+                      />
                     )}
                   </>
                 )}
