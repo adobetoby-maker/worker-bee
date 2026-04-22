@@ -344,6 +344,51 @@ export function ChatView({
     return () => { unsub(); repairUnsubRef.current = null; };
   }, [tabId]);
 
+  // Subscribe to voice transcription results for this tab.
+  useEffect(() => {
+    voiceUnsubRef.current?.();
+    const unsub = subscribeAgentWS(tabId, {
+      onVoiceTranscription: ({ text }) => {
+        setMicState("idle");
+        if (typeof text === "string" && text.length > 0) {
+          setInput((input ? input + " " : "") + text);
+          requestAnimationFrame(() => {
+            const ta = textareaRef.current;
+            if (ta) {
+              ta.focus();
+              ta.style.height = "auto";
+              ta.style.height = Math.min(ta.scrollHeight, 200) + "px";
+              const len = ta.value.length;
+              try { ta.setSelectionRange(len, len); } catch { /* noop */ }
+            }
+          });
+        }
+      },
+    });
+    voiceUnsubRef.current = unsub;
+    return () => { unsub(); voiceUnsubRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabId]);
+
+  const handleMicClick = () => {
+    if (micState !== "idle") return;
+    if (!isWSOpen(tabId)) {
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "voice_input: WebSocket not open" });
+      return;
+    }
+    setMicState("recording");
+    const ok = sendVoiceInput(tabId, 5);
+    if (!ok) {
+      setMicState("idle");
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "voice_input: send failed" });
+      return;
+    }
+    // After ~5s of capture, switch to processing state until transcription returns.
+    window.setTimeout(() => {
+      setMicState((s) => (s === "recording" ? "processing" : s));
+    }, 5000);
+  };
+
   // Wrap appendLog to track consecutive ERR lines and trigger banner at 3.
   const trackedAppendLog = (line: LogLine) => {
     if (line.level === "ERR") {
