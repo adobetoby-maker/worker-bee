@@ -398,21 +398,19 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
     });
   }, [tabId, appendLog]);
 
-  // Merge local + remote project names (dedup by name)
+  // ONLY show projects that the agent reports from disk via list_projects.
+  // Never merge in localStorage / hardcoded names — stale entries with
+  // spaces or deleted projects must not appear in this dropdown.
   const allProjects = useMemo(() => {
-    const map = new Map<string, { name: string; source: "local" | "remote" | "both" }>();
-    for (const p of localProjects) {
-      map.set(p.name, { name: p.name, source: "local" });
-    }
+    const seen = new Set<string>();
+    const list: { name: string }[] = [];
     for (const r of remoteProjects) {
-      if (map.has(r.name)) {
-        map.set(r.name, { name: r.name, source: "both" });
-      } else {
-        map.set(r.name, { name: r.name, source: "remote" });
-      }
+      if (!r?.name || seen.has(r.name)) continue;
+      seen.add(r.name);
+      list.push({ name: r.name });
     }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [localProjects, remoteProjects]);
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [remoteProjects]);
 
   const handleProjectChange = (name: string) => {
     if (name === "__new__") {
