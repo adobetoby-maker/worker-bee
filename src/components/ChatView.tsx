@@ -27,6 +27,7 @@ import {
   detectPlanIntent,
   type PlanStep,
   sendVoiceTranscribe,
+  sendDevServerStop,
 } from "@/lib/agent-ws";
 import { toast } from "sonner";
 import { marked } from "marked";
@@ -264,6 +265,62 @@ export function ChatView({
     showResults: boolean;
   } | null>(null);
   const [planSuggestion, setPlanSuggestion] = useState<string | null>(null);
+
+  // Live preview panel state — shown when agent reports a running dev server.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
+  const [previewLastUpdated, setPreviewLastUpdated] = useState<number | null>(null);
+  const [previewFlash, setPreviewFlash] = useState(false);
+  const previewFlashTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeAgentWS(tabId, {
+      onDevServerResult: (info) => {
+        if (info.success && info.url) {
+          setPreviewUrl(info.url);
+          setPreviewLastUpdated(Date.now());
+          setPreviewRefreshKey((n) => n + 1);
+        }
+      },
+      onBuildApplied: () => {
+        setPreviewLastUpdated(Date.now());
+        setPreviewRefreshKey((n) => n + 1);
+        setPreviewFlash(true);
+        if (previewFlashTimerRef.current) {
+          window.clearTimeout(previewFlashTimerRef.current);
+        }
+        previewFlashTimerRef.current = window.setTimeout(() => {
+          setPreviewFlash(false);
+          previewFlashTimerRef.current = null;
+        }, 2000);
+      },
+      onScreenshot: () => {
+        // Belt and suspenders — refresh iframe on any screenshot too.
+        if (previewUrl) {
+          setPreviewRefreshKey((n) => n + 1);
+          setPreviewLastUpdated(Date.now());
+        }
+      },
+    });
+    return () => {
+      unsub();
+      if (previewFlashTimerRef.current) {
+        window.clearTimeout(previewFlashTimerRef.current);
+        previewFlashTimerRef.current = null;
+      }
+    };
+  }, [tabId, previewUrl]);
+
+  const closePreview = () => {
+    const wasOpen = !!previewUrl;
+    setPreviewUrl(null);
+    setPreviewLastUpdated(null);
+    setPreviewFlash(false);
+    if (wasOpen) {
+      sendDevServerStop(tabId, projectName ?? null);
+    }
+  };
 
   useEffect(() => {
     onStreamingChange(streaming);
@@ -1141,10 +1198,15 @@ export function ChatView({
   const handleDismissInstall = () => setInstallCard(null);
 
   return (
-    <div
-      className="flex flex-1 min-h-0 flex-col relative"
-      style={{ animation: "var(--animate-slide-down)" }}
-    >
+    <div className="flex flex-1 min-h-0 flex-row relative">
+      <div
+        className="flex min-h-0 flex-col relative"
+        style={{
+          animation: "var(--animate-slide-down)",
+          flex: previewUrl ? "0 0 60%" : "1 1 100%",
+          minWidth: 0,
+        }}
+      >
       <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto py-6">
         <div className="mx-auto w-full space-y-6" style={{ maxWidth: 680, padding: "0 16px" }}>
         {!connected && (
@@ -1813,6 +1875,23 @@ export function ChatView({
           </div>
         </div>
       </div>
+      </div>
+      {previewUrl && (
+        <PreviewPanel
+          url={previewUrl}
+          projectName={projectName}
+          mode={previewMode}
+          onModeChange={setPreviewMode}
+          refreshKey={previewRefreshKey}
+          onRefresh={() => {
+            setPreviewRefreshKey((n) => n + 1);
+            setPreviewLastUpdated(Date.now());
+          }}
+          lastUpdated={previewLastUpdated}
+          flash={previewFlash}
+          onClose={closePreview}
+        />
+      )}
     </div>
   );
 }
@@ -1971,5 +2050,222 @@ function guessName(lang: string): string {
     case "md": case "markdown": return "README.md";
     default: return "snippet.txt";
   }
+}
+
+interface PreviewPanelProps {
+  url: string;
+  projectName: string | null;
+  mode: "desktop" | "mobile";
+  onModeChange: (m: "desktop" | "mobile") => void;
+  refreshKey: number;
+  onRefresh: () => void;
+  lastUpdated: number | null;
+  flash: boolean;
+  onClose: () => void;
+}
+
+function PreviewPanel({
+  url,
+  projectName,
+  mode,
+  onModeChange,
+  refreshKey,
+  onRefresh,
+  lastUpdated,
+  flash,
+  onClose,
+}: PreviewPanelProps) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((n) => n + 1), 5000);
+    return () => window.clearInterval(id);
+  }, []);
+  // Reference tick so it influences the relative time render.
+  void tick;
+
+  const formatRelative = (ts: number | null): string => {
+    if (!ts) return "—";
+    const diff = Math.max(0, Date.now() - ts);
+    const s = Math.floor(diff / 1000);
+    if (s < 5) return "just now";
+    if (s < 60) return `${s}s ago`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    return `${h}h ago`;
+  };
+
+  return (
+    <div
+      style={{
+        flex: "0 0 40%",
+        minWidth: 0,
+        display: "flex",
+        flexDirection: "column",
+        borderLeft: "1px solid var(--border)",
+        background: "var(--background)",
+        animation: "var(--animate-slide-down)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "10px 12px",
+          borderBottom: "1px solid var(--border)",
+          background: "var(--surface, var(--background))",
+          flexShrink: 0,
+        }}
+      >
+        <span
+          aria-label="live"
+          title="Live preview"
+          style={{
+            display: "inline-block",
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: "#22c55e",
+            boxShadow: "0 0 8px #22c55e",
+            animation: "pulse-neon 1.4s ease-in-out infinite",
+            flexShrink: 0,
+          }}
+        />
+        <span
+          style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 11,
+            color: "#22c55e",
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+          }}
+        >
+          LIVE
+        </span>
+        <div style={{ minWidth: 0, flex: 1, display: "flex", flexDirection: "column" }}>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "var(--foreground)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {projectName ?? "Preview"}
+          </span>
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 10,
+              color: "var(--muted-foreground)",
+              textDecoration: "none",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={url}
+          >
+            {url}
+          </a>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          title="Refresh preview"
+          style={previewBtnStyle()}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted-foreground)")}
+        >
+          🔄
+        </button>
+        <button
+          type="button"
+          onClick={() => onModeChange(mode === "desktop" ? "mobile" : "desktop")}
+          title={mode === "desktop" ? "Switch to mobile preview" : "Switch to desktop preview"}
+          style={previewBtnStyle()}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted-foreground)")}
+        >
+          {mode === "desktop" ? "🖥" : "📱"}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          title="Close preview & stop dev server"
+          style={previewBtnStyle()}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--destructive)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted-foreground)")}
+        >
+          ✕
+        </button>
+      </div>
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          background: mode === "mobile" ? "var(--surface-2, var(--background))" : "var(--background)",
+          display: "flex",
+          alignItems: "stretch",
+          justifyContent: "center",
+          overflow: "auto",
+        }}
+      >
+        <iframe
+          key={refreshKey}
+          src={url}
+          title="Project Preview"
+          style={{
+            width: mode === "mobile" ? 375 : "100%",
+            maxWidth: "100%",
+            height: "100%",
+            border: "none",
+            background: "#fff",
+          }}
+        />
+      </div>
+      <div
+        style={{
+          padding: "6px 12px",
+          borderTop: "1px solid var(--border)",
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 10,
+          color: flash ? "#22c55e" : "var(--muted-foreground)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          flexShrink: 0,
+          transition: "color 0.2s",
+        }}
+      >
+        <span>{flash ? "⚡ Changes detected — refreshing…" : `Last updated ${formatRelative(lastUpdated)}`}</span>
+        {flash && <span>⚡ Updated</span>}
+      </div>
+    </div>
+  );
+}
+
+function previewBtnStyle(): React.CSSProperties {
+  return {
+    width: 28,
+    height: 28,
+    background: "transparent",
+    border: "none",
+    color: "var(--muted-foreground)",
+    cursor: "pointer",
+    fontSize: 14,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    transition: "color 0.15s",
+    borderRadius: 4,
+  };
 }
 

@@ -26,7 +26,8 @@ export interface AgentWSMessage {
     | "tags_result" | "ps_result"
     | "memory_stats" | "memory_search_result" | "memory_consulted" | "memory_stored"
     | "plan_started" | "plan_ready" | "plan_progress" | "plan_log" | "plan_complete" | "plan_error"
-    | "voice_transcription" | "voice_error";
+    | "voice_transcription" | "voice_error"
+    | "dev_server_result" | "build_applied";
   content?: string;
   text?: string;
   message?: string;
@@ -69,6 +70,8 @@ export interface AgentWSHandlers {
   onPlanError?: (info: { message: string }) => void;
   onVoiceTranscription?: (info: { text: string }) => void;
   onVoiceError?: (info: { message: string }) => void;
+  onDevServerResult?: (info: { success: boolean; url?: string; project?: string; message?: string }) => void;
+  onBuildApplied?: (info: { project?: string; message?: string }) => void;
 }
 
 export interface PlanStep {
@@ -417,6 +420,35 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         if (!vMsg) vMsg = (msg.message as string) || (msg.text as string) || "Voice error";
         entry.log?.({ ts: nowTs(), level: "ERR", msg: `voice_error: ${vMsg}` });
         entry.handlers.forEach((h) => h.onVoiceError?.({ message: vMsg }));
+        break;
+      }
+      case "dev_server_result": {
+        let success = false;
+        let url: string | undefined;
+        let project: string | undefined;
+        let dmsg: string | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.success === "boolean") success = d.success;
+          if (typeof d.ok === "boolean") success = success || d.ok;
+          if (typeof d.url === "string") url = d.url;
+          if (typeof d.project === "string") project = d.project;
+          if (typeof d.message === "string") dmsg = d.message;
+        }
+        entry.log?.({ ts: nowTs(), level: "OK", msg: `dev_server_result success=${success} url=${url ?? ""}` });
+        entry.handlers.forEach((h) => h.onDevServerResult?.({ success, url, project, message: dmsg }));
+        break;
+      }
+      case "build_applied": {
+        let project: string | undefined;
+        let bmsg: string | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.project === "string") project = d.project;
+          if (typeof d.message === "string") bmsg = d.message;
+        }
+        entry.log?.({ ts: nowTs(), level: "OK", msg: `build_applied${project ? ` project=${project}` : ""}` });
+        entry.handlers.forEach((h) => h.onBuildApplied?.({ project, message: bmsg }));
         break;
       }
       case "browser_result": {
@@ -956,6 +988,21 @@ export function sendSelfRepair(tabId: string, error: string): boolean {
     return false;
   }
   const payload = { action: "self_repair", error };
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
+
+export function sendDevServerStop(tabId: string, project?: string | null): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "dev_server_stop: WebSocket not open" });
+    return false;
+  }
+  const payload: Record<string, unknown> = { action: "dev_server_stop" };
+  if (project) payload.project = project;
   const json = JSON.stringify(payload);
   entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
   ws.send(json);
