@@ -1169,8 +1169,10 @@ export function sendDevServerStart(tabId: string, project: string): boolean {
     entry?.log?.({ ts: nowTs(), level: "ERR", msg: "dev_server_start: WebSocket not open" });
     return false;
   }
-  const json = JSON.stringify({ action: "dev_server_start", project });
+  const payload = { action: "dev_server_start", project, port: 5173 };
+  const json = JSON.stringify(payload);
   entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  console.log("[BUILDER SEND]", "dev_server_start", payload);
   ws.send(json);
   return true;
 }
@@ -1179,8 +1181,10 @@ export function sendListProjects(tabId: string): boolean {
   const entry = tabs.get(tabId);
   const ws = entry?.ws;
   if (!ws || ws.readyState !== WebSocket.OPEN) return false;
-  const json = JSON.stringify({ action: "list_projects" });
+  const payload = { action: "list_projects" };
+  const json = JSON.stringify(payload);
   entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  console.log("[BUILDER SEND]", "list_projects", payload);
   ws.send(json);
   return true;
 }
@@ -1189,13 +1193,19 @@ export function sendBuildStart(tabId: string, prompt: string, project: string | 
   const entry = tabs.get(tabId);
   const ws = entry?.ws;
   if (!ws || ws.readyState !== WebSocket.OPEN) {
-    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "build_start: WebSocket not open" });
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "build: WebSocket not open" });
     return false;
   }
-  const payload: Record<string, unknown> = { action: "build_start", prompt };
-  if (project) payload.project = project;
+  const payload: Record<string, unknown> = {
+    action: "build",
+    prompt,
+    project: project ?? "",
+    use_architect: true,
+    use_claude: false,
+  };
   const json = JSON.stringify(payload);
   entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  console.log("[BUILDER SEND]", "build", payload);
   ws.send(json);
   return true;
 }
@@ -1207,8 +1217,10 @@ export function sendScaffold(tabId: string, name: string): boolean {
     entry?.log?.({ ts: nowTs(), level: "ERR", msg: "scaffold: WebSocket not open" });
     return false;
   }
-  const json = JSON.stringify({ action: "scaffold", name });
+  const payload = { action: "scaffold", name };
+  const json = JSON.stringify(payload);
   entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  console.log("[BUILDER SEND]", "scaffold", payload);
   ws.send(json);
   return true;
 }
