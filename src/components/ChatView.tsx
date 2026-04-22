@@ -159,6 +159,10 @@ export function ChatView({
   const [savedDraft, setSavedDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Voice input state.
+  const [micState, setMicState] = useState<"idle" | "recording" | "processing">("idle");
+  const voiceUnsubRef = useRef<(() => void) | null>(null);
+
   // Load history from localStorage on mount.
   useEffect(() => {
     if (typeof window === "undefined") return;
