@@ -8,11 +8,7 @@ import {
   sendDevServerStop,
   sendScaffold,
 } from "@/lib/agent-ws";
-import {
-  subscribeProjects,
-  createProject,
-  type Project,
-} from "@/lib/projects";
+import { createProject } from "@/lib/projects";
 import type { LogLine } from "@/lib/agent-state";
 import { nowTs } from "@/lib/agent-state";
 import {
@@ -88,7 +84,6 @@ function fmtTime(ts: number): string {
 }
 
 export function BuilderView({ tabId, connected, appendLog }: Props) {
-  const [localProjects, setLocalProjects] = useState<Project[]>([]);
   const [remoteProjects, setRemoteProjects] = useState<RemoteProject[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsLoaded, setProjectsLoaded] = useState(false);
@@ -138,11 +133,6 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
   useEffect(() => {
     saveHistory(history);
   }, [history]);
-
-  // Local projects subscription
-  useEffect(() => {
-    return subscribeProjects((p) => setLocalProjects(p));
-  }, []);
 
   // Refresh projects from agent on mount, on connect, and whenever the tab
   // becomes visible again. Never use cached/local values for the dropdown.
