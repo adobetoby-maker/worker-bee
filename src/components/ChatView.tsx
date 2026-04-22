@@ -266,6 +266,62 @@ export function ChatView({
   } | null>(null);
   const [planSuggestion, setPlanSuggestion] = useState<string | null>(null);
 
+  // Live preview panel state — shown when agent reports a running dev server.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
+  const [previewLastUpdated, setPreviewLastUpdated] = useState<number | null>(null);
+  const [previewFlash, setPreviewFlash] = useState(false);
+  const previewFlashTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeAgentWS(tabId, {
+      onDevServerResult: (info) => {
+        if (info.success && info.url) {
+          setPreviewUrl(info.url);
+          setPreviewLastUpdated(Date.now());
+          setPreviewRefreshKey((n) => n + 1);
+        }
+      },
+      onBuildApplied: () => {
+        setPreviewLastUpdated(Date.now());
+        setPreviewRefreshKey((n) => n + 1);
+        setPreviewFlash(true);
+        if (previewFlashTimerRef.current) {
+          window.clearTimeout(previewFlashTimerRef.current);
+        }
+        previewFlashTimerRef.current = window.setTimeout(() => {
+          setPreviewFlash(false);
+          previewFlashTimerRef.current = null;
+        }, 2000);
+      },
+      onScreenshot: () => {
+        // Belt and suspenders — refresh iframe on any screenshot too.
+        if (previewUrl) {
+          setPreviewRefreshKey((n) => n + 1);
+          setPreviewLastUpdated(Date.now());
+        }
+      },
+    });
+    return () => {
+      unsub();
+      if (previewFlashTimerRef.current) {
+        window.clearTimeout(previewFlashTimerRef.current);
+        previewFlashTimerRef.current = null;
+      }
+    };
+  }, [tabId, previewUrl]);
+
+  const closePreview = () => {
+    const wasOpen = !!previewUrl;
+    setPreviewUrl(null);
+    setPreviewLastUpdated(null);
+    setPreviewFlash(false);
+    if (wasOpen) {
+      sendDevServerStop(tabId, projectName ?? null);
+    }
+  };
+
   useEffect(() => {
     onStreamingChange(streaming);
   }, [streaming, onStreamingChange]);
