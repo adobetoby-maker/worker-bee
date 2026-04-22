@@ -348,7 +348,8 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
       },
       onScaffoldResult: ({ ok, name, message }) => {
         setScaffolding(false);
-        if (ok && name) {
+        const alreadyExists = !ok && !!message && /already exists/i.test(message);
+        if ((ok || alreadyExists) && name) {
           toast.success(`✨ Project ${name} scaffolded`);
           setShowNewModal(false);
           setNewProjectName("");
@@ -357,6 +358,9 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
           pendingProjectRef.current = name;
           sendListProjects(tabId);
           sendDevServerStart(tabId, name);
+          if (alreadyExists) {
+            toast(`Using existing project: ${name}`);
+          }
         } else {
           toast.error(message || "Scaffold failed");
         }
