@@ -354,6 +354,10 @@ export function ChatView({
     voiceUnsubRef.current?.();
     const unsub = subscribeAgentWS(tabId, {
       onVoiceTranscription: ({ text }) => {
+        if (transcribeTimeoutRef.current) {
+          window.clearTimeout(transcribeTimeoutRef.current);
+          transcribeTimeoutRef.current = null;
+        }
         setMicState("idle");
         if (typeof text === "string" && text.length > 0) {
           setInput((input ? input + " " : "") + text);
@@ -368,6 +372,14 @@ export function ChatView({
             }
           });
         }
+      },
+      onVoiceError: ({ message }) => {
+        if (transcribeTimeoutRef.current) {
+          window.clearTimeout(transcribeTimeoutRef.current);
+          transcribeTimeoutRef.current = null;
+        }
+        setMicState("idle");
+        toast.error(message || "Voice error");
       },
     });
     voiceUnsubRef.current = unsub;
