@@ -26,7 +26,7 @@ import {
   sendPlanResume,
   detectPlanIntent,
   type PlanStep,
-  sendVoiceInput,
+  sendVoiceTranscribe,
 } from "@/lib/agent-ws";
 import { toast } from "sonner";
 import { marked } from "marked";
@@ -162,6 +162,8 @@ export function ChatView({
   // Voice input state.
   const [micState, setMicState] = useState<"idle" | "recording" | "processing">("idle");
   const voiceUnsubRef = useRef<(() => void) | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   // Load history from localStorage on mount.
   useEffect(() => {
@@ -370,23 +372,78 @@ export function ChatView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabId]);
 
-  const handleMicClick = () => {
+  const handleMicClick = async () => {
     if (micState !== "idle") return;
     if (!isWSOpen(tabId)) {
       trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "voice_input: WebSocket not open" });
       return;
     }
-    setMicState("recording");
-    const ok = sendVoiceInput(tabId, 5);
-    if (!ok) {
-      setMicState("idle");
-      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "voice_input: send failed" });
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "voice_input: MediaRecorder unsupported" });
       return;
     }
-    // After ~5s of capture, switch to processing state until transcription returns.
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: `voice_input: mic permission denied (${(err as Error).message})` });
+      return;
+    }
+    mediaStreamRef.current = stream;
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(stream);
+    } catch (err) {
+      stream.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: `voice_input: recorder init failed (${(err as Error).message})` });
+      return;
+    }
+    mediaRecorderRef.current = recorder;
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    recorder.onstop = () => {
+      // Release mic immediately.
+      mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+      mediaRecorderRef.current = null;
+      setMicState("processing");
+      const mime = recorder.mimeType || "audio/webm";
+      const blob = new Blob(chunks, { type: mime });
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = typeof reader.result === "string" ? reader.result : "";
+        const base64 = result.includes(",") ? result.split(",")[1] : result;
+        const fmt = mime.includes("ogg") ? "ogg" : mime.includes("mp4") ? "mp4" : mime.includes("wav") ? "wav" : "webm";
+        const ok = sendVoiceTranscribe(tabId, base64, fmt);
+        if (!ok) {
+          setMicState("idle");
+          trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "voice_transcribe: send failed" });
+        }
+      };
+      reader.onerror = () => {
+        setMicState("idle");
+        trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "voice_transcribe: blob read failed" });
+      };
+      reader.readAsDataURL(blob);
+    };
+    setMicState("recording");
+    try {
+      recorder.start();
+    } catch (err) {
+      stream.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+      mediaRecorderRef.current = null;
+      setMicState("idle");
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: `voice_input: recorder start failed (${(err as Error).message})` });
+      return;
+    }
     window.setTimeout(() => {
-      setMicState((s) => (s === "recording" ? "processing" : s));
-    }, 5000);
+      const r = mediaRecorderRef.current;
+      if (r && r.state === "recording") {
+        try { r.stop(); } catch { /* noop */ }
+      }
+    }, 4000);
   };
 
   // Wrap appendLog to track consecutive ERR lines and trigger banner at 3.
