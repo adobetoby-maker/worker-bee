@@ -25,7 +25,8 @@ export interface AgentWSMessage {
     | "login_log" | "login_result"
     | "tags_result" | "ps_result"
     | "memory_stats" | "memory_search_result" | "memory_consulted" | "memory_stored"
-    | "plan_started" | "plan_ready" | "plan_progress" | "plan_log" | "plan_complete" | "plan_error";
+    | "plan_started" | "plan_ready" | "plan_progress" | "plan_log" | "plan_complete" | "plan_error"
+    | "voice_transcription";
   content?: string;
   text?: string;
   message?: string;
@@ -66,6 +67,7 @@ export interface AgentWSHandlers {
   onPlanLog?: (info: { message: string; level: PlanLogLevel }) => void;
   onPlanComplete?: (info: PlanComplete) => void;
   onPlanError?: (info: { message: string }) => void;
+  onVoiceTranscription?: (info: { text: string }) => void;
 }
 
 export interface PlanStep {
@@ -389,6 +391,19 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         if (entry.keepaliveWarnTimer) { clearTimeout(entry.keepaliveWarnTimer); entry.keepaliveWarnTimer = null; }
         entry.handlers.forEach((h) => h.onPong?.());
         break;
+      case "voice_transcription": {
+        let vText = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.text === "string") vText = d.text;
+        } else if (typeof data === "string") {
+          vText = data;
+        }
+        if (!vText && text) vText = text;
+        entry.log?.({ ts: nowTs(), level: "OK", msg: `voice_transcription chars=${vText.length}` });
+        entry.handlers.forEach((h) => h.onVoiceTranscription?.({ text: vText }));
+        break;
+      }
       case "browser_result": {
         let bText = "";
         let bUrl: string | undefined;
@@ -812,6 +827,13 @@ export function sendStop(tabId: string): boolean {
   const ws = tabs.get(tabId)?.ws;
   if (!ws || ws.readyState !== WebSocket.OPEN) return false;
   ws.send(JSON.stringify({ action: "stop" }));
+  return true;
+}
+
+export function sendVoiceInput(tabId: string, seconds: number = 5): boolean {
+  const ws = tabs.get(tabId)?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  ws.send(JSON.stringify({ action: "voice_input", seconds }));
   return true;
 }
 

@@ -164,6 +164,11 @@ html.dark {
   50%      { transform: scaleX(1.35); }
 }
 
+@keyframes mic-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(1.15); }
+}
+
 @keyframes bee-shake {
   0%, 100% { transform: translateX(0); }
   20%      { transform: translateX(-3px); }

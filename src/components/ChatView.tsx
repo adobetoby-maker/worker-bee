@@ -26,6 +26,7 @@ import {
   sendPlanResume,
   detectPlanIntent,
   type PlanStep,
+  sendVoiceInput,
 } from "@/lib/agent-ws";
 import { toast } from "sonner";
 import { marked } from "marked";
@@ -157,6 +158,10 @@ export function ChatView({
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [savedDraft, setSavedDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Voice input state.
+  const [micState, setMicState] = useState<"idle" | "recording" | "processing">("idle");
+  const voiceUnsubRef = useRef<(() => void) | null>(null);
 
   // Load history from localStorage on mount.
   useEffect(() => {
@@ -338,6 +343,51 @@ export function ChatView({
     repairUnsubRef.current = unsub;
     return () => { unsub(); repairUnsubRef.current = null; };
   }, [tabId]);
+
+  // Subscribe to voice transcription results for this tab.
+  useEffect(() => {
+    voiceUnsubRef.current?.();
+    const unsub = subscribeAgentWS(tabId, {
+      onVoiceTranscription: ({ text }) => {
+        setMicState("idle");
+        if (typeof text === "string" && text.length > 0) {
+          setInput((input ? input + " " : "") + text);
+          requestAnimationFrame(() => {
+            const ta = textareaRef.current;
+            if (ta) {
+              ta.focus();
+              ta.style.height = "auto";
+              ta.style.height = Math.min(ta.scrollHeight, 200) + "px";
+              const len = ta.value.length;
+              try { ta.setSelectionRange(len, len); } catch { /* noop */ }
+            }
+          });
+        }
+      },
+    });
+    voiceUnsubRef.current = unsub;
+    return () => { unsub(); voiceUnsubRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabId]);
+
+  const handleMicClick = () => {
+    if (micState !== "idle") return;
+    if (!isWSOpen(tabId)) {
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "voice_input: WebSocket not open" });
+      return;
+    }
+    setMicState("recording");
+    const ok = sendVoiceInput(tabId, 5);
+    if (!ok) {
+      setMicState("idle");
+      trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "voice_input: send failed" });
+      return;
+    }
+    // After ~5s of capture, switch to processing state until transcription returns.
+    window.setTimeout(() => {
+      setMicState((s) => (s === "recording" ? "processing" : s));
+    }, 5000);
+  };
 
   // Wrap appendLog to track consecutive ERR lines and trigger banner at 3.
   const trackedAppendLog = (line: LogLine) => {
@@ -1539,6 +1589,48 @@ export function ChatView({
               onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted-foreground)")}
             >
               📎
+            </button>
+            <button
+              type="button"
+              title={
+                micState === "recording"
+                  ? "Recording…"
+                  : micState === "processing"
+                  ? "Transcribing…"
+                  : "Voice input"
+              }
+              onClick={handleMicClick}
+              disabled={micState !== "idle"}
+              className="chat-mic-btn"
+              style={{
+                width: 28,
+                height: 28,
+                background: "transparent",
+                border: "none",
+                color:
+                  micState === "recording"
+                    ? "#ef4444"
+                    : "var(--muted-foreground)",
+                cursor: micState === "idle" ? "pointer" : "default",
+                fontSize: 16,
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "color 0.15s",
+                animation:
+                  micState === "recording"
+                    ? "mic-pulse 1s ease-in-out infinite"
+                    : "none",
+              }}
+              onMouseEnter={(e) => {
+                if (micState === "idle") e.currentTarget.style.color = "var(--primary)";
+              }}
+              onMouseLeave={(e) => {
+                if (micState === "idle") e.currentTarget.style.color = "var(--muted-foreground)";
+              }}
+            >
+              {micState === "recording" ? "🔴" : micState === "processing" ? "⏳" : "🎙"}
             </button>
             <Textarea
               rows={1}
