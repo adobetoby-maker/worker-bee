@@ -830,6 +830,13 @@ export function sendStop(tabId: string): boolean {
   return true;
 }
 
+export function sendVoiceInput(tabId: string, seconds: number = 5): boolean {
+  const ws = tabs.get(tabId)?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  ws.send(JSON.stringify({ action: "voice_input", seconds }));
+  return true;
+}
+
 export function sendBrowser(tabId: string, url: string): boolean {
   const entry = tabs.get(tabId);
   const ws = entry?.ws;
