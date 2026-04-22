@@ -26,7 +26,7 @@ export interface AgentWSMessage {
     | "tags_result" | "ps_result"
     | "memory_stats" | "memory_search_result" | "memory_consulted" | "memory_stored"
     | "plan_started" | "plan_ready" | "plan_progress" | "plan_log" | "plan_complete" | "plan_error"
-    | "voice_transcription";
+    | "voice_transcription" | "voice_error";
   content?: string;
   text?: string;
   message?: string;
@@ -68,6 +68,7 @@ export interface AgentWSHandlers {
   onPlanComplete?: (info: PlanComplete) => void;
   onPlanError?: (info: { message: string }) => void;
   onVoiceTranscription?: (info: { text: string }) => void;
+  onVoiceError?: (info: { message: string }) => void;
 }
 
 export interface PlanStep {
