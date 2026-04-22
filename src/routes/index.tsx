@@ -48,6 +48,7 @@ import {
 } from "@/lib/agent-queue";
 import { ProjectsDashboard } from "@/components/ProjectsDashboard";
 import { ProjectWorkspace } from "@/components/ProjectWorkspace";
+import { BuilderView } from "@/components/BuilderView";
 import { useWorkingIndicator } from "@/lib/use-working-indicator";
 import { DiffViewer } from "@/components/DiffViewer";
 import {
@@ -990,7 +991,7 @@ function Index() {
                                 after: newContent,
                                 fromTabName: t.name,
                               });
-                              setActive("projects");
+                              setActive("builder");
                             }}
                             onSmokeTest={() => runSmokeTest(t.name)}
                             onMemoryStatsChange={(total) =>
@@ -1024,7 +1025,7 @@ function Index() {
                 )}
               </>
             )}
-            {active === "projects" && (
+            {active === "builder" && (
               diffState ? (
                 <DiffViewer
                   filename={diffState.filePath}
@@ -1053,32 +1054,11 @@ function Index() {
                   }}
                   onBack={() => setDiffState(null)}
                 />
-              ) : openProjectId ? (
-                <ProjectWorkspace
-                  projectId={openProjectId}
-                  onBack={() => setOpenProjectId(null)}
-                  onEditInAgent={(filename, content) => {
-                    setActive("chat");
-                    setInputDraft(
-                      activeTabId,
-                      `Here is the current ${filename}. Please \n\n\`\`\`\n${content}\n\`\`\``,
-                    );
-                  }}
-                  onCompareFile={(filePath, before, after) => {
-                    setDiffState({
-                      projectId: openProjectId,
-                      filePath,
-                      before,
-                      after,
-                    });
-                  }}
-                  appendLog={(msg) => appendLog({ ts: nowTs(), level: "OK", msg })}
-                />
               ) : (
-                <ProjectsDashboard
-                  tabs={tabs.map((t) => ({ id: t.id, name: t.name }))}
-                  onOpenProject={(id) => setOpenProjectId(id)}
-                  appendLog={(msg) => appendLog({ ts: nowTs(), level: "OK", msg })}
+                <BuilderView
+                  tabId={activeTab.id}
+                  connected={connected}
+                  appendLog={appendLog}
                 />
               )
             )}

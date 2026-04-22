@@ -1,0 +1,912 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import {
+  subscribeAgentWS,
+  sendBuildStart,
+  sendListProjects,
+  sendDevServerStart,
+  sendDevServerStop,
+  sendScaffold,
+} from "@/lib/agent-ws";
+import {
+  subscribeProjects,
+  createProject,
+  type Project,
+} from "@/lib/projects";
+import type { LogLine } from "@/lib/agent-state";
+import { nowTs } from "@/lib/agent-state";
+
+interface BuildHistoryEntry {
+  id: string;
+  prompt: string;
+  project: string | null;
+  status: "running" | "ok" | "error";
+  startedAt: number;
+  finishedAt?: number;
+  log: BuildLogLine[];
+  filesChanged?: number;
+}
+
+interface BuildLogLine {
+  level?: string;
+  message: string;
+  ts: number;
+}
+
+interface RemoteProject {
+  name: string;
+  path?: string;
+  updatedAt?: number;
+}
+
+interface Props {
+  tabId: string;
+  connected: boolean;
+  appendLog: (line: LogLine) => void;
+}
+
+const BUILDER_MODEL = "qwen2.5-coder:32b";
+const HISTORY_KEY = "workerbee_builder_history";
+
+function loadHistory(): BuildHistoryEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as BuildHistoryEntry[];
+    if (!Array.isArray(parsed)) return [];
+    // Any entries left in "running" from a previous session can't possibly
+    // still be running — mark them as errored so the UI doesn't show a spinner.
+    return parsed.map((h) =>
+      h.status === "running" ? { ...h, status: "error" as const } : h,
+    );
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(history: BuildHistoryEntry[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 50)));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function fmtTime(ts: number): string {
+  try {
+    return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
+export function BuilderView({ tabId, connected, appendLog }: Props) {
+  const [localProjects, setLocalProjects] = useState<Project[]>([]);
+  const [remoteProjects, setRemoteProjects] = useState<RemoteProject[]>([]);
+  const [currentProject, setCurrentProject] = useState<string | null>(null);
+  const [history, setHistory] = useState<BuildHistoryEntry[]>(() => loadHistory());
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState("");
+  const [building, setBuilding] = useState(false);
+  const [devServerUrl, setDevServerUrl] = useState<string | null>(null);
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [updatedFlash, setUpdatedFlash] = useState(false);
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [scaffolding, setScaffolding] = useState(false);
+  const [lastBuildAt, setLastBuildAt] = useState<number | null>(null);
+  const [lastFilesChanged, setLastFilesChanged] = useState<number | null>(null);
+  const buildIdRef = useRef<string | null>(null);
+  const flashTimerRef = useRef<number | null>(null);
+  const pendingProjectRef = useRef<string | null>(null);
+
+  // Save history on change
+  useEffect(() => {
+    saveHistory(history);
+  }, [history]);
+
+  // Local projects subscription
+  useEffect(() => {
+    return subscribeProjects((p) => setLocalProjects(p));
+  }, []);
+
+  // On mount: refresh projects from agent + load default selection
+  useEffect(() => {
+    if (connected) sendListProjects(tabId);
+  }, [connected, tabId]);
+
+  // WebSocket subscription for builder events
+  useEffect(() => {
+    return subscribeAgentWS(tabId, {
+      onProjectsList: ({ projects }) => {
+        setRemoteProjects(projects);
+      },
+      onBuildLog: ({ level, message }) => {
+        const id = buildIdRef.current;
+        if (!id) return;
+        setHistory((prev) =>
+          prev.map((h) =>
+            h.id === id
+              ? { ...h, log: [...h.log, { level, message, ts: Date.now() }] }
+              : h,
+          ),
+        );
+      },
+      onBuildComplete: ({ ok, filesChanged, message }) => {
+        const id = buildIdRef.current;
+        setBuilding(false);
+        if (filesChanged !== undefined) setLastFilesChanged(filesChanged);
+        setLastBuildAt(Date.now());
+        if (!id) return;
+        setHistory((prev) =>
+          prev.map((h) =>
+            h.id === id
+              ? {
+                  ...h,
+                  status: ok ? "ok" : "error",
+                  finishedAt: Date.now(),
+                  filesChanged,
+                  log: message
+                    ? [...h.log, { message, ts: Date.now(), level: ok ? "ok" : "error" }]
+                    : h.log,
+                }
+              : h,
+          ),
+        );
+        buildIdRef.current = null;
+        toast(ok ? "✅ Build complete" : "❌ Build failed");
+      },
+      onBuildError: ({ message }) => {
+        const id = buildIdRef.current;
+        setBuilding(false);
+        if (id) {
+          setHistory((prev) =>
+            prev.map((h) =>
+              h.id === id
+                ? {
+                    ...h,
+                    status: "error",
+                    finishedAt: Date.now(),
+                    log: [...h.log, { level: "error", message, ts: Date.now() }],
+                  }
+                : h,
+            ),
+          );
+        }
+        buildIdRef.current = null;
+        toast.error(`Build error: ${message}`);
+      },
+      onBuildApplied: () => {
+        // Reload preview iframe
+        setRefreshKey((n) => n + 1);
+        setUpdatedFlash(true);
+        if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+        flashTimerRef.current = window.setTimeout(() => setUpdatedFlash(false), 2000);
+      },
+      onDevServerResult: ({ success, url, project }) => {
+        if (success && url) {
+          setDevServerUrl(url);
+          if (project) setCurrentProject(project);
+          appendLog({ ts: nowTs(), level: "OK", msg: `Preview live at ${url}` });
+        } else {
+          toast.error("Dev server failed to start");
+        }
+      },
+      onScaffoldResult: ({ ok, name, message }) => {
+        setScaffolding(false);
+        if (ok && name) {
+          toast.success(`✨ Project ${name} scaffolded`);
+          setShowNewModal(false);
+          setNewProjectName("");
+          // Auto-select + start dev server
+          setCurrentProject(name);
+          pendingProjectRef.current = name;
+          sendListProjects(tabId);
+          sendDevServerStart(tabId, name);
+        } else {
+          toast.error(message || "Scaffold failed");
+        }
+      },
+    });
+  }, [tabId, appendLog]);
+
+  // Merge local + remote project names (dedup by name)
+  const allProjects = useMemo(() => {
+    const map = new Map<string, { name: string; source: "local" | "remote" | "both" }>();
+    for (const p of localProjects) {
+      map.set(p.name, { name: p.name, source: "local" });
+    }
+    for (const r of remoteProjects) {
+      if (map.has(r.name)) {
+        map.set(r.name, { name: r.name, source: "both" });
+      } else {
+        map.set(r.name, { name: r.name, source: "remote" });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [localProjects, remoteProjects]);
+
+  const handleProjectChange = (name: string) => {
+    if (name === "__new__") {
+      setShowNewModal(true);
+      return;
+    }
+    if (!name) {
+      setCurrentProject(null);
+      setDevServerUrl(null);
+      return;
+    }
+    setCurrentProject(name);
+    setDevServerUrl(null);
+    if (connected) {
+      sendDevServerStart(tabId, name);
+      appendLog({ ts: nowTs(), level: "ARROW", msg: `Starting dev server for ${name}…` });
+    }
+  };
+
+  const handleBuild = () => {
+    const text = prompt.trim();
+    if (!text) return;
+    if (!connected) {
+      toast.error("Not connected to agent");
+      return;
+    }
+    const id = crypto.randomUUID();
+    const entry: BuildHistoryEntry = {
+      id,
+      prompt: text,
+      project: currentProject,
+      status: "running",
+      startedAt: Date.now(),
+      log: [{ message: `▶ build_start project=${currentProject ?? "—"}`, ts: Date.now() }],
+    };
+    buildIdRef.current = id;
+    setHistory((prev) => [entry, ...prev]);
+    setSelectedHistoryId(id);
+    setBuilding(true);
+    setPrompt("");
+    sendBuildStart(tabId, text, currentProject);
+  };
+
+  const handleNewProject = () => {
+    const name = newProjectName.trim();
+    if (!name) return;
+    if (!connected) {
+      // Just create locally
+      createProject({
+        emoji: "🏗",
+        name,
+        status: "planning",
+        description: "",
+      });
+      setCurrentProject(name);
+      setShowNewModal(false);
+      setNewProjectName("");
+      toast.success(`📦 Created local project ${name}`);
+      return;
+    }
+    setScaffolding(true);
+    sendScaffold(tabId, name);
+  };
+
+  const closePreview = () => {
+    if (currentProject && connected) {
+      sendDevServerStop(tabId, currentProject);
+    }
+    setDevServerUrl(null);
+  };
+
+  const selectedHistory = useMemo(
+    () => history.find((h) => h.id === selectedHistoryId) ?? null,
+    [history, selectedHistoryId],
+  );
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0">
+        {/* LEFT PANEL */}
+        <div
+          className="flex flex-col min-h-0"
+          style={{
+            width: "35%",
+            minWidth: 320,
+            borderRight: "1px solid var(--border)",
+            background: "var(--surface)",
+          }}
+        >
+          {/* Project selector */}
+          <div style={{ padding: 14, borderBottom: "1px solid var(--border)" }}>
+            <div
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 10,
+                color: "var(--muted-foreground)",
+                textTransform: "uppercase",
+                letterSpacing: "0.15em",
+                marginBottom: 6,
+              }}
+            >
+              Project
+            </div>
+            <select
+              value={currentProject ?? ""}
+              onChange={(e) => handleProjectChange(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px 10px",
+                background: "var(--background)",
+                color: "var(--foreground)",
+                border: "1px solid var(--border)",
+                borderRadius: 6,
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 12,
+              }}
+            >
+              <option value="">— Select a project —</option>
+              {allProjects.map((p) => (
+                <option key={p.name} value={p.name}>
+                  {p.name}
+                  {p.source === "remote" ? "  (agent)" : p.source === "both" ? "  (synced)" : ""}
+                </option>
+              ))}
+              <option value="__new__">＋ New Project…</option>
+            </select>
+          </div>
+
+          {/* Build history */}
+          <div className="flex-1 min-h-0 overflow-y-auto" style={{ padding: 14 }}>
+            <div
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 10,
+                color: "var(--muted-foreground)",
+                textTransform: "uppercase",
+                letterSpacing: "0.15em",
+                marginBottom: 8,
+              }}
+            >
+              Build History
+            </div>
+            {history.length === 0 ? (
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--muted-foreground)",
+                  fontStyle: "italic",
+                  padding: "12px 0",
+                }}
+              >
+                No builds yet
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {history.map((h) => {
+                  const active = h.id === selectedHistoryId;
+                  const icon =
+                    h.status === "ok" ? "✅" : h.status === "error" ? "❌" : "⏳";
+                  return (
+                    <button
+                      key={h.id}
+                      type="button"
+                      onClick={() => setSelectedHistoryId(h.id)}
+                      style={{
+                        textAlign: "left",
+                        padding: "8px 10px",
+                        background: active ? "var(--surface-2)" : "transparent",
+                        border: "1px solid",
+                        borderColor: active ? "var(--primary)" : "var(--border)",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: 11,
+                        color: "var(--foreground)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          color: "var(--muted-foreground)",
+                          fontSize: 10,
+                          marginBottom: 4,
+                        }}
+                      >
+                        <span>{fmtTime(h.startedAt)}</span>
+                        <span>{icon}</span>
+                      </div>
+                      <div style={{ wordBreak: "break-word" }}>
+                        {h.prompt.length > 50 ? h.prompt.slice(0, 50) + "…" : h.prompt}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Selected build's log */}
+            {selectedHistory && selectedHistory.log.length > 0 && (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: 10,
+                  background: "var(--background)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  maxHeight: 240,
+                  overflowY: "auto",
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 10,
+                  color: "var(--foreground)",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+              >
+                {selectedHistory.log.map((l, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      color:
+                        l.level === "error"
+                          ? "var(--destructive)"
+                          : l.level === "ok"
+                            ? "var(--success)"
+                            : "var(--muted-foreground)",
+                    }}
+                  >
+                    {l.message}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Input area */}
+          <div style={{ padding: 12, borderTop: "1px solid var(--border)" }}>
+            <textarea
+              rows={3}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  handleBuild();
+                }
+              }}
+              placeholder="Describe what to build or change…"
+              style={{
+                width: "100%",
+                background: "var(--background)",
+                color: "var(--foreground)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                padding: 10,
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 12,
+                resize: "none",
+              }}
+            />
+            <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
+              <button
+                type="button"
+                title="Attach"
+                style={{
+                  width: 32,
+                  height: 32,
+                  background: "transparent",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  color: "var(--muted-foreground)",
+                  cursor: "pointer",
+                  fontSize: 14,
+                }}
+              >
+                📎
+              </button>
+              <span style={{ position: "relative", display: "inline-flex" }}>
+                <button
+                  type="button"
+                  title="Voice (Beta)"
+                  style={{
+                    width: 32,
+                    height: 32,
+                    background: "transparent",
+                    border: "1px solid var(--border)",
+                    borderRadius: 6,
+                    color: "var(--muted-foreground)",
+                    cursor: "pointer",
+                    fontSize: 14,
+                  }}
+                >
+                  🎙
+                </button>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    top: -4,
+                    right: -4,
+                    background: "var(--primary)",
+                    color: "#fff",
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 7,
+                    lineHeight: 1,
+                    padding: "1px 3px",
+                    borderRadius: 2,
+                    pointerEvents: "none",
+                  }}
+                >
+                  β
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={handleBuild}
+                disabled={!prompt.trim() || building || !connected}
+                style={{
+                  flex: 1,
+                  height: 36,
+                  background:
+                    prompt.trim() && !building && connected
+                      ? "linear-gradient(135deg, var(--primary), var(--primary-glow, var(--primary)))"
+                      : "var(--surface-2)",
+                  color:
+                    prompt.trim() && !building && connected
+                      ? "var(--primary-foreground)"
+                      : "var(--muted-foreground)",
+                  border: "none",
+                  borderRadius: 6,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  cursor:
+                    prompt.trim() && !building && connected ? "pointer" : "not-allowed",
+                }}
+              >
+                {building ? "⏳ BUILDING…" : "▶ BUILD"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT PANEL */}
+        <div className="flex flex-col flex-1 min-h-0" style={{ background: "var(--background)" }}>
+          {/* Toolbar */}
+          <div
+            style={{
+              padding: "10px 14px",
+              borderBottom: "1px solid var(--border)",
+              background: "var(--surface)",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+            }}
+          >
+            {devServerUrl ? (
+              <>
+                <span style={{ color: "var(--primary)", fontWeight: 700 }}>
+                  {currentProject ?? "preview"}
+                </span>
+                <a
+                  href={devServerUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: "var(--muted-foreground)",
+                    textDecoration: "underline",
+                    textUnderlineOffset: 3,
+                  }}
+                >
+                  {devServerUrl}
+                </a>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    color: "var(--success)",
+                    marginLeft: 6,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: "var(--success)",
+                      animation: "pulse-dot 1.6s ease-in-out infinite",
+                    }}
+                  />
+                  LIVE
+                </span>
+                <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                  <button
+                    type="button"
+                    title="Refresh"
+                    onClick={() => setRefreshKey((n) => n + 1)}
+                    style={toolbarBtn}
+                  >
+                    🔄
+                  </button>
+                  <button
+                    type="button"
+                    title="Mobile (375px)"
+                    onClick={() => setPreviewMode("mobile")}
+                    style={toolbarBtn}
+                    aria-pressed={previewMode === "mobile"}
+                  >
+                    📱
+                  </button>
+                  <button
+                    type="button"
+                    title="Desktop"
+                    onClick={() => setPreviewMode("desktop")}
+                    style={toolbarBtn}
+                    aria-pressed={previewMode === "desktop"}
+                  >
+                    🖥
+                  </button>
+                  <button
+                    type="button"
+                    title="Deploy"
+                    onClick={() => toast("Deploy: not yet wired")}
+                    style={{
+                      ...toolbarBtn,
+                      background: "var(--primary)",
+                      color: "var(--primary-foreground)",
+                      borderColor: "var(--primary)",
+                    }}
+                  >
+                    📤 Deploy
+                  </button>
+                  <button
+                    type="button"
+                    title="Stop preview"
+                    onClick={closePreview}
+                    style={toolbarBtn}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </>
+            ) : (
+              <span style={{ color: "var(--muted-foreground)" }}>Preview</span>
+            )}
+          </div>
+
+          {/* Preview body */}
+          <div className="flex-1 min-h-0 relative" style={{ overflow: "hidden" }}>
+            {devServerUrl ? (
+              <div
+                style={{
+                  height: "100%",
+                  width: "100%",
+                  display: "flex",
+                  alignItems: previewMode === "mobile" ? "flex-start" : "stretch",
+                  justifyContent: "center",
+                  padding: previewMode === "mobile" ? 24 : 0,
+                  background:
+                    previewMode === "mobile" ? "var(--surface-2)" : "var(--background)",
+                }}
+              >
+                <iframe
+                  key={refreshKey}
+                  src={devServerUrl}
+                  title="Project Preview"
+                  style={{
+                    width: previewMode === "mobile" ? 375 : "100%",
+                    maxWidth: "100%",
+                    height: previewMode === "mobile" ? 720 : "100%",
+                    border:
+                      previewMode === "mobile"
+                        ? "8px solid #111"
+                        : "none",
+                    borderRadius: previewMode === "mobile" ? 24 : 0,
+                    background: "#fff",
+                    boxShadow:
+                      previewMode === "mobile"
+                        ? "0 12px 40px rgba(0,0,0,0.25)"
+                        : "none",
+                  }}
+                />
+                {updatedFlash && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 16,
+                      right: 16,
+                      background: "var(--success)",
+                      color: "var(--success-foreground)",
+                      padding: "6px 12px",
+                      borderRadius: 999,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      animation: "slide-down 220ms ease-out",
+                    }}
+                  >
+                    ⚡ Updated
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div
+                style={{
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexDirection: "column",
+                  gap: 12,
+                  color: "var(--muted-foreground)",
+                  textAlign: "center",
+                  padding: 24,
+                }}
+              >
+                <div style={{ fontSize: 48 }}>🏗</div>
+                <div
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 14,
+                  }}
+                >
+                  Select a project or create one to start building
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Status bar */}
+      <div
+        style={{
+          borderTop: "1px solid var(--border)",
+          background: "var(--surface)",
+          padding: "6px 14px",
+          display: "flex",
+          gap: 18,
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 10,
+          color: "var(--muted-foreground)",
+          textTransform: "uppercase",
+          letterSpacing: "0.1em",
+        }}
+      >
+        <span>
+          MODEL: <span style={{ color: "var(--primary)" }}>{BUILDER_MODEL}</span>
+        </span>
+        <span>
+          LAST BUILD:{" "}
+          <span style={{ color: "var(--foreground)" }}>
+            {lastBuildAt ? fmtTime(lastBuildAt) : "—"}
+          </span>
+        </span>
+        <span>
+          FILES CHANGED:{" "}
+          <span style={{ color: "var(--foreground)" }}>
+            {lastFilesChanged ?? "—"}
+          </span>
+        </span>
+        <span style={{ marginLeft: "auto" }}>
+          {connected ? "● connected" : "○ offline"}
+        </span>
+      </div>
+
+      {/* New project modal */}
+      {showNewModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 60,
+          }}
+          onClick={() => !scaffolding && setShowNewModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              padding: 24,
+              minWidth: 360,
+              maxWidth: 480,
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 14,
+                fontWeight: 700,
+                marginBottom: 14,
+                color: "var(--foreground)",
+              }}
+            >
+              ＋ New Project
+            </div>
+            <input
+              type="text"
+              autoFocus
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleNewProject();
+                if (e.key === "Escape") setShowNewModal(false);
+              }}
+              placeholder="my-awesome-site"
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                background: "var(--background)",
+                color: "var(--foreground)",
+                border: "1px solid var(--border)",
+                borderRadius: 6,
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 13,
+              }}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setShowNewModal(false)}
+                disabled={scaffolding}
+                style={{
+                  padding: "8px 14px",
+                  background: "transparent",
+                  color: "var(--muted-foreground)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 11,
+                  cursor: "pointer",
+                }}
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                onClick={handleNewProject}
+                disabled={!newProjectName.trim() || scaffolding}
+                style={{
+                  padding: "8px 14px",
+                  background: "var(--primary)",
+                  color: "var(--primary-foreground)",
+                  border: "none",
+                  borderRadius: 6,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor:
+                    !newProjectName.trim() || scaffolding ? "not-allowed" : "pointer",
+                }}
+              >
+                {scaffolding ? "⏳ SCAFFOLDING…" : "CREATE"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const toolbarBtn: React.CSSProperties = {
+  background: "transparent",
+  color: "var(--muted-foreground)",
+  border: "1px solid var(--border)",
+  borderRadius: 6,
+  padding: "4px 10px",
+  fontFamily: "'JetBrains Mono', monospace",
+  fontSize: 11,
+  cursor: "pointer",
+};

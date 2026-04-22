@@ -27,7 +27,9 @@ export interface AgentWSMessage {
     | "memory_stats" | "memory_search_result" | "memory_consulted" | "memory_stored"
     | "plan_started" | "plan_ready" | "plan_progress" | "plan_log" | "plan_complete" | "plan_error"
     | "voice_transcription" | "voice_error"
-    | "dev_server_result" | "build_applied";
+    | "dev_server_result" | "build_applied"
+    | "build_log" | "build_complete" | "build_error"
+    | "projects_list" | "scaffold_result";
   content?: string;
   text?: string;
   message?: string;
@@ -72,6 +74,11 @@ export interface AgentWSHandlers {
   onVoiceError?: (info: { message: string }) => void;
   onDevServerResult?: (info: { success: boolean; url?: string; project?: string; message?: string }) => void;
   onBuildApplied?: (info: { project?: string; message?: string }) => void;
+  onBuildLog?: (info: { level?: string; message: string }) => void;
+  onBuildComplete?: (info: { ok: boolean; project?: string; filesChanged?: number; message?: string }) => void;
+  onBuildError?: (info: { message: string }) => void;
+  onProjectsList?: (info: { projects: Array<{ name: string; path?: string; updatedAt?: number }> }) => void;
+  onScaffoldResult?: (info: { ok: boolean; name?: string; message?: string }) => void;
 }
 
 export interface PlanStep {
@@ -449,6 +456,104 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         }
         entry.log?.({ ts: nowTs(), level: "OK", msg: `build_applied${project ? ` project=${project}` : ""}` });
         entry.handlers.forEach((h) => h.onBuildApplied?.({ project, message: bmsg }));
+        break;
+      }
+      case "build_log": {
+        let level: string | undefined;
+        let bmsg = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.level === "string") level = d.level;
+          if (typeof d.message === "string") bmsg = d.message;
+        } else if (typeof data === "string") {
+          bmsg = data;
+        }
+        if (!bmsg && text) bmsg = text;
+        entry.handlers.forEach((h) => h.onBuildLog?.({ level, message: bmsg }));
+        break;
+      }
+      case "build_complete": {
+        let ok = false;
+        let project: string | undefined;
+        let filesChanged: number | undefined;
+        let bmsg: string | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.ok === "boolean") ok = d.ok;
+          if (typeof d.success === "boolean") ok = ok || d.success;
+          if (typeof d.project === "string") project = d.project;
+          if (typeof d.files_changed === "number") filesChanged = d.files_changed;
+          if (typeof d.filesChanged === "number") filesChanged = d.filesChanged;
+          if (typeof d.message === "string") bmsg = d.message;
+        }
+        entry.log?.({ ts: nowTs(), level: ok ? "OK" : "ERR", msg: `build_complete ok=${ok}` });
+        entry.handlers.forEach((h) => h.onBuildComplete?.({ ok, project, filesChanged, message: bmsg }));
+        break;
+      }
+      case "build_error": {
+        let bmsg = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.message === "string") bmsg = d.message;
+          else if (typeof d.error === "string") bmsg = d.error;
+        } else if (typeof data === "string") {
+          bmsg = data;
+        }
+        if (!bmsg) bmsg = text || "build error";
+        entry.log?.({ ts: nowTs(), level: "ERR", msg: `build_error: ${bmsg}` });
+        entry.handlers.forEach((h) => h.onBuildError?.({ message: bmsg }));
+        break;
+      }
+      case "projects_list": {
+        let projects: Array<{ name: string; path?: string; updatedAt?: number }> = [];
+        const raw = data ?? (msg as { projects?: unknown }).projects;
+        if (Array.isArray(raw)) {
+          projects = raw
+            .map((p: unknown) => {
+              if (typeof p === "string") return { name: p };
+              if (p && typeof p === "object") {
+                const o = p as Record<string, unknown>;
+                const name = typeof o.name === "string" ? o.name
+                  : typeof o.id === "string" ? o.id : null;
+                if (!name) return null;
+                return {
+                  name,
+                  path: typeof o.path === "string" ? o.path : undefined,
+                  updatedAt: typeof o.updated_at === "number" ? o.updated_at
+                    : typeof o.updatedAt === "number" ? o.updatedAt : undefined,
+                };
+              }
+              return null;
+            })
+            .filter((x): x is { name: string; path?: string; updatedAt?: number } => x !== null);
+        } else if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (Array.isArray(d.projects)) {
+            projects = (d.projects as unknown[]).map((p) => {
+              if (typeof p === "string") return { name: p };
+              const o = p as Record<string, unknown>;
+              return { name: String(o.name ?? o.id ?? "") };
+            }).filter((x) => x.name);
+          }
+        }
+        entry.log?.({ ts: nowTs(), level: "OK", msg: `projects_list count=${projects.length}` });
+        entry.handlers.forEach((h) => h.onProjectsList?.({ projects }));
+        break;
+      }
+      case "scaffold_result": {
+        let ok = false;
+        let name: string | undefined;
+        let smsg: string | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.ok === "boolean") ok = d.ok;
+          if (typeof d.success === "boolean") ok = ok || d.success;
+          if (typeof d.name === "string") name = d.name;
+          else if (typeof d.project === "string") name = d.project;
+          if (typeof d.message === "string") smsg = d.message;
+        }
+        entry.log?.({ ts: nowTs(), level: ok ? "OK" : "ERR", msg: `scaffold_result ok=${ok}` });
+        entry.handlers.forEach((h) => h.onScaffoldResult?.({ ok, name, message: smsg }));
         break;
       }
       case "browser_result": {
@@ -1004,6 +1109,57 @@ export function sendDevServerStop(tabId: string, project?: string | null): boole
   const payload: Record<string, unknown> = { action: "dev_server_stop" };
   if (project) payload.project = project;
   const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
+
+export function sendDevServerStart(tabId: string, project: string): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "dev_server_start: WebSocket not open" });
+    return false;
+  }
+  const json = JSON.stringify({ action: "dev_server_start", project });
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
+
+export function sendListProjects(tabId: string): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  const json = JSON.stringify({ action: "list_projects" });
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
+
+export function sendBuildStart(tabId: string, prompt: string, project: string | null): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "build_start: WebSocket not open" });
+    return false;
+  }
+  const payload: Record<string, unknown> = { action: "build_start", prompt };
+  if (project) payload.project = project;
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
+
+export function sendScaffold(tabId: string, name: string): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "scaffold: WebSocket not open" });
+    return false;
+  }
+  const json = JSON.stringify({ action: "scaffold", name });
   entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
   ws.send(json);
   return true;
