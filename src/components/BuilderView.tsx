@@ -15,6 +15,11 @@ import {
 } from "@/lib/projects";
 import type { LogLine } from "@/lib/agent-state";
 import { nowTs } from "@/lib/agent-state";
+import {
+  BuilderStatusPanel,
+  type BuilderStage,
+  type BuilderStageId,
+} from "@/components/BuilderStatusPanel";
 
 interface BuildHistoryEntry {
   id: string;
@@ -102,6 +107,30 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
   const buildIdRef = useRef<string | null>(null);
   const flashTimerRef = useRef<number | null>(null);
   const pendingProjectRef = useRef<string | null>(null);
+  const [stageCurrent, setStageCurrent] = useState<BuilderStage | null>(null);
+  const [stageHistory, setStageHistory] = useState<BuilderStage[]>([]);
+  const [statusActive, setStatusActive] = useState(false);
+  const inBuildRef = useRef(false);
+  const doneTimerRef = useRef<number | null>(null);
+  const lastPromptRef = useRef<string>("");
+
+  const pushStage = (next: Omit<BuilderStage, "ts">) => {
+    setStageCurrent((prev) => {
+      if (prev) setStageHistory((h) => [...h, prev].slice(-12));
+      return { ...next, ts: Date.now() };
+    });
+  };
+
+  const resetStages = () => {
+    setStageCurrent(null);
+    setStageHistory([]);
+    setStatusActive(false);
+    inBuildRef.current = false;
+    if (doneTimerRef.current) {
+      window.clearTimeout(doneTimerRef.current);
+      doneTimerRef.current = null;
+    }
+  };
 
   // Save history on change
   useEffect(() => {
@@ -124,22 +153,32 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
       onProjectsList: ({ projects }) => {
         setRemoteProjects(projects);
       },
-      onBuildLog: ({ level, message }) => {
-        const id = buildIdRef.current;
-        if (!id) return;
-        setHistory((prev) =>
-          prev.map((h) =>
-            h.id === id
-              ? { ...h, log: [...h.log, { level, message, ts: Date.now() }] }
-              : h,
-          ),
-        );
-      },
       onBuildComplete: ({ ok, filesChanged, message }) => {
         const id = buildIdRef.current;
         setBuilding(false);
         if (filesChanged !== undefined) setLastFilesChanged(filesChanged);
         setLastBuildAt(Date.now());
+        inBuildRef.current = false;
+        if (ok) {
+          pushStage({
+            id: "done",
+            label: "✓ Done!",
+            subtext: `${filesChanged ?? 0} files updated`,
+            color: "#34d399",
+          });
+          if (doneTimerRef.current) window.clearTimeout(doneTimerRef.current);
+          doneTimerRef.current = window.setTimeout(() => {
+            resetStages();
+          }, 3000);
+        } else {
+          pushStage({
+            id: "error",
+            label: "✗ Something went wrong",
+            subtext: message || "Build failed",
+            color: "#ff3b3b",
+            errorMessage: message,
+          });
+        }
         if (!id) return;
         setHistory((prev) =>
           prev.map((h) =>
@@ -162,6 +201,14 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
       onBuildError: ({ message }) => {
         const id = buildIdRef.current;
         setBuilding(false);
+        inBuildRef.current = false;
+        pushStage({
+          id: "error",
+          label: "✗ Something went wrong",
+          subtext: message,
+          color: "#ff3b3b",
+          errorMessage: message,
+        });
         if (id) {
           setHistory((prev) =>
             prev.map((h) =>
@@ -185,6 +232,100 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
         setUpdatedFlash(true);
         if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
         flashTimerRef.current = window.setTimeout(() => setUpdatedFlash(false), 2000);
+        if (inBuildRef.current) {
+          pushStage({
+            id: "applying",
+            label: "◎ Applying changes...",
+            color: "#34d399",
+            files: [],
+          });
+        }
+      },
+      onBuildPhase: ({ phase }) => {
+        if (!inBuildRef.current) return;
+        const p = phase.toLowerCase();
+        if (p === "architect") {
+          pushStage({
+            id: "dreaming",
+            label: "✦ Dreaming...",
+            subtext: "deepseek is imagining the perfect design",
+            color: "#a78bfa",
+          });
+        } else if (p === "builder") {
+          pushStage({
+            id: "building",
+            label: "⚡ Building...",
+            subtext: "qwen is writing the code",
+            color: "var(--primary)",
+          });
+        }
+      },
+      onBuildBrief: ({ brief }) => {
+        if (!inBuildRef.current) return;
+        const trimmed = brief.length > 120 ? brief.slice(0, 120) + "..." : brief;
+        pushStage({
+          id: "planning",
+          label: "◈ Planning...",
+          subtext: trimmed,
+          color: "#60a5fa",
+        });
+      },
+      onBuildVision: ({ text, ok }) => {
+        if (!inBuildRef.current) return;
+        const passed = ok === true || /\bYES\b/.test(text);
+        if (passed) {
+          pushStage({
+            id: "critiquing",
+            label: "◉ Critiquing...",
+            subtext: "llava is reviewing the visual result",
+            color: "#f59e0b",
+          });
+        } else {
+          pushStage({
+            id: "fixing",
+            label: "⟳ Fixing...",
+            subtext: text.length > 100 ? text.slice(0, 100) + "..." : text,
+            color: "#fb923c",
+          });
+        }
+      },
+      onScreenshot: () => {
+        if (!inBuildRef.current) return;
+        setStageCurrent((cur) => {
+          if (cur && (cur.id === "critiquing" || cur.id === "fixing")) return cur;
+          if (cur) setStageHistory((h) => [...h, cur].slice(-12));
+          return {
+            id: "critiquing" as BuilderStageId,
+            label: "◉ Critiquing...",
+            subtext: "llava is reviewing the visual result",
+            color: "#f59e0b",
+            ts: Date.now(),
+          };
+        });
+      },
+      onBuildLog: ({ level, message }) => {
+        const id = buildIdRef.current;
+        if (!id) return;
+        setHistory((prev) =>
+          prev.map((h) =>
+            h.id === id
+              ? { ...h, log: [...h.log, { level, message, ts: Date.now() }] }
+              : h,
+          ),
+        );
+        // If applying stage is active and log mentions a file, append
+        if (inBuildRef.current && /\.(tsx?|jsx?|css|html|json|md|py)\b/.test(message)) {
+          const m = message.match(/[\w./-]+\.(tsx?|jsx?|css|html|json|md|py)/);
+          if (m) {
+            const fname = m[0];
+            setStageCurrent((cur) => {
+              if (!cur || cur.id !== "applying") return cur;
+              const files = cur.files ?? [];
+              if (files.includes(fname)) return cur;
+              return { ...cur, files: [...files, fname].slice(-12) };
+            });
+          }
+        }
       },
       onDevServerResult: ({ success, url, project }) => {
         if (success && url) {
@@ -269,6 +410,27 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
     setBuilding(true);
     setPrompt("");
     sendBuildStart(tabId, text, currentProject);
+    // Status panel: reset and seed with received stage
+    if (doneTimerRef.current) { window.clearTimeout(doneTimerRef.current); doneTimerRef.current = null; }
+    inBuildRef.current = true;
+    lastPromptRef.current = text;
+    setStatusActive(true);
+    setStageHistory([]);
+    setStageCurrent({
+      id: "received",
+      label: "Got it. Starting build...",
+      color: "var(--muted-foreground)",
+      ts: Date.now(),
+    });
+  };
+
+  const handleTryAgain = () => {
+    if (!lastPromptRef.current) {
+      resetStages();
+      return;
+    }
+    setPrompt(lastPromptRef.current);
+    resetStages();
   };
 
   const handleNewProject = () => {
@@ -465,6 +627,12 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
 
           {/* Input area */}
           <div style={{ padding: 12, borderTop: "1px solid var(--border)" }}>
+            <BuilderStatusPanel
+              active={statusActive}
+              current={stageCurrent}
+              history={stageHistory}
+              onTryAgain={handleTryAgain}
+            />
             <textarea
               rows={3}
               value={prompt}

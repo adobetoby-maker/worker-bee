@@ -29,6 +29,7 @@ export interface AgentWSMessage {
     | "voice_transcription" | "voice_error"
     | "dev_server_result" | "build_applied"
     | "build_log" | "build_complete" | "build_error"
+    | "build_phase" | "build_brief" | "build_vision"
     | "projects_list" | "scaffold_result";
   content?: string;
   text?: string;
@@ -77,6 +78,9 @@ export interface AgentWSHandlers {
   onBuildLog?: (info: { level?: string; message: string }) => void;
   onBuildComplete?: (info: { ok: boolean; project?: string; filesChanged?: number; message?: string }) => void;
   onBuildError?: (info: { message: string }) => void;
+  onBuildPhase?: (info: { phase: string; message?: string }) => void;
+  onBuildBrief?: (info: { brief: string }) => void;
+  onBuildVision?: (info: { text: string; ok?: boolean }) => void;
   onProjectsList?: (info: { projects: Array<{ name: string; path?: string; updatedAt?: number }> }) => void;
   onScaffoldResult?: (info: { ok: boolean; name?: string; message?: string }) => void;
 }
@@ -502,6 +506,50 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         if (!bmsg) bmsg = text || "build error";
         entry.log?.({ ts: nowTs(), level: "ERR", msg: `build_error: ${bmsg}` });
         entry.handlers.forEach((h) => h.onBuildError?.({ message: bmsg }));
+        break;
+      }
+      case "build_phase": {
+        let phase = "";
+        let pmsg: string | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.phase === "string") phase = d.phase;
+          if (typeof d.message === "string") pmsg = d.message;
+        }
+        if (!phase) {
+          const mp = (msg as unknown as { phase?: unknown }).phase;
+          if (typeof mp === "string") phase = mp;
+        }
+        entry.handlers.forEach((h) => h.onBuildPhase?.({ phase, message: pmsg }));
+        break;
+      }
+      case "build_brief": {
+        let brief = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.brief === "string") brief = d.brief;
+          else if (typeof d.text === "string") brief = d.text;
+          else if (typeof d.message === "string") brief = d.message;
+        } else if (typeof data === "string") {
+          brief = data;
+        }
+        if (!brief && text) brief = text;
+        entry.handlers.forEach((h) => h.onBuildBrief?.({ brief }));
+        break;
+      }
+      case "build_vision": {
+        let vtext = "";
+        let vok: boolean | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.text === "string") vtext = d.text;
+          else if (typeof d.message === "string") vtext = d.message;
+          if (typeof d.ok === "boolean") vok = d.ok;
+        } else if (typeof data === "string") {
+          vtext = data;
+        }
+        if (!vtext && text) vtext = text;
+        entry.handlers.forEach((h) => h.onBuildVision?.({ text: vtext, ok: vok }));
         break;
       }
       case "projects_list": {

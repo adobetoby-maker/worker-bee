@@ -137,6 +137,16 @@ html.dark {
   50%      { box-shadow: 0 0 0 6px color-mix(in oklab, var(--success) 0%, transparent); }
 }
 
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes build-progress {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
 @keyframes tab-pulse-ring {
   0%   { box-shadow: 0 0 0 0 currentColor; opacity: 0.7; }
   70%  { box-shadow: 0 0 0 6px transparent; opacity: 0; }
