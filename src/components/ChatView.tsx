@@ -1198,10 +1198,15 @@ export function ChatView({
   const handleDismissInstall = () => setInstallCard(null);
 
   return (
-    <div
-      className="flex flex-1 min-h-0 flex-col relative"
-      style={{ animation: "var(--animate-slide-down)" }}
-    >
+    <div className="flex flex-1 min-h-0 flex-row relative">
+      <div
+        className="flex min-h-0 flex-col relative"
+        style={{
+          animation: "var(--animate-slide-down)",
+          flex: previewUrl ? "0 0 60%" : "1 1 100%",
+          minWidth: 0,
+        }}
+      >
       <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto py-6">
         <div className="mx-auto w-full space-y-6" style={{ maxWidth: 680, padding: "0 16px" }}>
         {!connected && (
