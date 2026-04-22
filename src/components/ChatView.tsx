@@ -1953,12 +1953,12 @@ function CopyMessageButton({ text }: { text: string }) {
 function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, matchProjectFile, onCompareCodeBlock }: AssistantContentProps) {
   // Split on fenced ```lang\n...\n``` code blocks
   const parts: Array<{ type: "text" | "code"; lang?: string; text: string }> = [];
-  const re = /```([a-zA-Z0-9]*)\n([\s\S]*?)```/g;
+  const re = /```([a-zA-Z0-9]*)\n?([\s\S]*?)```/g;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(content))) {
     if (m.index > last) parts.push({ type: "text", text: content.slice(last, m.index) });
-    parts.push({ type: "code", lang: m[1] || "text", text: m[2] });
+    parts.push({ type: "code", lang: m[1] || "", text: m[2] });
     last = m.index + m[0].length;
   }
   if (last < content.length) parts.push({ type: "text", text: content.slice(last) });
@@ -1978,7 +1978,12 @@ function AssistantContent({ content, showCursor, projectName, onSaveCodeBlock, m
             </div>
           );
         }
-        const lang = p.lang ?? "text";
+        const rawLang = (p.lang ?? "").toLowerCase();
+        const isPrompt = rawLang === "" || rawLang === "lovable" || rawLang === "prompt";
+        if (isPrompt) {
+          return <PromptContainer key={i} text={p.text} />;
+        }
+        const lang = p.lang || "text";
         const guess = guessName(lang);
         const matchedPath = matchProjectFile?.(lang, p.text, guess) ?? null;
         return (
