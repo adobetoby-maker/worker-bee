@@ -27,7 +27,9 @@ export interface AgentWSMessage {
     | "memory_stats" | "memory_search_result" | "memory_consulted" | "memory_stored"
     | "plan_started" | "plan_ready" | "plan_progress" | "plan_log" | "plan_complete" | "plan_error"
     | "voice_transcription" | "voice_error"
-    | "dev_server_result" | "build_applied";
+    | "dev_server_result" | "build_applied"
+    | "build_log" | "build_complete" | "build_error"
+    | "projects_list" | "scaffold_result";
   content?: string;
   text?: string;
   message?: string;
@@ -72,6 +74,11 @@ export interface AgentWSHandlers {
   onVoiceError?: (info: { message: string }) => void;
   onDevServerResult?: (info: { success: boolean; url?: string; project?: string; message?: string }) => void;
   onBuildApplied?: (info: { project?: string; message?: string }) => void;
+  onBuildLog?: (info: { level?: string; message: string }) => void;
+  onBuildComplete?: (info: { ok: boolean; project?: string; filesChanged?: number; message?: string }) => void;
+  onBuildError?: (info: { message: string }) => void;
+  onProjectsList?: (info: { projects: Array<{ name: string; path?: string; updatedAt?: number }> }) => void;
+  onScaffoldResult?: (info: { ok: boolean; name?: string; message?: string }) => void;
 }
 
 export interface PlanStep {
