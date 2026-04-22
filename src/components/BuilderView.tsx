@@ -153,17 +153,6 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
       onProjectsList: ({ projects }) => {
         setRemoteProjects(projects);
       },
-      onBuildLog: ({ level, message }) => {
-        const id = buildIdRef.current;
-        if (!id) return;
-        setHistory((prev) =>
-          prev.map((h) =>
-            h.id === id
-              ? { ...h, log: [...h.log, { level, message, ts: Date.now() }] }
-              : h,
-          ),
-        );
-      },
       onBuildComplete: ({ ok, filesChanged, message }) => {
         const id = buildIdRef.current;
         setBuilding(false);
