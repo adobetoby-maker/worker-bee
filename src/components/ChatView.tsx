@@ -1720,7 +1720,11 @@ export function ChatView({
                 if (micState === "idle") e.currentTarget.style.color = "var(--muted-foreground)";
               }}
             >
-              {micState === "recording" ? "🔴" : micState === "processing" ? "⏳" : "🎙"}
+              {micState === "recording"
+                ? (recordCountdown > 0 ? `🔴 ${recordCountdown}` : "🔴")
+                : micState === "processing"
+                ? "⏳"
+                : "🎙"}
             </button>
             <Textarea
               rows={1}
