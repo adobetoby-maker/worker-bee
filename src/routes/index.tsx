@@ -991,9 +991,7 @@ function Index() {
                                 after: newContent,
                                 fromTabName: t.name,
                               });
-                              setActive("projects");
-                              // BUILDER replaced PROJECTS in the sidebar; route diff
-                              // requests there instead so the user can review changes.
+                              setActive("builder");
                             }}
                             onSmokeTest={() => runSmokeTest(t.name)}
                             onMemoryStatsChange={(total) =>
@@ -1027,7 +1025,7 @@ function Index() {
                 )}
               </>
             )}
-            {active === "projects" && (
+            {active === "builder" && (
               diffState ? (
                 <DiffViewer
                   filename={diffState.filePath}
@@ -1056,32 +1054,11 @@ function Index() {
                   }}
                   onBack={() => setDiffState(null)}
                 />
-              ) : openProjectId ? (
-                <ProjectWorkspace
-                  projectId={openProjectId}
-                  onBack={() => setOpenProjectId(null)}
-                  onEditInAgent={(filename, content) => {
-                    setActive("chat");
-                    setInputDraft(
-                      activeTabId,
-                      `Here is the current ${filename}. Please \n\n\`\`\`\n${content}\n\`\`\``,
-                    );
-                  }}
-                  onCompareFile={(filePath, before, after) => {
-                    setDiffState({
-                      projectId: openProjectId,
-                      filePath,
-                      before,
-                      after,
-                    });
-                  }}
-                  appendLog={(msg) => appendLog({ ts: nowTs(), level: "OK", msg })}
-                />
               ) : (
-                <ProjectsDashboard
-                  tabs={tabs.map((t) => ({ id: t.id, name: t.name }))}
-                  onOpenProject={(id) => setOpenProjectId(id)}
-                  appendLog={(msg) => appendLog({ ts: nowTs(), level: "OK", msg })}
+                <BuilderView
+                  tabId={activeTab.id}
+                  connected={agentStatus === "open"}
+                  appendLog={appendLog}
                 />
               )
             )}
