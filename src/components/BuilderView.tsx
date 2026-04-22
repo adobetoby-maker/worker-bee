@@ -549,11 +549,16 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
                 fontSize: 12,
               }}
             >
-              <option value="">— Select a project —</option>
+              <option value="">
+                {projectsLoading && !projectsLoaded
+                  ? "Loading projects…"
+                  : allProjects.length === 0
+                    ? "No projects — create one below"
+                    : "— Select a project —"}
+              </option>
               {allProjects.map((p) => (
                 <option key={p.name} value={p.name}>
                   {p.name}
-                  {p.source === "remote" ? "  (agent)" : p.source === "both" ? "  (synced)" : ""}
                 </option>
               ))}
               <option value="__new__">＋ New Project…</option>
