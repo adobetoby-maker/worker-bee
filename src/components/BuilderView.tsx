@@ -90,6 +90,8 @@ function fmtTime(ts: number): string {
 export function BuilderView({ tabId, connected, appendLog }: Props) {
   const [localProjects, setLocalProjects] = useState<Project[]>([]);
   const [remoteProjects, setRemoteProjects] = useState<RemoteProject[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [currentProject, setCurrentProject] = useState<string | null>(null);
   const [history, setHistory] = useState<BuildHistoryEntry[]>(() => loadHistory());
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
@@ -142,9 +144,34 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
     return subscribeProjects((p) => setLocalProjects(p));
   }, []);
 
-  // On mount: refresh projects from agent + load default selection
+  // Refresh projects from agent on mount, on connect, and whenever the tab
+  // becomes visible again. Never use cached/local values for the dropdown.
   useEffect(() => {
-    if (connected) sendListProjects(tabId);
+    if (!connected) return;
+    const refresh = () => {
+      setProjectsLoading(true);
+      sendListProjects(tabId);
+    };
+    refresh();
+    const onVis = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        refresh();
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVis);
+    }
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", refresh);
+    }
+    return () => {
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVis);
+      }
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", refresh);
+      }
+    };
   }, [connected, tabId]);
 
   // WebSocket subscription for builder events
@@ -152,15 +179,18 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
     return subscribeAgentWS(tabId, {
       onProjectsList: ({ projects }) => {
         setRemoteProjects(projects);
+        setProjectsLoading(false);
+        setProjectsLoaded(true);
         console.log("[BUILDER RECV] projects_list", projects);
         setCurrentProject((cur) => {
-          if (cur) return cur;
+          // If current selection no longer exists on disk, drop it.
+          if (cur && projects.some((p) => p.name === cur)) return cur;
           const first = projects[0]?.name;
           if (first) {
             if (connected) sendDevServerStart(tabId, first);
             return first;
           }
-          return cur;
+          return null;
         });
       },
       onBuildComplete: ({ ok, filesChanged, message }) => {
