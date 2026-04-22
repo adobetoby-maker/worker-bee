@@ -627,6 +627,12 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
 
           {/* Input area */}
           <div style={{ padding: 12, borderTop: "1px solid var(--border)" }}>
+            <BuilderStatusPanel
+              active={statusActive}
+              current={stageCurrent}
+              history={stageHistory}
+              onTryAgain={handleTryAgain}
+            />
             <textarea
               rows={3}
               value={prompt}
