@@ -1680,52 +1680,72 @@ export function ChatView({
             >
               📎
             </button>
-            <button
-              type="button"
-              title={
-                micState === "recording"
-                  ? "Recording…"
+            <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+              <button
+                type="button"
+                title={
+                  micState === "recording"
+                    ? "Recording…"
+                    : micState === "processing"
+                    ? "Transcribing…"
+                    : "Voice input (Beta) — requires sox & ffmpeg\nMay need: brew install sox ffmpeg\nFirst use: allow mic in System Settings"
+                }
+                onClick={handleMicClick}
+                disabled={micState !== "idle"}
+                className="chat-mic-btn"
+                style={{
+                  width: 28,
+                  height: 28,
+                  background: "transparent",
+                  border: "none",
+                  color:
+                    micState === "recording"
+                      ? "#ef4444"
+                      : "var(--muted-foreground)",
+                  cursor: micState === "idle" ? "pointer" : "default",
+                  fontSize: 16,
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "color 0.15s",
+                  animation:
+                    micState === "recording"
+                      ? "mic-pulse 1s ease-in-out infinite"
+                      : "none",
+                }}
+                onMouseEnter={(e) => {
+                  if (micState === "idle") e.currentTarget.style.color = "var(--primary)";
+                }}
+                onMouseLeave={(e) => {
+                  if (micState === "idle") e.currentTarget.style.color = "var(--muted-foreground)";
+                }}
+              >
+                {micState === "recording"
+                  ? (recordCountdown > 0 ? `🔴 ${recordCountdown}` : "🔴")
                   : micState === "processing"
-                  ? "Transcribing…"
-                  : "Voice input"
-              }
-              onClick={handleMicClick}
-              disabled={micState !== "idle"}
-              className="chat-mic-btn"
-              style={{
-                width: 28,
-                height: 28,
-                background: "transparent",
-                border: "none",
-                color:
-                  micState === "recording"
-                    ? "#ef4444"
-                    : "var(--muted-foreground)",
-                cursor: micState === "idle" ? "pointer" : "default",
-                fontSize: 16,
-                flexShrink: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "color 0.15s",
-                animation:
-                  micState === "recording"
-                    ? "mic-pulse 1s ease-in-out infinite"
-                    : "none",
-              }}
-              onMouseEnter={(e) => {
-                if (micState === "idle") e.currentTarget.style.color = "var(--primary)";
-              }}
-              onMouseLeave={(e) => {
-                if (micState === "idle") e.currentTarget.style.color = "var(--muted-foreground)";
-              }}
-            >
-              {micState === "recording"
-                ? (recordCountdown > 0 ? `🔴 ${recordCountdown}` : "🔴")
-                : micState === "processing"
-                ? "⏳"
-                : "🎙"}
-            </button>
+                  ? "⏳"
+                  : "🎙"}
+              </button>
+              <span
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                  background: "var(--primary)",
+                  color: "#fff",
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 7,
+                  lineHeight: 1,
+                  padding: "1px 3px",
+                  borderRadius: 2,
+                  pointerEvents: "none",
+                }}
+              >
+                β
+              </span>
+            </span>
             <Textarea
               rows={1}
               ref={textareaRef}
