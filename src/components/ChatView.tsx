@@ -1366,6 +1366,7 @@ export function ChatView({
           return (
             <div
               key={i}
+              data-role={isUser ? "user" : "assistant"}
               className={`flex items-start ${isUser ? "justify-end" : "justify-start"}`}
             >
               <div
