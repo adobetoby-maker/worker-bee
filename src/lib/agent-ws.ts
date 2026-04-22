@@ -405,6 +405,20 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         entry.handlers.forEach((h) => h.onVoiceTranscription?.({ text: vText }));
         break;
       }
+      case "voice_error": {
+        let vMsg = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.message === "string") vMsg = d.message;
+          else if (typeof d.error === "string") vMsg = d.error;
+        } else if (typeof data === "string") {
+          vMsg = data;
+        }
+        if (!vMsg) vMsg = (msg.message as string) || (msg.text as string) || "Voice error";
+        entry.log?.({ ts: nowTs(), level: "ERR", msg: `voice_error: ${vMsg}` });
+        entry.handlers.forEach((h) => h.onVoiceError?.({ message: vMsg }));
+        break;
+      }
       case "browser_result": {
         let bText = "";
         let bUrl: string | undefined;
