@@ -341,22 +341,24 @@ export function ChatView({
     if (!el) return;
     const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
     const last = messages[messages.length - 1];
-    const isNewAssistantTurn =
-      last?.role === "assistant" && (last.content?.length ?? 0) < 80;
-    if (isNearBottom) {
-      if (isNewAssistantTurn) {
-        // Align the new assistant bubble's top with the top of the viewport.
-        // The last child of the inner messages container is the latest bubble.
-        const inner = el.firstElementChild as HTMLElement | null;
-        const lastBubble = inner?.lastElementChild as HTMLElement | null;
-        if (lastBubble) {
-          el.scrollTop = Math.max(0, lastBubble.offsetTop - el.offsetTop);
+    // When the user just sent a message, scroll that user message to the top
+    // of the viewport (iMessage / Claude.ai feel).
+    if (last?.role === "user") {
+      window.setTimeout(() => {
+        const userEls = el.querySelectorAll<HTMLElement>('[data-role="user"]');
+        const lastUserEl = userEls[userEls.length - 1];
+        if (lastUserEl) {
+          lastUserEl.scrollIntoView({ behavior: "smooth", block: "start" });
         } else {
           el.scrollTop = el.scrollHeight;
         }
-      } else {
-        el.scrollTop = el.scrollHeight;
-      }
+        setShowScrollButton(false);
+      }, 0);
+      return;
+    }
+    // For streaming assistant updates, only follow if user is near the bottom.
+    if (isNearBottom) {
+      el.scrollTop = el.scrollHeight;
       setShowScrollButton(false);
     } else {
       setShowScrollButton(true);
@@ -1366,6 +1368,7 @@ export function ChatView({
           return (
             <div
               key={i}
+              data-role={isUser ? "user" : "assistant"}
               className={`flex items-start ${isUser ? "justify-end" : "justify-start"}`}
             >
               <div
