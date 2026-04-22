@@ -169,6 +169,27 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
         setBuilding(false);
         if (filesChanged !== undefined) setLastFilesChanged(filesChanged);
         setLastBuildAt(Date.now());
+        inBuildRef.current = false;
+        if (ok) {
+          pushStage({
+            id: "done",
+            label: "✓ Done!",
+            subtext: `${filesChanged ?? 0} files updated`,
+            color: "#34d399",
+          });
+          if (doneTimerRef.current) window.clearTimeout(doneTimerRef.current);
+          doneTimerRef.current = window.setTimeout(() => {
+            resetStages();
+          }, 3000);
+        } else {
+          pushStage({
+            id: "error",
+            label: "✗ Something went wrong",
+            subtext: message || "Build failed",
+            color: "#ff3b3b",
+            errorMessage: message,
+          });
+        }
         if (!id) return;
         setHistory((prev) =>
           prev.map((h) =>
@@ -191,6 +212,14 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
       onBuildError: ({ message }) => {
         const id = buildIdRef.current;
         setBuilding(false);
+        inBuildRef.current = false;
+        pushStage({
+          id: "error",
+          label: "✗ Something went wrong",
+          subtext: message,
+          color: "#ff3b3b",
+          errorMessage: message,
+        });
         if (id) {
           setHistory((prev) =>
             prev.map((h) =>
@@ -214,6 +243,98 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
         setUpdatedFlash(true);
         if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
         flashTimerRef.current = window.setTimeout(() => setUpdatedFlash(false), 2000);
+        if (inBuildRef.current) {
+          pushStage({
+            id: "applying",
+            label: "◎ Applying changes...",
+            color: "#34d399",
+            files: [],
+          });
+        }
+      },
+      onBuildPhase: ({ phase }) => {
+        if (!inBuildRef.current) return;
+        const p = phase.toLowerCase();
+        if (p === "architect") {
+          pushStage({
+            id: "dreaming",
+            label: "✦ Dreaming...",
+            subtext: "deepseek is imagining the perfect design",
+            color: "#a78bfa",
+          });
+        } else if (p === "builder") {
+          pushStage({
+            id: "building",
+            label: "⚡ Building...",
+            subtext: "qwen is writing the code",
+            color: "var(--primary)",
+          });
+        }
+      },
+      onBuildBrief: ({ brief }) => {
+        if (!inBuildRef.current) return;
+        const trimmed = brief.length > 120 ? brief.slice(0, 120) + "..." : brief;
+        pushStage({
+          id: "planning",
+          label: "◈ Planning...",
+          subtext: trimmed,
+          color: "#60a5fa",
+        });
+      },
+      onBuildVision: ({ text, ok }) => {
+        if (!inBuildRef.current) return;
+        const passed = ok === true || /\bYES\b/.test(text);
+        if (passed) {
+          pushStage({
+            id: "critiquing",
+            label: "◉ Critiquing...",
+            subtext: "llava is reviewing the visual result",
+            color: "#f59e0b",
+          });
+        } else {
+          pushStage({
+            id: "fixing",
+            label: "⟳ Fixing...",
+            subtext: text.length > 100 ? text.slice(0, 100) + "..." : text,
+            color: "#fb923c",
+          });
+        }
+      },
+      onScreenshot: () => {
+        if (!inBuildRef.current) return;
+        // Treat screenshot during build as the start of critique
+        if (stageCurrent?.id !== "critiquing" && stageCurrent?.id !== "fixing") {
+          pushStage({
+            id: "critiquing",
+            label: "◉ Critiquing...",
+            subtext: "llava is reviewing the visual result",
+            color: "#f59e0b",
+          });
+        }
+      },
+      onBuildLog: ({ level, message }) => {
+        const id = buildIdRef.current;
+        if (!id) return;
+        setHistory((prev) =>
+          prev.map((h) =>
+            h.id === id
+              ? { ...h, log: [...h.log, { level, message, ts: Date.now() }] }
+              : h,
+          ),
+        );
+        // If applying stage is active and log mentions a file, append
+        if (inBuildRef.current && /\.(tsx?|jsx?|css|html|json|md|py)\b/.test(message)) {
+          const m = message.match(/[\w./-]+\.(tsx?|jsx?|css|html|json|md|py)/);
+          if (m) {
+            const fname = m[0];
+            setStageCurrent((cur) => {
+              if (!cur || cur.id !== "applying") return cur;
+              const files = cur.files ?? [];
+              if (files.includes(fname)) return cur;
+              return { ...cur, files: [...files, fname].slice(-12) };
+            });
+          }
+        }
       },
       onDevServerResult: ({ success, url, project }) => {
         if (success && url) {
