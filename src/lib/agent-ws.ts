@@ -508,6 +508,49 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         entry.handlers.forEach((h) => h.onBuildError?.({ message: bmsg }));
         break;
       }
+      case "build_phase": {
+        let phase = "";
+        let pmsg: string | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.phase === "string") phase = d.phase;
+          if (typeof d.message === "string") pmsg = d.message;
+        }
+        if (!phase && typeof (msg as { phase?: unknown }).phase === "string") {
+          phase = (msg as { phase: string }).phase;
+        }
+        entry.handlers.forEach((h) => h.onBuildPhase?.({ phase, message: pmsg }));
+        break;
+      }
+      case "build_brief": {
+        let brief = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.brief === "string") brief = d.brief;
+          else if (typeof d.text === "string") brief = d.text;
+          else if (typeof d.message === "string") brief = d.message;
+        } else if (typeof data === "string") {
+          brief = data;
+        }
+        if (!brief && text) brief = text;
+        entry.handlers.forEach((h) => h.onBuildBrief?.({ brief }));
+        break;
+      }
+      case "build_vision": {
+        let vtext = "";
+        let vok: boolean | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.text === "string") vtext = d.text;
+          else if (typeof d.message === "string") vtext = d.message;
+          if (typeof d.ok === "boolean") vok = d.ok;
+        } else if (typeof data === "string") {
+          vtext = data;
+        }
+        if (!vtext && text) vtext = text;
+        entry.handlers.forEach((h) => h.onBuildVision?.({ text: vtext, ok: vok }));
+        break;
+      }
       case "projects_list": {
         let projects: Array<{ name: string; path?: string; updatedAt?: number }> = [];
         const raw = data ?? (msg as { projects?: unknown }).projects;
