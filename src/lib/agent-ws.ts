@@ -837,6 +837,13 @@ export function sendVoiceInput(tabId: string, seconds: number = 5): boolean {
   return true;
 }
 
+export function sendVoiceTranscribe(tabId: string, audioB64: string, format: string = "webm"): boolean {
+  const ws = tabs.get(tabId)?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  ws.send(JSON.stringify({ action: "voice_transcribe", audio_b64: audioB64, format }));
+  return true;
+}
+
 export function sendBrowser(tabId: string, url: string): boolean {
   const entry = tabs.get(tabId);
   const ws = entry?.ws;
