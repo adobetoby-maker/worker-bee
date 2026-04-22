@@ -1114,6 +1114,57 @@ export function sendDevServerStop(tabId: string, project?: string | null): boole
   return true;
 }
 
+export function sendDevServerStart(tabId: string, project: string): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "dev_server_start: WebSocket not open" });
+    return false;
+  }
+  const json = JSON.stringify({ action: "dev_server_start", project });
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
+
+export function sendListProjects(tabId: string): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  const json = JSON.stringify({ action: "list_projects" });
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
+
+export function sendBuildStart(tabId: string, prompt: string, project: string | null): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "build_start: WebSocket not open" });
+    return false;
+  }
+  const payload: Record<string, unknown> = { action: "build_start", prompt };
+  if (project) payload.project = project;
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
+
+export function sendScaffold(tabId: string, name: string): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "scaffold: WebSocket not open" });
+    return false;
+  }
+  const json = JSON.stringify({ action: "scaffold", name });
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
+
 export type GmailAction =
   | { gmail_action: "summary" }
   | { gmail_action: "preview"; category: GmailCategoryId; limit?: number }
