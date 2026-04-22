@@ -8,11 +8,7 @@ import {
   sendDevServerStop,
   sendScaffold,
 } from "@/lib/agent-ws";
-import {
-  subscribeProjects,
-  createProject,
-  type Project,
-} from "@/lib/projects";
+import { createProject } from "@/lib/projects";
 import type { LogLine } from "@/lib/agent-state";
 import { nowTs } from "@/lib/agent-state";
 import {
@@ -88,8 +84,9 @@ function fmtTime(ts: number): string {
 }
 
 export function BuilderView({ tabId, connected, appendLog }: Props) {
-  const [localProjects, setLocalProjects] = useState<Project[]>([]);
   const [remoteProjects, setRemoteProjects] = useState<RemoteProject[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [currentProject, setCurrentProject] = useState<string | null>(null);
   const [history, setHistory] = useState<BuildHistoryEntry[]>(() => loadHistory());
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
@@ -137,14 +134,34 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
     saveHistory(history);
   }, [history]);
 
-  // Local projects subscription
+  // Refresh projects from agent on mount, on connect, and whenever the tab
+  // becomes visible again. Never use cached/local values for the dropdown.
   useEffect(() => {
-    return subscribeProjects((p) => setLocalProjects(p));
-  }, []);
-
-  // On mount: refresh projects from agent + load default selection
-  useEffect(() => {
-    if (connected) sendListProjects(tabId);
+    if (!connected) return;
+    const refresh = () => {
+      setProjectsLoading(true);
+      sendListProjects(tabId);
+    };
+    refresh();
+    const onVis = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        refresh();
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVis);
+    }
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", refresh);
+    }
+    return () => {
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVis);
+      }
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", refresh);
+      }
+    };
   }, [connected, tabId]);
 
   // WebSocket subscription for builder events
@@ -152,15 +169,18 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
     return subscribeAgentWS(tabId, {
       onProjectsList: ({ projects }) => {
         setRemoteProjects(projects);
+        setProjectsLoading(false);
+        setProjectsLoaded(true);
         console.log("[BUILDER RECV] projects_list", projects);
         setCurrentProject((cur) => {
-          if (cur) return cur;
+          // If current selection no longer exists on disk, drop it.
+          if (cur && projects.some((p) => p.name === cur)) return cur;
           const first = projects[0]?.name;
           if (first) {
             if (connected) sendDevServerStart(tabId, first);
             return first;
           }
-          return cur;
+          return null;
         });
       },
       onBuildComplete: ({ ok, filesChanged, message }) => {
@@ -368,21 +388,19 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
     });
   }, [tabId, appendLog]);
 
-  // Merge local + remote project names (dedup by name)
+  // ONLY show projects that the agent reports from disk via list_projects.
+  // Never merge in localStorage / hardcoded names — stale entries with
+  // spaces or deleted projects must not appear in this dropdown.
   const allProjects = useMemo(() => {
-    const map = new Map<string, { name: string; source: "local" | "remote" | "both" }>();
-    for (const p of localProjects) {
-      map.set(p.name, { name: p.name, source: "local" });
-    }
+    const seen = new Set<string>();
+    const list: { name: string }[] = [];
     for (const r of remoteProjects) {
-      if (map.has(r.name)) {
-        map.set(r.name, { name: r.name, source: "both" });
-      } else {
-        map.set(r.name, { name: r.name, source: "remote" });
-      }
+      if (!r?.name || seen.has(r.name)) continue;
+      seen.add(r.name);
+      list.push({ name: r.name });
     }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [localProjects, remoteProjects]);
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [remoteProjects]);
 
   const handleProjectChange = (name: string) => {
     if (name === "__new__") {
@@ -521,11 +539,16 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
                 fontSize: 12,
               }}
             >
-              <option value="">— Select a project —</option>
+              <option value="">
+                {projectsLoading && !projectsLoaded
+                  ? "Loading projects…"
+                  : allProjects.length === 0
+                    ? "No projects — create one below"
+                    : "— Select a project —"}
+              </option>
               {allProjects.map((p) => (
                 <option key={p.name} value={p.name}>
                   {p.name}
-                  {p.source === "remote" ? "  (agent)" : p.source === "both" ? "  (synced)" : ""}
                 </option>
               ))}
               <option value="__new__">＋ New Project…</option>
