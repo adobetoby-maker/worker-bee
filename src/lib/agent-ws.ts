@@ -29,6 +29,7 @@ export interface AgentWSMessage {
     | "voice_transcription" | "voice_error"
     | "dev_server_result" | "build_applied"
     | "build_log" | "build_complete" | "build_error"
+    | "build_phase" | "build_brief" | "build_vision"
     | "projects_list" | "scaffold_result";
   content?: string;
   text?: string;
@@ -77,6 +78,9 @@ export interface AgentWSHandlers {
   onBuildLog?: (info: { level?: string; message: string }) => void;
   onBuildComplete?: (info: { ok: boolean; project?: string; filesChanged?: number; message?: string }) => void;
   onBuildError?: (info: { message: string }) => void;
+  onBuildPhase?: (info: { phase: string; message?: string }) => void;
+  onBuildBrief?: (info: { brief: string }) => void;
+  onBuildVision?: (info: { text: string; ok?: boolean }) => void;
   onProjectsList?: (info: { projects: Array<{ name: string; path?: string; updatedAt?: number }> }) => void;
   onScaffoldResult?: (info: { ok: boolean; name?: string; message?: string }) => void;
 }
