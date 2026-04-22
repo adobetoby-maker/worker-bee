@@ -994,6 +994,21 @@ export function sendSelfRepair(tabId: string, error: string): boolean {
   return true;
 }
 
+export function sendDevServerStop(tabId: string, project?: string | null): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    entry?.log?.({ ts: nowTs(), level: "ERR", msg: "dev_server_stop: WebSocket not open" });
+    return false;
+  }
+  const payload: Record<string, unknown> = { action: "dev_server_stop" };
+  if (project) payload.project = project;
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
+
 export type GmailAction =
   | { gmail_action: "summary" }
   | { gmail_action: "preview"; category: GmailCategoryId; limit?: number }
