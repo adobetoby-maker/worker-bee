@@ -37,7 +37,17 @@ marked.setOptions({ gfm: true, breaks: true });
 function renderInlineMarkdown(text: string): string {
   try {
     // Parse as markdown but disable code fences (they're handled by parent splitter).
-    return marked.parse(text, { async: false }) as string;
+    let html = marked.parse(text, { async: false, gfm: true, breaks: true } as any) as string;
+    // Autolink any bare URLs that marked didn't already wrap in <a>.
+    // Skip URLs already inside an href="..." or between <a>...</a>.
+    html = html.replace(
+      /(href="[^"]*"|<a\b[^>]*>[\s\S]*?<\/a>)|(https?:\/\/[^\s<)"']+)/g,
+      (_match, skip, url) => {
+        if (skip) return skip;
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:var(--primary);text-decoration:underline;text-underline-offset:3px;cursor:pointer">${url}</a>`;
+      }
+    );
+    return html;
   } catch {
     return text.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
   }
