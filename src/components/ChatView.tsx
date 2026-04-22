@@ -1830,6 +1830,32 @@ export function ChatView({
                 boxShadow: "none",
               }}
             />
+            {showScrollButton && (
+              <button
+                type="button"
+                onClick={() => {
+                  const el = scrollerRef.current;
+                  if (el) el.scrollTop = el.scrollHeight;
+                  setShowScrollButton(false);
+                }}
+                title="Scroll to latest"
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid var(--primary)",
+                  borderRadius: 999,
+                  padding: "6px 12px",
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 11,
+                  color: "var(--primary)",
+                  whiteSpace: "nowrap",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  alignSelf: "center",
+                }}
+              >
+                ↓ latest
+              </button>
+            )}
             <button
               type="button"
               onClick={streaming ? stop : send}
