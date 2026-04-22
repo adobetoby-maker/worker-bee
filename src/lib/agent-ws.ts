@@ -516,8 +516,9 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
           if (typeof d.phase === "string") phase = d.phase;
           if (typeof d.message === "string") pmsg = d.message;
         }
-        if (!phase && typeof (msg as { phase?: unknown }).phase === "string") {
-          phase = (msg as { phase: string }).phase;
+        if (!phase) {
+          const mp = (msg as unknown as { phase?: unknown }).phase;
+          if (typeof mp === "string") phase = mp;
         }
         entry.handlers.forEach((h) => h.onBuildPhase?.({ phase, message: pmsg }));
         break;
