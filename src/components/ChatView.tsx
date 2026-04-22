@@ -2067,6 +2067,96 @@ function guessName(lang: string): string {
   }
 }
 
+function PromptContainer({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // ignore
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div
+      style={{
+        background: "color-mix(in oklab, var(--primary) 8%, transparent)",
+        border: "1px solid var(--primary)",
+        borderLeft: "4px solid var(--primary)",
+        borderRadius: 8,
+        padding: 16,
+        margin: "8px 0",
+        position: "relative",
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 13,
+        color: "var(--foreground)",
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 10,
+          gap: 8,
+        }}
+      >
+        <span
+          style={{
+            color: "var(--primary)",
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 10,
+            textTransform: "uppercase",
+            letterSpacing: "0.12em",
+          }}
+        >
+          📋 PROMPT
+        </span>
+        <span style={{ display: "inline-flex", gap: 6 }}>
+          <button
+            type="button"
+            onClick={onCopy}
+            style={{
+              background: "transparent",
+              border: "1px solid var(--primary)",
+              color: "var(--primary)",
+              borderRadius: 4,
+              padding: "2px 8px",
+              fontSize: 10,
+              fontFamily: "'JetBrains Mono', monospace",
+              cursor: "pointer",
+            }}
+          >
+            {copied ? "✓ Copied" : "📋 Copy"}
+          </button>
+          <a
+            href="https://lovable.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              background: "var(--primary)",
+              color: "var(--primary-foreground)",
+              borderRadius: 4,
+              padding: "2px 8px",
+              fontSize: 10,
+              fontFamily: "'JetBrains Mono', monospace",
+              cursor: "pointer",
+              textDecoration: "none",
+              border: "1px solid var(--primary)",
+            }}
+          >
+            ▶ Open Lovable
+          </a>
+        </span>
+      </div>
+      {text}
+    </div>
+  );
+}
+
 interface PreviewPanelProps {
   url: string;
   projectName: string | null;
