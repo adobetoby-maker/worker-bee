@@ -27,6 +27,7 @@ import {
   detectPlanIntent,
   type PlanStep,
   sendVoiceTranscribe,
+  sendDevServerStop,
 } from "@/lib/agent-ws";
 import { toast } from "sonner";
 import { marked } from "marked";
