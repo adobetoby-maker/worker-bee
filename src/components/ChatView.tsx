@@ -340,8 +340,23 @@ export function ChatView({
     const el = scrollerRef.current;
     if (!el) return;
     const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    const last = messages[messages.length - 1];
+    const isNewAssistantTurn =
+      last?.role === "assistant" && (last.content?.length ?? 0) < 80;
     if (isNearBottom) {
-      el.scrollTop = el.scrollHeight;
+      if (isNewAssistantTurn) {
+        // Align the new assistant bubble's top with the top of the viewport.
+        // The last child of the inner messages container is the latest bubble.
+        const inner = el.firstElementChild as HTMLElement | null;
+        const lastBubble = inner?.lastElementChild as HTMLElement | null;
+        if (lastBubble) {
+          el.scrollTop = Math.max(0, lastBubble.offsetTop - el.offsetTop);
+        } else {
+          el.scrollTop = el.scrollHeight;
+        }
+      } else {
+        el.scrollTop = el.scrollHeight;
+      }
       setShowScrollButton(false);
     } else {
       setShowScrollButton(true);
@@ -1403,7 +1418,20 @@ export function ChatView({
                       </div>
                     )}
                     {!showCursor && m.content && (
-                      <CopyMessageButton text={m.content} />
+                      <MessageActions
+                        text={m.content}
+                        messageIndex={i}
+                        isLast={i === messages.length - 1}
+                        onRerun={() => {
+                          // Find the user message immediately before this assistant message.
+                          for (let k = i - 1; k >= 0; k--) {
+                            if (messages[k].role === "user") {
+                              sendFollowUpChat(messages[k].content);
+                              break;
+                            }
+                          }
+                        }}
+                      />
                     )}
                   </>
                 )}
@@ -1671,34 +1699,6 @@ export function ChatView({
         </div>
       )}
 
-      {showScrollButton && (
-        <button
-          type="button"
-          onClick={() => {
-            const el = scrollerRef.current;
-            if (el) el.scrollTop = el.scrollHeight;
-            setShowScrollButton(false);
-          }}
-          style={{
-            position: "absolute",
-            bottom: 80,
-            right: 24,
-            zIndex: 10,
-            background: "var(--primary)",
-            color: "var(--primary-foreground)",
-            border: "1px solid var(--border)",
-            borderRadius: 999,
-            padding: "6px 14px",
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 11,
-            cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-          }}
-        >
-          ↓ scroll to latest
-        </button>
-      )}
-
       <div
         style={{
           background: "var(--surface)",
@@ -1843,6 +1843,32 @@ export function ChatView({
                 boxShadow: "none",
               }}
             />
+            {showScrollButton && (
+              <button
+                type="button"
+                onClick={() => {
+                  const el = scrollerRef.current;
+                  if (el) el.scrollTop = el.scrollHeight;
+                  setShowScrollButton(false);
+                }}
+                title="Scroll to latest"
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid var(--primary)",
+                  borderRadius: 999,
+                  padding: "6px 12px",
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 11,
+                  color: "var(--primary)",
+                  whiteSpace: "nowrap",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  alignSelf: "center",
+                }}
+              >
+                ↓ latest
+              </button>
+            )}
             <button
               type="button"
               onClick={streaming ? stop : send}
@@ -1913,6 +1939,152 @@ interface AssistantContentProps {
   onSaveCodeBlock?: (language: string, code: string, suggestedName: string) => void;
   matchProjectFile?: (language: string, code: string, suggestedName: string) => string | null;
   onCompareCodeBlock?: (filePath: string, newContent: string) => void;
+}
+
+function MessageActions({
+  text,
+  messageIndex,
+  isLast,
+  onRerun,
+}: {
+  text: string;
+  messageIndex: number;
+  isLast: boolean;
+  onRerun: () => void;
+}) {
+  const upKey = `wb_feedback_${messageIndex}_up`;
+  const downKey = `wb_feedback_${messageIndex}_down`;
+  const [up, setUp] = useState(false);
+  const [down, setDown] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      setUp(window.localStorage.getItem(upKey) === "1");
+      setDown(window.localStorage.getItem(downKey) === "1");
+    } catch { /* noop */ }
+  }, [upKey, downKey]);
+
+  const persist = (key: string, on: boolean) => {
+    try {
+      if (typeof window === "undefined") return;
+      if (on) window.localStorage.setItem(key, "1");
+      else window.localStorage.removeItem(key);
+    } catch { /* noop */ }
+  };
+
+  const baseBtn = (active: boolean, activeColor?: string): React.CSSProperties => ({
+    width: 28,
+    height: 28,
+    background: "transparent",
+    border: `1px solid ${active ? activeColor ?? "var(--primary)" : "var(--border)"}`,
+    borderRadius: 6,
+    fontSize: 13,
+    cursor: "pointer",
+    color: active ? activeColor ?? "var(--primary)" : "var(--muted-foreground)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.15s",
+  });
+
+  const onHoverIn = (e: React.MouseEvent<HTMLButtonElement>, active: boolean, activeColor?: string) => {
+    if (active) return;
+    e.currentTarget.style.background = "var(--surface)";
+    e.currentTarget.style.color = "var(--foreground)";
+    e.currentTarget.style.borderColor = activeColor ?? "var(--primary)";
+  };
+  const onHoverOut = (e: React.MouseEvent<HTMLButtonElement>, active: boolean, activeColor?: string) => {
+    if (active) return;
+    e.currentTarget.style.background = "transparent";
+    e.currentTarget.style.color = "var(--muted-foreground)";
+    e.currentTarget.style.borderColor = "var(--border)";
+    void activeColor;
+  };
+
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        display: "flex",
+        gap: 6,
+        justifyContent: "flex-start",
+        opacity: isLast ? 1 : 0,
+        transition: "opacity 200ms",
+      }}
+      className={isLast ? "" : "group-hover:opacity-100"}
+    >
+      <button
+        type="button"
+        title="Good response"
+        onClick={(e) => {
+          e.stopPropagation();
+          const next = !up;
+          setUp(next);
+          persist(upKey, next);
+          if (next && down) {
+            setDown(false);
+            persist(downKey, false);
+          }
+        }}
+        onMouseEnter={(e) => onHoverIn(e, up)}
+        onMouseLeave={(e) => onHoverOut(e, up)}
+        style={baseBtn(up)}
+      >
+        👍
+      </button>
+      <button
+        type="button"
+        title="Bad response"
+        onClick={(e) => {
+          e.stopPropagation();
+          const next = !down;
+          setDown(next);
+          persist(downKey, next);
+          if (next && up) {
+            setUp(false);
+            persist(upKey, false);
+          }
+        }}
+        onMouseEnter={(e) => onHoverIn(e, down, "#ff3b3b")}
+        onMouseLeave={(e) => onHoverOut(e, down, "#ff3b3b")}
+        style={baseBtn(down, "#ff3b3b")}
+      >
+        👎
+      </button>
+      <button
+        type="button"
+        title="Regenerate response"
+        onClick={(e) => {
+          e.stopPropagation();
+          onRerun();
+        }}
+        onMouseEnter={(e) => onHoverIn(e, false)}
+        onMouseLeave={(e) => onHoverOut(e, false)}
+        style={baseBtn(false)}
+      >
+        🔄
+      </button>
+      <button
+        type="button"
+        title="Copy message"
+        onClick={async (e) => {
+          e.stopPropagation();
+          try {
+            await navigator.clipboard.writeText(text);
+          } catch { /* noop */ }
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }}
+        onMouseEnter={(e) => onHoverIn(e, false)}
+        onMouseLeave={(e) => onHoverOut(e, false)}
+        style={baseBtn(false)}
+      >
+        {copied ? "✓" : "📋"}
+      </button>
+    </div>
+  );
 }
 
 function CopyMessageButton({ text }: { text: string }) {
