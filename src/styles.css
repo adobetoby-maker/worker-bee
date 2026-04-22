@@ -328,3 +328,21 @@ html.dark * { scrollbar-color: #2a2a2a #0a0a0a; }
   color: var(--muted-foreground);
 }
 .assistant-md hr { border: none; border-top: 1px solid var(--border); margin: 0.8em 0; }
+
+/* Dark mode: kill any shadows on chat messages and the chat scroll area for a flatter look */
+html.dark .assistant-md,
+html.dark .assistant-md *,
+html.dark [data-message-role="assistant"],
+html.dark [data-message-role="assistant"] *,
+html.dark [data-chat-scroller],
+html.dark [data-chat-scroller] * {
+  box-shadow: none !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+}
+
+html.dark [class*="shadow"],
+html.dark [class*="drop-shadow"] {
+  box-shadow: none !important;
+  filter: none !important;
+}
