@@ -164,6 +164,9 @@ export function ChatView({
   const voiceUnsubRef = useRef<(() => void) | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const [recordCountdown, setRecordCountdown] = useState<number>(0);
+  const countdownIntervalRef = useRef<number | null>(null);
+  const transcribeTimeoutRef = useRef<number | null>(null);
 
   // Load history from localStorage on mount.
   useEffect(() => {
@@ -351,6 +354,10 @@ export function ChatView({
     voiceUnsubRef.current?.();
     const unsub = subscribeAgentWS(tabId, {
       onVoiceTranscription: ({ text }) => {
+        if (transcribeTimeoutRef.current) {
+          window.clearTimeout(transcribeTimeoutRef.current);
+          transcribeTimeoutRef.current = null;
+        }
         setMicState("idle");
         if (typeof text === "string" && text.length > 0) {
           setInput((input ? input + " " : "") + text);
@@ -365,6 +372,14 @@ export function ChatView({
             }
           });
         }
+      },
+      onVoiceError: ({ message }) => {
+        if (transcribeTimeoutRef.current) {
+          window.clearTimeout(transcribeTimeoutRef.current);
+          transcribeTimeoutRef.current = null;
+        }
+        setMicState("idle");
+        toast.error(message || "Voice error");
       },
     });
     voiceUnsubRef.current = unsub;
@@ -419,7 +434,16 @@ export function ChatView({
         if (!ok) {
           setMicState("idle");
           trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "voice_transcribe: send failed" });
+          return;
         }
+        // Watchdog: reset to idle if no transcription arrives within 15s.
+        if (transcribeTimeoutRef.current) window.clearTimeout(transcribeTimeoutRef.current);
+        transcribeTimeoutRef.current = window.setTimeout(() => {
+          transcribeTimeoutRef.current = null;
+          setMicState("idle");
+          toast.error("Voice timeout — try again");
+          trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "voice_transcribe: timeout (15s)" });
+        }, 15000);
       };
       reader.onerror = () => {
         setMicState("idle");
@@ -428,6 +452,11 @@ export function ChatView({
       reader.readAsDataURL(blob);
     };
     setMicState("recording");
+    setRecordCountdown(4);
+    if (countdownIntervalRef.current) window.clearInterval(countdownIntervalRef.current);
+    countdownIntervalRef.current = window.setInterval(() => {
+      setRecordCountdown((n) => (n > 0 ? n - 1 : 0));
+    }, 1000);
     try {
       recorder.start();
     } catch (err) {
@@ -435,6 +464,8 @@ export function ChatView({
       mediaStreamRef.current = null;
       mediaRecorderRef.current = null;
       setMicState("idle");
+      if (countdownIntervalRef.current) { window.clearInterval(countdownIntervalRef.current); countdownIntervalRef.current = null; }
+      setRecordCountdown(0);
       trackedAppendLog({ ts: nowTs(), level: "ERR", msg: `voice_input: recorder start failed (${(err as Error).message})` });
       return;
     }
@@ -443,6 +474,8 @@ export function ChatView({
       if (r && r.state === "recording") {
         try { r.stop(); } catch { /* noop */ }
       }
+      if (countdownIntervalRef.current) { window.clearInterval(countdownIntervalRef.current); countdownIntervalRef.current = null; }
+      setRecordCountdown(0);
     }, 4000);
   };
 
@@ -1687,7 +1720,11 @@ export function ChatView({
                 if (micState === "idle") e.currentTarget.style.color = "var(--muted-foreground)";
               }}
             >
-              {micState === "recording" ? "🔴" : micState === "processing" ? "⏳" : "🎙"}
+              {micState === "recording"
+                ? (recordCountdown > 0 ? `🔴 ${recordCountdown}` : "🔴")
+                : micState === "processing"
+                ? "⏳"
+                : "🎙"}
             </button>
             <Textarea
               rows={1}

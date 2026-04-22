@@ -26,7 +26,7 @@ export interface AgentWSMessage {
     | "tags_result" | "ps_result"
     | "memory_stats" | "memory_search_result" | "memory_consulted" | "memory_stored"
     | "plan_started" | "plan_ready" | "plan_progress" | "plan_log" | "plan_complete" | "plan_error"
-    | "voice_transcription";
+    | "voice_transcription" | "voice_error";
   content?: string;
   text?: string;
   message?: string;
@@ -68,6 +68,7 @@ export interface AgentWSHandlers {
   onPlanComplete?: (info: PlanComplete) => void;
   onPlanError?: (info: { message: string }) => void;
   onVoiceTranscription?: (info: { text: string }) => void;
+  onVoiceError?: (info: { message: string }) => void;
 }
 
 export interface PlanStep {
@@ -402,6 +403,20 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         if (!vText && text) vText = text;
         entry.log?.({ ts: nowTs(), level: "OK", msg: `voice_transcription chars=${vText.length}` });
         entry.handlers.forEach((h) => h.onVoiceTranscription?.({ text: vText }));
+        break;
+      }
+      case "voice_error": {
+        let vMsg = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.message === "string") vMsg = d.message;
+          else if (typeof d.error === "string") vMsg = d.error;
+        } else if (typeof data === "string") {
+          vMsg = data;
+        }
+        if (!vMsg) vMsg = (msg.message as string) || (msg.text as string) || "Voice error";
+        entry.log?.({ ts: nowTs(), level: "ERR", msg: `voice_error: ${vMsg}` });
+        entry.handlers.forEach((h) => h.onVoiceError?.({ message: vMsg }));
         break;
       }
       case "browser_result": {
