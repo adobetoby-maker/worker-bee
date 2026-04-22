@@ -1941,6 +1941,152 @@ interface AssistantContentProps {
   onCompareCodeBlock?: (filePath: string, newContent: string) => void;
 }
 
+function MessageActions({
+  text,
+  messageIndex,
+  isLast,
+  onRerun,
+}: {
+  text: string;
+  messageIndex: number;
+  isLast: boolean;
+  onRerun: () => void;
+}) {
+  const upKey = `wb_feedback_${messageIndex}_up`;
+  const downKey = `wb_feedback_${messageIndex}_down`;
+  const [up, setUp] = useState(false);
+  const [down, setDown] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      setUp(window.localStorage.getItem(upKey) === "1");
+      setDown(window.localStorage.getItem(downKey) === "1");
+    } catch { /* noop */ }
+  }, [upKey, downKey]);
+
+  const persist = (key: string, on: boolean) => {
+    try {
+      if (typeof window === "undefined") return;
+      if (on) window.localStorage.setItem(key, "1");
+      else window.localStorage.removeItem(key);
+    } catch { /* noop */ }
+  };
+
+  const baseBtn = (active: boolean, activeColor?: string): React.CSSProperties => ({
+    width: 28,
+    height: 28,
+    background: "transparent",
+    border: `1px solid ${active ? activeColor ?? "var(--primary)" : "var(--border)"}`,
+    borderRadius: 6,
+    fontSize: 13,
+    cursor: "pointer",
+    color: active ? activeColor ?? "var(--primary)" : "var(--muted-foreground)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.15s",
+  });
+
+  const onHoverIn = (e: React.MouseEvent<HTMLButtonElement>, active: boolean, activeColor?: string) => {
+    if (active) return;
+    e.currentTarget.style.background = "var(--surface)";
+    e.currentTarget.style.color = "var(--foreground)";
+    e.currentTarget.style.borderColor = activeColor ?? "var(--primary)";
+  };
+  const onHoverOut = (e: React.MouseEvent<HTMLButtonElement>, active: boolean, activeColor?: string) => {
+    if (active) return;
+    e.currentTarget.style.background = "transparent";
+    e.currentTarget.style.color = "var(--muted-foreground)";
+    e.currentTarget.style.borderColor = "var(--border)";
+    void activeColor;
+  };
+
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        display: "flex",
+        gap: 6,
+        justifyContent: "flex-start",
+        opacity: isLast ? 1 : 0,
+        transition: "opacity 200ms",
+      }}
+      className={isLast ? "" : "group-hover:opacity-100"}
+    >
+      <button
+        type="button"
+        title="Good response"
+        onClick={(e) => {
+          e.stopPropagation();
+          const next = !up;
+          setUp(next);
+          persist(upKey, next);
+          if (next && down) {
+            setDown(false);
+            persist(downKey, false);
+          }
+        }}
+        onMouseEnter={(e) => onHoverIn(e, up)}
+        onMouseLeave={(e) => onHoverOut(e, up)}
+        style={baseBtn(up)}
+      >
+        👍
+      </button>
+      <button
+        type="button"
+        title="Bad response"
+        onClick={(e) => {
+          e.stopPropagation();
+          const next = !down;
+          setDown(next);
+          persist(downKey, next);
+          if (next && up) {
+            setUp(false);
+            persist(upKey, false);
+          }
+        }}
+        onMouseEnter={(e) => onHoverIn(e, down, "#ff3b3b")}
+        onMouseLeave={(e) => onHoverOut(e, down, "#ff3b3b")}
+        style={baseBtn(down, "#ff3b3b")}
+      >
+        👎
+      </button>
+      <button
+        type="button"
+        title="Regenerate response"
+        onClick={(e) => {
+          e.stopPropagation();
+          onRerun();
+        }}
+        onMouseEnter={(e) => onHoverIn(e, false)}
+        onMouseLeave={(e) => onHoverOut(e, false)}
+        style={baseBtn(false)}
+      >
+        🔄
+      </button>
+      <button
+        type="button"
+        title="Copy message"
+        onClick={async (e) => {
+          e.stopPropagation();
+          try {
+            await navigator.clipboard.writeText(text);
+          } catch { /* noop */ }
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }}
+        onMouseEnter={(e) => onHoverIn(e, false)}
+        onMouseLeave={(e) => onHoverOut(e, false)}
+        style={baseBtn(false)}
+      >
+        {copied ? "✓" : "📋"}
+      </button>
+    </div>
+  );
+}
+
 function CopyMessageButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
