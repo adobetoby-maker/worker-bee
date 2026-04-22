@@ -422,6 +422,35 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         entry.handlers.forEach((h) => h.onVoiceError?.({ message: vMsg }));
         break;
       }
+      case "dev_server_result": {
+        let success = false;
+        let url: string | undefined;
+        let project: string | undefined;
+        let dmsg: string | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.success === "boolean") success = d.success;
+          if (typeof d.ok === "boolean") success = success || d.ok;
+          if (typeof d.url === "string") url = d.url;
+          if (typeof d.project === "string") project = d.project;
+          if (typeof d.message === "string") dmsg = d.message;
+        }
+        entry.log?.({ ts: nowTs(), level: "OK", msg: `dev_server_result success=${success} url=${url ?? ""}` });
+        entry.handlers.forEach((h) => h.onDevServerResult?.({ success, url, project, message: dmsg }));
+        break;
+      }
+      case "build_applied": {
+        let project: string | undefined;
+        let bmsg: string | undefined;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.project === "string") project = d.project;
+          if (typeof d.message === "string") bmsg = d.message;
+        }
+        entry.log?.({ ts: nowTs(), level: "OK", msg: `build_applied${project ? ` project=${project}` : ""}` });
+        entry.handlers.forEach((h) => h.onBuildApplied?.({ project, message: bmsg }));
+        break;
+      }
       case "browser_result": {
         let bText = "";
         let bUrl: string | undefined;
