@@ -410,6 +410,27 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
     setBuilding(true);
     setPrompt("");
     sendBuildStart(tabId, text, currentProject);
+    // Status panel: reset and seed with received stage
+    if (doneTimerRef.current) { window.clearTimeout(doneTimerRef.current); doneTimerRef.current = null; }
+    inBuildRef.current = true;
+    lastPromptRef.current = text;
+    setStatusActive(true);
+    setStageHistory([]);
+    setStageCurrent({
+      id: "received",
+      label: "Got it. Starting build...",
+      color: "var(--muted-foreground)",
+      ts: Date.now(),
+    });
+  };
+
+  const handleTryAgain = () => {
+    if (!lastPromptRef.current) {
+      resetStages();
+      return;
+    }
+    setPrompt(lastPromptRef.current);
+    resetStages();
   };
 
   const handleNewProject = () => {
