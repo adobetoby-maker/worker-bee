@@ -291,15 +291,17 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
       },
       onScreenshot: () => {
         if (!inBuildRef.current) return;
-        // Treat screenshot during build as the start of critique
-        if (stageCurrent?.id !== "critiquing" && stageCurrent?.id !== "fixing") {
-          pushStage({
-            id: "critiquing",
+        setStageCurrent((cur) => {
+          if (cur && (cur.id === "critiquing" || cur.id === "fixing")) return cur;
+          if (cur) setStageHistory((h) => [...h, cur].slice(-12));
+          return {
+            id: "critiquing" as BuilderStageId,
             label: "◉ Critiquing...",
             subtext: "llava is reviewing the visual result",
             color: "#f59e0b",
-          });
-        }
+            ts: Date.now(),
+          };
+        });
       },
       onBuildLog: ({ level, message }) => {
         const id = buildIdRef.current;
