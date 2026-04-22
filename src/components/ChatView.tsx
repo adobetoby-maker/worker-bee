@@ -162,6 +162,8 @@ export function ChatView({
   // Voice input state.
   const [micState, setMicState] = useState<"idle" | "recording" | "processing">("idle");
   const voiceUnsubRef = useRef<(() => void) | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   // Load history from localStorage on mount.
   useEffect(() => {
