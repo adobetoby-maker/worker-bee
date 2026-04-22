@@ -152,6 +152,16 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
     return subscribeAgentWS(tabId, {
       onProjectsList: ({ projects }) => {
         setRemoteProjects(projects);
+        console.log("[BUILDER RECV] projects_list", projects);
+        setCurrentProject((cur) => {
+          if (cur) return cur;
+          const first = projects[0]?.name;
+          if (first) {
+            if (connected) sendDevServerStart(tabId, first);
+            return first;
+          }
+          return cur;
+        });
       },
       onBuildComplete: ({ ok, filesChanged, message }) => {
         const id = buildIdRef.current;
@@ -338,7 +348,8 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
       },
       onScaffoldResult: ({ ok, name, message }) => {
         setScaffolding(false);
-        if (ok && name) {
+        const alreadyExists = !ok && !!message && /already exists/i.test(message);
+        if ((ok || alreadyExists) && name) {
           toast.success(`✨ Project ${name} scaffolded`);
           setShowNewModal(false);
           setNewProjectName("");
@@ -347,6 +358,9 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
           pendingProjectRef.current = name;
           sendListProjects(tabId);
           sendDevServerStart(tabId, name);
+          if (alreadyExists) {
+            toast(`Using existing project: ${name}`);
+          }
         } else {
           toast.error(message || "Scaffold failed");
         }
