@@ -37,7 +37,7 @@ marked.setOptions({ gfm: true, breaks: true });
 function renderInlineMarkdown(text: string): string {
   try {
     // Parse as markdown but disable code fences (they're handled by parent splitter).
-    let html = marked.parse(text, { async: false, gfm: true, breaks: true } as any) as string;
+    let html = marked.parse(text, { async: false, gfm: true, breaks: true } as any) as unknown as string;
     // Autolink any bare URLs that marked didn't already wrap in <a>.
     // Skip URLs already inside an href="..." or between <a>...</a>.
     html = html.replace(
