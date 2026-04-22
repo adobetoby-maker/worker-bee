@@ -15,6 +15,11 @@ import {
 } from "@/lib/projects";
 import type { LogLine } from "@/lib/agent-state";
 import { nowTs } from "@/lib/agent-state";
+import {
+  BuilderStatusPanel,
+  type BuilderStage,
+  type BuilderStageId,
+} from "@/components/BuilderStatusPanel";
 
 interface BuildHistoryEntry {
   id: string;
@@ -102,6 +107,30 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
   const buildIdRef = useRef<string | null>(null);
   const flashTimerRef = useRef<number | null>(null);
   const pendingProjectRef = useRef<string | null>(null);
+  const [stageCurrent, setStageCurrent] = useState<BuilderStage | null>(null);
+  const [stageHistory, setStageHistory] = useState<BuilderStage[]>([]);
+  const [statusActive, setStatusActive] = useState(false);
+  const inBuildRef = useRef(false);
+  const doneTimerRef = useRef<number | null>(null);
+  const lastPromptRef = useRef<string>("");
+
+  const pushStage = (next: Omit<BuilderStage, "ts">) => {
+    setStageCurrent((prev) => {
+      if (prev) setStageHistory((h) => [...h, prev].slice(-12));
+      return { ...next, ts: Date.now() };
+    });
+  };
+
+  const resetStages = () => {
+    setStageCurrent(null);
+    setStageHistory([]);
+    setStatusActive(false);
+    inBuildRef.current = false;
+    if (doneTimerRef.current) {
+      window.clearTimeout(doneTimerRef.current);
+      doneTimerRef.current = null;
+    }
+  };
 
   // Save history on change
   useEffect(() => {
