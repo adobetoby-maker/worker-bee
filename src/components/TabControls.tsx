@@ -100,8 +100,8 @@ export function TabControls({
       className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 font-mono overflow-x-auto"
       style={{
         minHeight: 36,
-        background: "#080808",
-        borderBottom: "1px solid #1a1a1a",
+        background: "var(--surface)",
+        borderBottom: "1px solid var(--border)",
         scrollbarWidth: "none",
         msOverflowStyle: "none",
       }}

@@ -78,8 +78,8 @@ export function ResourceBar({ snap, profile, fallback }: Props) {
       className="flex items-center gap-6 px-4 overflow-x-auto"
       style={{
         height: 32,
-        background: "#070707",
-        borderBottom: "1px solid #1a1a1a",
+        background: "var(--surface)",
+        borderBottom: "1px solid var(--border)",
       }}
     >
       {isUnreachable ? (
