@@ -89,7 +89,7 @@ export function ToolsPanel({ appendLog, connections }: Props) {
     Object.fromEntries(
       BASE_TOOLS.map((t) => [
         t.id,
-        { installed: t.id === "shell", enabled: t.id === "shell", installing: false },
+        { installed: true, enabled: true, installing: false },
       ]),
     ),
   );
@@ -110,17 +110,6 @@ export function ToolsPanel({ appendLog, connections }: Props) {
     await wait(jitter());
     appendLog({ ts: nowTs(), level: "OK", msg: `Installed ${tool.id}` });
     update(tool.id, { installed: true, enabled: true, installing: false });
-  };
-
-  const toggle = (tool: Tool) => {
-    const current = state[tool.id];
-    const next = !current.enabled;
-    update(tool.id, { enabled: next });
-    appendLog({
-      ts: nowTs(),
-      level: next ? "OK" : "ARROW",
-      msg: `${tool.id} ${next ? "enabled" : "disabled"}`,
-    });
   };
 
   return (
