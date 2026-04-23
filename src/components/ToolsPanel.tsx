@@ -209,28 +209,18 @@ export function ToolsPanel({ appendLog, connections }: Props) {
                     {s.installing ? "Installing…" : "Install"}
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => toggle(tool)}
-                    className={`flex-1 flex items-center justify-between rounded-md border px-3 py-2 font-mono text-xs uppercase tracking-[0.18em] transition-colors ${
-                      s.enabled
-                        ? "border-primary/60 bg-primary/10 text-primary"
-                        : "border-border bg-background text-muted-foreground hover:text-foreground"
-                    }`}
+                  <div
+                    className="flex-1 flex items-center justify-between rounded-md border border-primary/60 bg-primary/10 text-primary px-3 py-2 font-mono text-xs uppercase tracking-[0.18em]"
                   >
-                    <span>{s.enabled ? "ON" : "OFF"}</span>
+                    <span>ON</span>
                     <span
-                      className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${
-                        s.enabled ? "bg-primary" : "bg-border"
-                      }`}
+                      className="relative inline-flex h-4 w-8 items-center rounded-full bg-primary"
                     >
                       <span
-                        className={`inline-block h-3 w-3 rounded-full bg-background transition-transform ${
-                          s.enabled ? "translate-x-4" : "translate-x-1"
-                        }`}
+                        className="inline-block h-3 w-3 rounded-full bg-background translate-x-4"
                       />
                     </span>
-                  </button>
+                  </div>
                 )}
               </div>
 
