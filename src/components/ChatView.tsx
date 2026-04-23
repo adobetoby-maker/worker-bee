@@ -2039,6 +2039,21 @@ export function ChatView({
                 if (historyIndex !== -1) setHistoryIndex(-1);
               }}
               onKeyDown={onKeyDown}
+              onPaste={(e) => {
+                const items = e.clipboardData?.items;
+                if (!items) return;
+                const files: File[] = [];
+                for (const it of Array.from(items)) {
+                  if (it.kind === "file") {
+                    const f = it.getAsFile();
+                    if (f) files.push(f);
+                  }
+                }
+                if (files.length) {
+                  e.preventDefault();
+                  addChatFiles(files);
+                }
+              }}
               placeholder={connected ? "Message Worker Bee…" : "Connect to Ollama in CONFIG first"}
               className="flex-1 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
               style={{
