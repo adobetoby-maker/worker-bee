@@ -1189,7 +1189,7 @@ export function sendListProjects(tabId: string): boolean {
   return true;
 }
 
-export function sendBuildStart(tabId: string, prompt: string, project: string | null): boolean {
+export function sendBuildStart(tabId: string, prompt: string, project: string | null, useClaude: boolean = false): boolean {
   const entry = tabs.get(tabId);
   const ws = entry?.ws;
   if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -1201,7 +1201,7 @@ export function sendBuildStart(tabId: string, prompt: string, project: string | 
     prompt,
     project: project ?? "",
     use_architect: true,
-    use_claude: false,
+    use_claude: useClaude,
   };
   const json = JSON.stringify(payload);
   entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
