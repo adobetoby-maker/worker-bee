@@ -747,6 +747,49 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
                   β
                 </span>
               </span>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  height: 36,
+                  padding: "0 10px",
+                  background: "var(--surface-2)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 6,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: "0.05em",
+                  color: useClaude ? "var(--primary)" : "var(--muted-foreground)",
+                  cursor: "pointer",
+                  userSelect: "none",
+                  whiteSpace: "nowrap",
+                }}
+                title="Route this build through Claude (fast)"
+              >
+                <input
+                  type="checkbox"
+                  checked={useClaude}
+                  onChange={(e) => setUseClaude(e.target.checked)}
+                  style={{
+                    appearance: "none",
+                    width: 28,
+                    height: 16,
+                    borderRadius: 8,
+                    background: useClaude ? "var(--primary)" : "var(--border)",
+                    position: "relative",
+                    cursor: "pointer",
+                    transition: "background 0.15s",
+                    outline: "none",
+                    border: "none",
+                    margin: 0,
+                    flexShrink: 0,
+                    backgroundImage: `radial-gradient(circle 6px at ${useClaude ? "20px" : "8px"} 50%, var(--background) 99%, transparent 100%)`,
+                  }}
+                />
+                Use Claude (fast)
+              </label>
               <button
                 type="button"
                 onClick={handleBuild}
