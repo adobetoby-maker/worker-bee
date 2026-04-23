@@ -1030,6 +1030,17 @@ export function sendStop(tabId: string): boolean {
   return true;
 }
 
+export function sendPlanStop(tabId: string): boolean {
+  const entry = tabs.get(tabId);
+  const ws = entry?.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  const payload = { action: "plan_stop" };
+  const json = JSON.stringify(payload);
+  entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
+  ws.send(json);
+  return true;
+}
+
 export function sendVoiceInput(tabId: string, seconds: number = 5): boolean {
   const ws = tabs.get(tabId)?.ws;
   if (!ws || ws.readyState !== WebSocket.OPEN) return false;
