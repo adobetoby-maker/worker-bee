@@ -818,6 +818,53 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
               >
                 {building ? "⏳ BUILDING…" : "▶ BUILD"}
               </button>
+              {building ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (sendPlanStop(tabId)) {
+                      appendLog({ ts: nowTs(), level: "ARROW", msg: "plan_stop sent" });
+                      toast("⛔ Stop requested");
+                    } else {
+                      toast.error("Not connected");
+                    }
+                  }}
+                  title="Stop build"
+                  aria-label="Stop build"
+                  style={{
+                    height: 36,
+                    padding: "0 12px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    background: "#dc2626",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    cursor: "pointer",
+                  }}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
+                  </svg>
+                  STOP
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
