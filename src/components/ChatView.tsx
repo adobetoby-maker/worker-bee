@@ -348,7 +348,13 @@ export function ChatView({
         const userEls = el.querySelectorAll<HTMLElement>('[data-role="user"]');
         const lastUserEl = userEls[userEls.length - 1];
         if (lastUserEl) {
-          lastUserEl.scrollIntoView({ behavior: "smooth", block: "start" });
+          // Compute offset of the user message relative to the scroller and
+          // scroll the container directly so the message pins to the top,
+          // leaving room below for the streaming response.
+          const elRect = el.getBoundingClientRect();
+          const msgRect = lastUserEl.getBoundingClientRect();
+          const target = el.scrollTop + (msgRect.top - elRect.top) - 8;
+          el.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
         } else {
           el.scrollTop = el.scrollHeight;
         }
