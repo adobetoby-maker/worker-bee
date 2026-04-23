@@ -7,6 +7,7 @@ import {
   sendDevServerStart,
   sendDevServerStop,
   sendScaffold,
+  sendPlanStop,
 } from "@/lib/agent-ws";
 import { createProject } from "@/lib/projects";
 import type { LogLine } from "@/lib/agent-state";
