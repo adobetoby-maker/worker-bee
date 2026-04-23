@@ -97,11 +97,12 @@ export function EmailPanel() {
   const captureScreenshot = async () => {
     setAttachMenuOpen(false);
     try {
-      // @ts-expect-error getDisplayMedia not in lib.dom for older targets
-      const stream: MediaStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const md = navigator.mediaDevices as MediaDevices & {
+        getDisplayMedia: (c?: unknown) => Promise<MediaStream>;
+      };
+      const stream: MediaStream = await md.getDisplayMedia({ video: true });
       const track = stream.getVideoTracks()[0];
-      // @ts-expect-error ImageCapture is experimental
-      const ImageCaptureCtor = window.ImageCapture;
+      const ImageCaptureCtor = (window as unknown as { ImageCapture?: new (t: MediaStreamTrack) => { grabFrame: () => Promise<ImageBitmap> } }).ImageCapture;
       let blob: Blob;
       if (ImageCaptureCtor) {
         const ic = new ImageCaptureCtor(track);
