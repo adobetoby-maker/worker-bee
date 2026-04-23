@@ -1,6 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { nowTs, type LogLine } from "@/lib/agent-state";
-import { saveEndpoint, type EndpointMode } from "@/lib/auto-connect";
+import {
+  saveEndpoint,
+  recordEndpointUse,
+  getRecentEndpoints,
+  removeRecentEndpoint,
+  type EndpointMode,
+  type RecentEndpoint,
+} from "@/lib/auto-connect";
 import { probeEndpointViaWS } from "@/lib/agent-ws";
 import { fetchTagsHTTP } from "@/lib/fetch-tags";
 
@@ -68,6 +75,12 @@ export function ConfigPanel({
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [showTroubleshoot, setShowTroubleshoot] = useState(false);
   const [tagsLoading, setTagsLoading] = useState(false);
+  const [recents, setRecents] = useState<RecentEndpoint[]>([]);
+
+  // Hydrate recents on mount (client-only).
+  useEffect(() => {
+    setRecents(getRecentEndpoints());
+  }, []);
 
   const handleMode = (m: Mode) => {
     setMode(m);
@@ -107,6 +120,8 @@ export function ConfigPanel({
     setStatus("ok");
     setConnected(true);
     saveEndpoint(url, mode as EndpointMode);
+    recordEndpointUse(url, mode as EndpointMode);
+    setRecents(getRecentEndpoints());
     appendLog({ ts: nowTs(), level: "OK", msg: `connected · ws ping ok` });
     onConnected?.();
 
