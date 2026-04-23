@@ -1,6 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { nowTs, type LogLine } from "@/lib/agent-state";
-import { saveEndpoint, type EndpointMode } from "@/lib/auto-connect";
+import {
+  saveEndpoint,
+  recordEndpointUse,
+  getRecentEndpoints,
+  removeRecentEndpoint,
+  type EndpointMode,
+  type RecentEndpoint,
+} from "@/lib/auto-connect";
 import { probeEndpointViaWS } from "@/lib/agent-ws";
 import { fetchTagsHTTP } from "@/lib/fetch-tags";
 
@@ -68,6 +75,12 @@ export function ConfigPanel({
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [showTroubleshoot, setShowTroubleshoot] = useState(false);
   const [tagsLoading, setTagsLoading] = useState(false);
+  const [recents, setRecents] = useState<RecentEndpoint[]>([]);
+
+  // Hydrate recents on mount (client-only).
+  useEffect(() => {
+    setRecents(getRecentEndpoints());
+  }, []);
 
   const handleMode = (m: Mode) => {
     setMode(m);
@@ -107,6 +120,8 @@ export function ConfigPanel({
     setStatus("ok");
     setConnected(true);
     saveEndpoint(url, mode as EndpointMode);
+    recordEndpointUse(url, mode as EndpointMode);
+    setRecents(getRecentEndpoints());
     appendLog({ ts: nowTs(), level: "OK", msg: `connected · ws ping ok` });
     onConnected?.();
 
@@ -223,6 +238,56 @@ export function ConfigPanel({
             spellCheck={false}
             className="w-full border border-border bg-surface px-3 py-2.5 font-mono text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/40"
           />
+          {recents.length > 0 && (
+            <div className="mt-2">
+              <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">
+                // last used
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {recents.map((r) => {
+                  const isCurrent = endpoint.replace(/\/$/, "") === r.url;
+                  return (
+                    <span
+                      key={r.url}
+                      className="inline-flex items-center gap-1 rounded border px-2 py-1 font-mono text-[11px]"
+                      style={{
+                        borderColor: isCurrent ? "var(--primary)" : "var(--border)",
+                        background: isCurrent
+                          ? "color-mix(in oklab, var(--primary) 10%, transparent)"
+                          : "var(--surface)",
+                        color: isCurrent ? "var(--primary)" : "var(--foreground)",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEndpoint(r.url);
+                          setMode(r.mode as Mode);
+                          onModeChange?.(r.mode);
+                        }}
+                        title={`Use ${r.url}`}
+                        className="hover:underline"
+                      >
+                        {r.url}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          removeRecentEndpoint(r.url);
+                          setRecents(getRecentEndpoints());
+                        }}
+                        aria-label={`Remove ${r.url}`}
+                        className="text-muted-foreground hover:text-destructive"
+                        style={{ lineHeight: 1 }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <a
             href="https://worker-bee.lovable.app/install"
             target="_blank"
