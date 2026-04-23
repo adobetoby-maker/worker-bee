@@ -60,10 +60,10 @@ export function Header({ connected, model, toolCount, streaming = false, error =
 
   return (
     <header
-      className="sticky top-0 z-40 flex items-center justify-between px-5 backdrop-blur"
+      className="sticky top-0 z-40 flex items-center justify-between px-3 sm:px-5 backdrop-blur gap-2"
       style={{ height: 72, background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0">
         <BeeLogo size={44} streaming={streaming} error={error} />
         <div className="flex flex-col leading-none">
           <span
@@ -97,7 +97,7 @@ export function Header({ connected, model, toolCount, streaming = false, error =
         </span>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 min-w-0 flex-shrink">
         {connected ? (
           <StatusBadge variant="success" dot>
             OLLAMA LIVE
@@ -152,12 +152,16 @@ export function Header({ connected, model, toolCount, streaming = false, error =
             DISCONNECTED
           </StatusBadge>
         )}
+        <span className="hidden md:inline-flex">
         <StatusBadge variant="primary">
           [ MODEL: {model ?? "none"} ]
         </StatusBadge>
+        </span>
+        <span className="hidden lg:inline-flex">
         <StatusBadge variant="success">🔧 {toolCount} tools active</StatusBadge>
+        </span>
         {services && (
-          <div className="flex items-center gap-1 ml-1 pl-2 border-l border-border">
+          <div className="hidden sm:flex items-center gap-1 ml-1 pl-2 border-l border-border">
             {(["gmail", "slack", "whatsapp"] as const).map((s) => {
               const icon = s === "gmail" ? "📧" : s === "slack" ? "💬" : "📱";
               const on = services[s];

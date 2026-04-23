@@ -1004,7 +1004,7 @@ function Index() {
                       ))}
                       {/* Keyboard shortcut legend */}
                       <div
-                        className="absolute bottom-24 right-4 font-mono text-[10px] leading-relaxed select-none"
+                        className="absolute bottom-24 right-4 font-mono text-[10px] leading-relaxed select-none hidden md:block"
                         style={{
                           background: "#333",
                           color: "#888",
