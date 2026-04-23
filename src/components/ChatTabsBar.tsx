@@ -123,8 +123,8 @@ export function ChatTabsBar({
     <div
       className="relative flex items-center gap-2 px-2 sm:px-3"
       style={{
-        background: "#0a0a0a",
-        borderBottom: "1px solid #1a1a1a",
+        background: "var(--surface)",
+        borderBottom: "1px solid var(--border)",
         height: 48,
       }}
     >
