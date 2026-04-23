@@ -585,11 +585,14 @@ export function EmailPanel() {
               <div className="relative inline-block">
                 <button
                   type="button"
-                  onClick={() => setAttachMenuOpen((v) => !v)}
-                  className="flex items-center gap-2 px-3 py-2 rounded text-sm bg-surface-2 text-foreground hover:opacity-90 border border-border"
+                  aria-label="Add attachment"
+                  onClick={(e) => { e.stopPropagation(); setAttachMenuOpen((v) => !v); }}
+                  className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-border bg-surface-2 text-foreground hover:opacity-90 transition"
                 >
-                  <span className="text-lg leading-none">+</span>
-                  <span className="font-mono text-xs uppercase tracking-wider">Add</span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
                 </button>
                 {attachMenuOpen && (
                   <>
@@ -598,39 +601,58 @@ export function EmailPanel() {
                       onClick={() => setAttachMenuOpen(false)}
                     />
                     <div
-                      className="absolute left-0 mt-1 z-20 min-w-[200px] rounded shadow-lg overflow-hidden"
+                      className="absolute left-0 bottom-full mb-2 z-20 min-w-[240px] rounded-lg shadow-xl overflow-hidden py-1"
                       style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
                     >
                       <button
                         type="button"
-                        onClick={() => triggerFilePicker()}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 flex items-center gap-2"
+                        onClick={captureScreenshot}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-surface-2 flex items-center gap-3 text-foreground"
                       >
-                        <span>📎</span> Attach files
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
+                          <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                          <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                          <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                          <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        Take a screenshot
                       </button>
                       <button
                         type="button"
                         onClick={() => triggerFilePicker("image/*")}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 flex items-center gap-2"
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-surface-2 flex items-center gap-3 text-foreground"
                       >
-                        <span>🖼️</span> Attach images
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
+                          <rect x="3" y="3" width="18" height="18" rx="2" />
+                          <circle cx="8.5" cy="8.5" r="1.5" />
+                          <path d="m21 15-5-5L5 21" />
+                        </svg>
+                        Add image
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => triggerFilePicker()}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-surface-2 flex items-center gap-3 text-foreground"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
+                          <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                        </svg>
+                        Attach file
                       </button>
                       <button
                         type="button"
                         onClick={() => triggerFilePicker("image/*", "environment")}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 flex items-center gap-2 sm:hidden"
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-surface-2 flex items-center gap-3 text-foreground sm:hidden"
                       >
-                        <span>📷</span> Take photo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={captureScreenshot}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 flex items-center gap-2"
-                      >
-                        <span>🖥️</span> Capture screenshot
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
+                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                          <circle cx="12" cy="13" r="4" />
+                        </svg>
+                        Take photo
                       </button>
                       <div
-                        className="px-3 py-2 text-[10px] text-muted-foreground"
+                        className="mt-1 px-4 py-2 text-[10px] text-muted-foreground"
                         style={{ borderTop: "1px solid var(--border)" }}
                       >
                         Tip: paste (⌘V) images directly
