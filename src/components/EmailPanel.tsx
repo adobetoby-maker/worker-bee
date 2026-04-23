@@ -54,6 +54,89 @@ export function EmailPanel() {
 
   const [newFolderName, setNewFolderName] = useState("");
 
+  // Attach menu
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+
+  // Capture pasted images (screenshots) when composing
+  useEffect(() => {
+    if (view !== "compose") return;
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const files: File[] = [];
+      for (const it of Array.from(items)) {
+        if (it.kind === "file") {
+          const f = it.getAsFile();
+          if (f) files.push(f);
+        }
+      }
+      if (files.length) {
+        e.preventDefault();
+        const dt = new DataTransfer();
+        files.forEach((f) => dt.items.add(f));
+        handleFileUpload(dt.files);
+        toast.success(`Pasted ${files.length} file(s)`);
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, userId]);
+
+  const triggerFilePicker = (accept?: string, capture?: "user" | "environment") => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    if (accept) input.accept = accept;
+    if (capture) input.setAttribute("capture", capture);
+    input.onchange = () => handleFileUpload(input.files);
+    input.click();
+    setAttachMenuOpen(false);
+  };
+
+  const captureScreenshot = async () => {
+    setAttachMenuOpen(false);
+    try {
+      const md = navigator.mediaDevices as MediaDevices & {
+        getDisplayMedia: (c?: unknown) => Promise<MediaStream>;
+      };
+      const stream: MediaStream = await md.getDisplayMedia({ video: true });
+      const track = stream.getVideoTracks()[0];
+      const ImageCaptureCtor = (window as unknown as { ImageCapture?: new (t: MediaStreamTrack) => { grabFrame: () => Promise<ImageBitmap> } }).ImageCapture;
+      let blob: Blob;
+      if (ImageCaptureCtor) {
+        const ic = new ImageCaptureCtor(track);
+        blob = await ic.grabFrame().then((bmp: ImageBitmap) => {
+          const canvas = document.createElement("canvas");
+          canvas.width = bmp.width;
+          canvas.height = bmp.height;
+          canvas.getContext("2d")!.drawImage(bmp, 0, 0);
+          return new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), "image/png"));
+        });
+      } else {
+        const video = document.createElement("video");
+        video.srcObject = stream;
+        await video.play();
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext("2d")!.drawImage(video, 0, 0);
+        blob = await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), "image/png"));
+      }
+      stream.getTracks().forEach((t) => t.stop());
+      const file = new File([blob], `screenshot-${Date.now()}.png`, { type: "image/png" });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      await handleFileUpload(dt.files);
+      toast.success("Screenshot attached");
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (!/permission|denied|abort/i.test(msg)) {
+        toast.error(`Screenshot failed: ${msg}`);
+      }
+    }
+  };
+
   // Auth bootstrap
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
@@ -499,12 +582,63 @@ export function EmailPanel() {
               <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">
                 Attachments {uploading && "(uploading…)"}
               </label>
-              <input
-                type="file"
-                multiple
-                onChange={(e) => handleFileUpload(e.target.files)}
-                className="text-xs text-muted-foreground"
-              />
+              <div className="relative inline-block">
+                <button
+                  type="button"
+                  onClick={() => setAttachMenuOpen((v) => !v)}
+                  className="flex items-center gap-2 px-3 py-2 rounded text-sm bg-surface-2 text-foreground hover:opacity-90 border border-border"
+                >
+                  <span className="text-lg leading-none">+</span>
+                  <span className="font-mono text-xs uppercase tracking-wider">Add</span>
+                </button>
+                {attachMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setAttachMenuOpen(false)}
+                    />
+                    <div
+                      className="absolute left-0 mt-1 z-20 min-w-[200px] rounded shadow-lg overflow-hidden"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => triggerFilePicker()}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 flex items-center gap-2"
+                      >
+                        <span>📎</span> Attach files
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => triggerFilePicker("image/*")}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 flex items-center gap-2"
+                      >
+                        <span>🖼️</span> Attach images
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => triggerFilePicker("image/*", "environment")}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 flex items-center gap-2 sm:hidden"
+                      >
+                        <span>📷</span> Take photo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={captureScreenshot}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 flex items-center gap-2"
+                      >
+                        <span>🖥️</span> Capture screenshot
+                      </button>
+                      <div
+                        className="px-3 py-2 text-[10px] text-muted-foreground"
+                        style={{ borderTop: "1px solid var(--border)" }}
+                      >
+                        Tip: paste (⌘V) images directly
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
               {attachments.length > 0 && (
                 <div className="mt-2 space-y-1">
                   {attachments.map((a, i) => (
