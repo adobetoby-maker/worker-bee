@@ -1132,6 +1132,7 @@ function Index() {
                 }}
               />
             )}
+            {active === "email" && <EmailPanel />}
           </div>
         </main>
       </div>
