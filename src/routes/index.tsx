@@ -7,6 +7,7 @@ import { InboxCleaner } from "@/components/InboxCleaner";
 import { Sidebar, type View } from "@/components/Sidebar";
 import { loadConnections, saveConnections, type ConnectionsState } from "@/lib/connections";
 import { ConfigPanel } from "@/components/ConfigPanel";
+import { EmailPanel } from "@/components/EmailPanel";
 import { ChatView, type ChatMessage } from "@/components/ChatView";
 import { ChatTabsBar, type ChatTab } from "@/components/ChatTabsBar";
 import { ToolsPanel } from "@/components/ToolsPanel";
