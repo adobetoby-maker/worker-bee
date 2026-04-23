@@ -2,8 +2,60 @@ import { probeEndpointViaWS } from "@/lib/agent-ws";
 
 const ENDPOINT_KEY = "workerbee_endpoint";
 const MODE_KEY = "workerbee_endpoint_mode";
+const RECENT_KEY = "workerbee_recent_endpoints";
+const RECENT_MAX = 3;
 
 export type EndpointMode = "http" | "https" | "tailscale" | "custom";
+
+export interface RecentEndpoint {
+  url: string;
+  mode: EndpointMode;
+  lastUsed: number;
+}
+
+export function getRecentEndpoints(): RecentEndpoint[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(RECENT_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter(
+        (e): e is RecentEndpoint =>
+          !!e && typeof e.url === "string" && typeof e.mode === "string",
+      )
+      .slice(0, RECENT_MAX);
+  } catch {
+    return [];
+  }
+}
+
+export function recordEndpointUse(url: string, mode: EndpointMode) {
+  if (typeof window === "undefined") return;
+  const cleaned = url.replace(/\/$/, "");
+  if (!cleaned) return;
+  try {
+    const existing = getRecentEndpoints().filter((e) => e.url !== cleaned);
+    const next: RecentEndpoint[] = [
+      { url: cleaned, mode, lastUsed: Date.now() },
+      ...existing,
+    ].slice(0, RECENT_MAX);
+    window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function removeRecentEndpoint(url: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const next = getRecentEndpoints().filter((e) => e.url !== url);
+    window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+}
 
 export const FALLBACK_ENDPOINTS: { url: string; mode: EndpointMode }[] = [
   { url: "https://localhost:8000", mode: "https" },
