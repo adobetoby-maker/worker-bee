@@ -54,6 +54,88 @@ export function EmailPanel() {
 
   const [newFolderName, setNewFolderName] = useState("");
 
+  // Attach menu
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+
+  // Capture pasted images (screenshots) when composing
+  useEffect(() => {
+    if (view !== "compose") return;
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const files: File[] = [];
+      for (const it of Array.from(items)) {
+        if (it.kind === "file") {
+          const f = it.getAsFile();
+          if (f) files.push(f);
+        }
+      }
+      if (files.length) {
+        e.preventDefault();
+        const dt = new DataTransfer();
+        files.forEach((f) => dt.items.add(f));
+        handleFileUpload(dt.files);
+        toast.success(`Pasted ${files.length} file(s)`);
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, userId]);
+
+  const triggerFilePicker = (accept?: string, capture?: "user" | "environment") => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    if (accept) input.accept = accept;
+    if (capture) input.setAttribute("capture", capture);
+    input.onchange = () => handleFileUpload(input.files);
+    input.click();
+    setAttachMenuOpen(false);
+  };
+
+  const captureScreenshot = async () => {
+    setAttachMenuOpen(false);
+    try {
+      // @ts-expect-error getDisplayMedia not in lib.dom for older targets
+      const stream: MediaStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const track = stream.getVideoTracks()[0];
+      // @ts-expect-error ImageCapture is experimental
+      const ImageCaptureCtor = window.ImageCapture;
+      let blob: Blob;
+      if (ImageCaptureCtor) {
+        const ic = new ImageCaptureCtor(track);
+        blob = await ic.grabFrame().then((bmp: ImageBitmap) => {
+          const canvas = document.createElement("canvas");
+          canvas.width = bmp.width;
+          canvas.height = bmp.height;
+          canvas.getContext("2d")!.drawImage(bmp, 0, 0);
+          return new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), "image/png"));
+        });
+      } else {
+        const video = document.createElement("video");
+        video.srcObject = stream;
+        await video.play();
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext("2d")!.drawImage(video, 0, 0);
+        blob = await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), "image/png"));
+      }
+      stream.getTracks().forEach((t) => t.stop());
+      const file = new File([blob], `screenshot-${Date.now()}.png`, { type: "image/png" });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      await handleFileUpload(dt.files);
+      toast.success("Screenshot attached");
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (!/permission|denied|abort/i.test(msg)) {
+        toast.error(`Screenshot failed: ${msg}`);
+      }
+    }
+  };
+
   // Auth bootstrap
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
