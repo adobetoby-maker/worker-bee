@@ -101,6 +101,7 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
   const [scaffolding, setScaffolding] = useState(false);
   const [lastBuildAt, setLastBuildAt] = useState<number | null>(null);
   const [lastFilesChanged, setLastFilesChanged] = useState<number | null>(null);
+  const [useClaude, setUseClaude] = useState(false);
   const buildIdRef = useRef<string | null>(null);
   const flashTimerRef = useRef<number | null>(null);
   const pendingProjectRef = useRef<string | null>(null);
