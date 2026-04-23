@@ -677,7 +677,7 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   handleBuild();
                 }
