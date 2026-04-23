@@ -170,6 +170,109 @@ export function ChatView({
   const [savedDraft, setSavedDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Attachment dropdown (mirrors Email composer behavior).
+  type ChatAttachment = { name: string; size: number; type: string; dataUrl?: string };
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
+  const attachBtnRef = useRef<HTMLButtonElement>(null);
+  const attachMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click / Escape.
+  useEffect(() => {
+    if (!attachMenuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (
+        attachMenuRef.current?.contains(t) ||
+        attachBtnRef.current?.contains(t)
+      ) return;
+      setAttachMenuOpen(false);
+    };
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setAttachMenuOpen(false);
+        attachBtnRef.current?.focus();
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [attachMenuOpen]);
+
+  const addChatFiles = async (files: FileList | File[] | null) => {
+    if (!files) return;
+    const arr = Array.from(files);
+    const next: ChatAttachment[] = [];
+    for (const f of arr) {
+      if (f.size > 20 * 1024 * 1024) {
+        toast.error(`${f.name} exceeds 20MB`);
+        continue;
+      }
+      let dataUrl: string | undefined;
+      if (f.type.startsWith("image/")) {
+        try {
+          dataUrl = await new Promise<string>((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(String(r.result));
+            r.onerror = rej;
+            r.readAsDataURL(f);
+          });
+        } catch { /* ignore */ }
+      }
+      next.push({ name: f.name, size: f.size, type: f.type, dataUrl });
+    }
+    if (next.length) {
+      setPendingAttachments((prev) => [...prev, ...next]);
+      toast.success(`Attached ${next.length} file${next.length === 1 ? "" : "s"}`);
+    }
+  };
+
+  const triggerChatFilePicker = (accept?: string, capture?: "user" | "environment") => {
+    setAttachMenuOpen(false);
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    if (accept) input.accept = accept;
+    if (capture) input.setAttribute("capture", capture);
+    input.onchange = () => addChatFiles(input.files);
+    input.click();
+  };
+
+  const captureChatScreenshot = async () => {
+    setAttachMenuOpen(false);
+    try {
+      const md = navigator.mediaDevices as MediaDevices & {
+        getDisplayMedia: (c?: unknown) => Promise<MediaStream>;
+      };
+      const stream = await md.getDisplayMedia({ video: true });
+      const track = stream.getVideoTracks()[0];
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      await video.play();
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext("2d")!.drawImage(video, 0, 0);
+      const blob = await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), "image/png"));
+      stream.getTracks().forEach((t) => t.stop());
+      track.stop();
+      const file = new File([blob], `screenshot-${Date.now()}.png`, { type: "image/png" });
+      await addChatFiles([file]);
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (!/permission|denied|abort/i.test(msg)) {
+        toast.error(`Screenshot failed: ${msg}`);
+      }
+    }
+  };
+
+  const removeChatAttachment = (idx: number) => {
+    setPendingAttachments((arr) => arr.filter((_, i) => i !== idx));
+  };
+
   // Voice input state.
   const [micState, setMicState] = useState<"idle" | "recording" | "processing">("idle");
   const voiceUnsubRef = useRef<(() => void) | null>(null);
@@ -1730,6 +1833,45 @@ export function ChatView({
               ⌃ history {historyIndex + 1}/{inputHistory.length}  ↑↓ navigate  ESC clear
             </div>
           )}
+          {pendingAttachments.length > 0 && (
+            <div
+              className="flex flex-wrap gap-1.5"
+              style={{ paddingBottom: 8 }}
+            >
+              {pendingAttachments.map((a, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs"
+                  style={{
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
+                    color: "var(--foreground)",
+                    maxWidth: 220,
+                  }}
+                >
+                  {a.dataUrl ? (
+                    <img
+                      src={a.dataUrl}
+                      alt=""
+                      style={{ width: 18, height: 18, objectFit: "cover", borderRadius: 3 }}
+                    />
+                  ) : (
+                    <span aria-hidden>📎</span>
+                  )}
+                  <span className="truncate">{a.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeChatAttachment(i)}
+                    aria-label={`Remove ${a.name}`}
+                    className="text-muted-foreground hover:text-destructive"
+                    style={{ lineHeight: 1, fontSize: 14 }}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           <div
             className="chat-pill flex flex-row items-end"
             style={{
@@ -1741,26 +1883,123 @@ export function ChatView({
               transition: "border-color 0.15s, box-shadow 0.15s",
             }}
           >
-            <button
-              type="button"
-              title="Attach"
-              className="chat-attach-btn"
-              style={{
-                width: 28,
-                height: 28,
-                background: "transparent",
-                border: "none",
-                color: "var(--muted-foreground)",
-                cursor: "pointer",
-                fontSize: 16,
-                flexShrink: 0,
-                transition: "color 0.15s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted-foreground)")}
-            >
-              📎
-            </button>
+            <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+              <button
+                ref={attachBtnRef}
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={attachMenuOpen}
+                aria-label="Add attachment"
+                title="Add attachment"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAttachMenuOpen((v) => !v);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setAttachMenuOpen(true);
+                    requestAnimationFrame(() => {
+                      const first = attachMenuRef.current?.querySelector<HTMLButtonElement>("button");
+                      first?.focus();
+                    });
+                  }
+                }}
+                className="chat-attach-btn"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  background: "transparent",
+                  border: "1px solid var(--border)",
+                  color: "var(--muted-foreground)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  transition: "color 0.15s, border-color 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--muted-foreground)")}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
+              {attachMenuOpen && (
+                <div
+                  ref={attachMenuRef}
+                  role="menu"
+                  className="absolute z-30 min-w-[240px] rounded-lg shadow-xl overflow-hidden py-1"
+                  style={{
+                    bottom: "calc(100% + 8px)",
+                    left: 0,
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={captureChatScreenshot}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-surface-2 flex items-center gap-3 text-foreground focus:outline-none focus:bg-surface-2"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
+                      <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                      <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                      <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                      <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    Take a screenshot
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => triggerChatFilePicker("image/*")}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-surface-2 flex items-center gap-3 text-foreground focus:outline-none focus:bg-surface-2"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <path d="m21 15-5-5L5 21" />
+                    </svg>
+                    Add image
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => triggerChatFilePicker()}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-surface-2 flex items-center gap-3 text-foreground focus:outline-none focus:bg-surface-2"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
+                      <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                    </svg>
+                    Attach file
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => triggerChatFilePicker("image/*", "environment")}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-surface-2 flex items-center gap-3 text-foreground focus:outline-none focus:bg-surface-2 sm:hidden"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
+                    Take photo
+                  </button>
+                  <div
+                    className="mt-1 px-4 py-2 text-[10px] text-muted-foreground"
+                    style={{ borderTop: "1px solid var(--border)" }}
+                  >
+                    Tip: paste (⌘V) images directly
+                  </div>
+                </div>
+              )}
+            </span>
             <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
               <button
                 type="button"
@@ -1839,6 +2078,21 @@ export function ChatView({
                 if (historyIndex !== -1) setHistoryIndex(-1);
               }}
               onKeyDown={onKeyDown}
+              onPaste={(e) => {
+                const items = e.clipboardData?.items;
+                if (!items) return;
+                const files: File[] = [];
+                for (const it of Array.from(items)) {
+                  if (it.kind === "file") {
+                    const f = it.getAsFile();
+                    if (f) files.push(f);
+                  }
+                }
+                if (files.length) {
+                  e.preventDefault();
+                  addChatFiles(files);
+                }
+              }}
               placeholder={connected ? "Message Worker Bee…" : "Connect to Ollama in CONFIG first"}
               className="flex-1 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
               style={{
