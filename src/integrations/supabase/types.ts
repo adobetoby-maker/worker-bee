@@ -14,7 +14,133 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      email_attachments: {
+        Row: {
+          created_at: string
+          email_id: string | null
+          filename: string
+          id: string
+          mime_type: string | null
+          size_bytes: number | null
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_id?: string | null
+          filename: string
+          id?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_id?: string | null
+          filename?: string
+          id?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_attachments_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      emails: {
+        Row: {
+          bcc_address: string | null
+          body_html: string | null
+          body_text: string | null
+          cc_address: string | null
+          created_at: string
+          error_message: string | null
+          folder_id: string | null
+          id: string
+          resend_id: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+          to_address: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bcc_address?: string | null
+          body_html?: string | null
+          body_text?: string | null
+          cc_address?: string | null
+          created_at?: string
+          error_message?: string | null
+          folder_id?: string | null
+          id?: string
+          resend_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+          to_address: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bcc_address?: string | null
+          body_html?: string | null
+          body_text?: string | null
+          cc_address?: string | null
+          created_at?: string
+          error_message?: string | null
+          folder_id?: string | null
+          id?: string
+          resend_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          to_address?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emails_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "email_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
