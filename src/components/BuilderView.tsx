@@ -442,7 +442,7 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
     setSelectedHistoryId(id);
     setBuilding(true);
     setPrompt("");
-    sendBuildStart(tabId, text, currentProject);
+    sendBuildStart(tabId, text, currentProject, useClaude);
     // Status panel: reset and seed with received stage
     if (doneTimerRef.current) { window.clearTimeout(doneTimerRef.current); doneTimerRef.current = null; }
     inBuildRef.current = true;
