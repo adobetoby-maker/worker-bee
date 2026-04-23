@@ -1833,6 +1833,45 @@ export function ChatView({
               ⌃ history {historyIndex + 1}/{inputHistory.length}  ↑↓ navigate  ESC clear
             </div>
           )}
+          {pendingAttachments.length > 0 && (
+            <div
+              className="flex flex-wrap gap-1.5"
+              style={{ paddingBottom: 8 }}
+            >
+              {pendingAttachments.map((a, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs"
+                  style={{
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
+                    color: "var(--foreground)",
+                    maxWidth: 220,
+                  }}
+                >
+                  {a.dataUrl ? (
+                    <img
+                      src={a.dataUrl}
+                      alt=""
+                      style={{ width: 18, height: 18, objectFit: "cover", borderRadius: 3 }}
+                    />
+                  ) : (
+                    <span aria-hidden>📎</span>
+                  )}
+                  <span className="truncate">{a.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeChatAttachment(i)}
+                    aria-label={`Remove ${a.name}`}
+                    className="text-muted-foreground hover:text-destructive"
+                    style={{ lineHeight: 1, fontSize: 14 }}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           <div
             className="chat-pill flex flex-row items-end"
             style={{
