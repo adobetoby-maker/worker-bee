@@ -174,11 +174,13 @@ export function ChatTabsBar({
                 onDoubleClick={() => startEdit(tab)}
                 className="group relative flex items-center gap-2 cursor-pointer rounded-md px-2 sm:px-3 py-1.5 transition-all font-mono text-[11px] shrink-0 w-[130px] sm:w-[170px]"
                 style={{
-                  border: isActive ? "1px solid transparent" : "1px solid #222",
+                  border: isActive ? "1px solid transparent" : "1px solid var(--border)",
                   borderLeftWidth: 3,
-                  borderLeftColor: isActive ? "#ffaa00" : "#222",
-                  background: isActive ? "#ffaa0014" : "transparent",
-                  color: isActive ? "#ffaa00" : "#555",
+                  borderLeftColor: isActive ? "var(--primary)" : "var(--border)",
+                  background: isActive
+                    ? "color-mix(in oklab, var(--primary) 10%, transparent)"
+                    : "transparent",
+                  color: isActive ? "var(--primary)" : "var(--muted-foreground)",
                   opacity: isDragging ? 0.4 : 1,
                 }}
               >
