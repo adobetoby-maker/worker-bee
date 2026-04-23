@@ -170,6 +170,109 @@ export function ChatView({
   const [savedDraft, setSavedDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Attachment dropdown (mirrors Email composer behavior).
+  type ChatAttachment = { name: string; size: number; type: string; dataUrl?: string };
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
+  const attachBtnRef = useRef<HTMLButtonElement>(null);
+  const attachMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click / Escape.
+  useEffect(() => {
+    if (!attachMenuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (
+        attachMenuRef.current?.contains(t) ||
+        attachBtnRef.current?.contains(t)
+      ) return;
+      setAttachMenuOpen(false);
+    };
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setAttachMenuOpen(false);
+        attachBtnRef.current?.focus();
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [attachMenuOpen]);
+
+  const addChatFiles = async (files: FileList | File[] | null) => {
+    if (!files) return;
+    const arr = Array.from(files);
+    const next: ChatAttachment[] = [];
+    for (const f of arr) {
+      if (f.size > 20 * 1024 * 1024) {
+        toast.error(`${f.name} exceeds 20MB`);
+        continue;
+      }
+      let dataUrl: string | undefined;
+      if (f.type.startsWith("image/")) {
+        try {
+          dataUrl = await new Promise<string>((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(String(r.result));
+            r.onerror = rej;
+            r.readAsDataURL(f);
+          });
+        } catch { /* ignore */ }
+      }
+      next.push({ name: f.name, size: f.size, type: f.type, dataUrl });
+    }
+    if (next.length) {
+      setPendingAttachments((prev) => [...prev, ...next]);
+      toast.success(`Attached ${next.length} file${next.length === 1 ? "" : "s"}`);
+    }
+  };
+
+  const triggerChatFilePicker = (accept?: string, capture?: "user" | "environment") => {
+    setAttachMenuOpen(false);
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    if (accept) input.accept = accept;
+    if (capture) input.setAttribute("capture", capture);
+    input.onchange = () => addChatFiles(input.files);
+    input.click();
+  };
+
+  const captureChatScreenshot = async () => {
+    setAttachMenuOpen(false);
+    try {
+      const md = navigator.mediaDevices as MediaDevices & {
+        getDisplayMedia: (c?: unknown) => Promise<MediaStream>;
+      };
+      const stream = await md.getDisplayMedia({ video: true });
+      const track = stream.getVideoTracks()[0];
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      await video.play();
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext("2d")!.drawImage(video, 0, 0);
+      const blob = await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), "image/png"));
+      stream.getTracks().forEach((t) => t.stop());
+      track.stop();
+      const file = new File([blob], `screenshot-${Date.now()}.png`, { type: "image/png" });
+      await addChatFiles([file]);
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (!/permission|denied|abort/i.test(msg)) {
+        toast.error(`Screenshot failed: ${msg}`);
+      }
+    }
+  };
+
+  const removeChatAttachment = (idx: number) => {
+    setPendingAttachments((arr) => arr.filter((_, i) => i !== idx));
+  };
+
   // Voice input state.
   const [micState, setMicState] = useState<"idle" | "recording" | "processing">("idle");
   const voiceUnsubRef = useRef<(() => void) | null>(null);
