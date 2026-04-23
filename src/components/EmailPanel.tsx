@@ -582,12 +582,63 @@ export function EmailPanel() {
               <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">
                 Attachments {uploading && "(uploading…)"}
               </label>
-              <input
-                type="file"
-                multiple
-                onChange={(e) => handleFileUpload(e.target.files)}
-                className="text-xs text-muted-foreground"
-              />
+              <div className="relative inline-block">
+                <button
+                  type="button"
+                  onClick={() => setAttachMenuOpen((v) => !v)}
+                  className="flex items-center gap-2 px-3 py-2 rounded text-sm bg-surface-2 text-foreground hover:opacity-90 border border-border"
+                >
+                  <span className="text-lg leading-none">+</span>
+                  <span className="font-mono text-xs uppercase tracking-wider">Add</span>
+                </button>
+                {attachMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setAttachMenuOpen(false)}
+                    />
+                    <div
+                      className="absolute left-0 mt-1 z-20 min-w-[200px] rounded shadow-lg overflow-hidden"
+                      style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => triggerFilePicker()}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 flex items-center gap-2"
+                      >
+                        <span>📎</span> Attach files
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => triggerFilePicker("image/*")}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 flex items-center gap-2"
+                      >
+                        <span>🖼️</span> Attach images
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => triggerFilePicker("image/*", "environment")}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 flex items-center gap-2 sm:hidden"
+                      >
+                        <span>📷</span> Take photo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={captureScreenshot}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-2 flex items-center gap-2"
+                      >
+                        <span>🖥️</span> Capture screenshot
+                      </button>
+                      <div
+                        className="px-3 py-2 text-[10px] text-muted-foreground"
+                        style={{ borderTop: "1px solid var(--border)" }}
+                      >
+                        Tip: paste (⌘V) images directly
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
               {attachments.length > 0 && (
                 <div className="mt-2 space-y-1">
                   {attachments.map((a, i) => (
