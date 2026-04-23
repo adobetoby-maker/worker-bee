@@ -256,8 +256,8 @@ html.dark {
 }
 
 .chat-pill:focus-within {
-  border-color: var(--foreground) !important;
-  box-shadow: none;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent);
 }
 
 /* Terminal / agent log — light theme defaults */
