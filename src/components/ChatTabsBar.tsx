@@ -121,7 +121,7 @@ export function ChatTabsBar({
 
   return (
     <div
-      className="relative flex items-center gap-2 px-3"
+      className="relative flex items-center gap-2 px-2 sm:px-3"
       style={{
         background: "#0a0a0a",
         borderBottom: "1px solid #1a1a1a",
@@ -172,9 +172,8 @@ export function ChatTabsBar({
                 onDragEnd={onDragEnd}
                 onClick={() => !isEditing && onSelect(tab.id)}
                 onDoubleClick={() => startEdit(tab)}
-                className="group relative flex items-center gap-2 cursor-pointer rounded-md px-3 py-1.5 transition-all font-mono text-[11px] shrink-0"
+                className="group relative flex items-center gap-2 cursor-pointer rounded-md px-2 sm:px-3 py-1.5 transition-all font-mono text-[11px] shrink-0 w-[130px] sm:w-[170px]"
                 style={{
-                  width: 170,
                   border: isActive ? "1px solid transparent" : "1px solid #222",
                   borderLeftWidth: 3,
                   borderLeftColor: isActive ? "#ffaa00" : "#222",
@@ -296,9 +295,10 @@ export function ChatTabsBar({
       <button
         type="button"
         onClick={onNew}
-        className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-md font-mono text-[11px] uppercase tracking-[0.15em] text-primary border border-primary/40 hover:bg-primary/10 hover:border-primary transition-colors"
+        className="shrink-0 flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md font-mono text-[11px] uppercase tracking-[0.15em] text-primary border border-primary/40 hover:bg-primary/10 hover:border-primary transition-colors"
+        title="New agent"
       >
-        + NEW AGENT
+        +<span className="hidden sm:inline ml-1">NEW AGENT</span>
       </button>
 
       <div className="ml-auto shrink-0 flex items-center gap-3">

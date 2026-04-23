@@ -97,22 +97,25 @@ export function TabControls({
 
   return (
     <div
-      className="flex items-center gap-3 px-4 font-mono"
+      className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 font-mono overflow-x-auto"
       style={{
-        height: 36,
+        minHeight: 36,
         background: "#080808",
         borderBottom: "1px solid #1a1a1a",
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
       }}
     >
+      <style>{`.tab-controls-row::-webkit-scrollbar{display:none}`}</style>
       <div className="flex items-center gap-2">
-        <span className="text-[10px] uppercase tracking-[0.15em]" style={{ color: "#555" }}>
+        <span className="hidden sm:inline text-[10px] uppercase tracking-[0.15em]" style={{ color: "#555" }}>
           MODEL:
         </span>
         <select
           value={isAuto ? "__auto__" : (model ?? "")}
           onChange={(e) => onModelChange(e.target.value)}
           title={hint}
-          className="bg-background border border-border px-2 py-1 text-[11px] text-foreground rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
+          className="bg-background border border-border px-2 py-1 text-[11px] text-foreground rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40 max-w-[120px] sm:max-w-none"
         >
           <option value="__auto__">🐝 AUTO</option>
           {options.length === 0 && <option value="">No models found</option>}
@@ -122,7 +125,7 @@ export function TabControls({
             </option>
           ))}
         </select>
-        <span className="text-[10px]" style={{ color: "#555" }}>
+        <span className="hidden sm:inline text-[10px]" style={{ color: "#555" }}>
           {isAuto ? "auto-routed" : `~${load.ram} GB RAM`}
         </span>
         {onRefreshModels && (
@@ -131,7 +134,7 @@ export function TabControls({
             onClick={onRefreshModels}
             disabled={refreshingModels}
             title="Refresh models"
-            className="border border-border px-2 py-1 text-[10px] uppercase tracking-[0.15em] hover:border-primary disabled:opacity-50"
+            className="shrink-0 border border-border px-2 py-1 text-[10px] uppercase tracking-[0.15em] hover:border-primary disabled:opacity-50"
             style={{ color: options.length === 0 ? "#ffaa00" : "#888" }}
           >
             {refreshingModels ? "…" : "↻ Refresh"}
@@ -140,14 +143,14 @@ export function TabControls({
       </div>
 
       {onProjectChange && (
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-[0.15em]" style={{ color: "#555" }}>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="hidden sm:inline text-[10px] uppercase tracking-[0.15em]" style={{ color: "#555" }}>
             📂 PROJECT:
           </span>
           <select
             value={activeProjectId ?? ""}
             onChange={(e) => onProjectChange(e.target.value || null)}
-            className="bg-background border border-border px-2 py-1 text-[11px] text-foreground rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40"
+            className="bg-background border border-border px-2 py-1 text-[11px] text-foreground rounded focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/40 max-w-[110px] sm:max-w-none"
           >
             <option value="">— None —</option>
             {projects.map((p) => (
@@ -162,7 +165,7 @@ export function TabControls({
       {memoryCount !== null && memoryCount !== undefined && (
         <span
           title="Memories indexed for this agent"
-          className="font-mono"
+          className="font-mono shrink-0 hidden sm:inline-flex"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -180,19 +183,19 @@ export function TabControls({
         </span>
       )}
 
-      <div className="ml-auto flex items-center gap-2 relative">
+      <div className="ml-auto flex items-center gap-2 relative shrink-0">
         <div className="relative">
           <button
             type="button"
             onClick={() => setBrowserOpen((b) => !b)}
-            className={`px-3 py-1 rounded border text-[10px] uppercase tracking-[0.15em] transition-colors ${
+            className={`shrink-0 px-2 sm:px-3 py-1 rounded border text-[10px] uppercase tracking-[0.15em] transition-colors ${
               browserOpen
                 ? "border-primary/60 text-primary bg-primary/10"
                 : "border-border text-muted-foreground hover:text-primary hover:border-primary/60"
             }`}
             title="Browser quick commands"
           >
-            🎭 BROWSER
+            🎭<span className="hidden sm:inline"> BROWSER</span>
           </button>
           {browserOpen && (
             <BrowserQuickCommands
@@ -213,29 +216,29 @@ export function TabControls({
           <button
             type="button"
             onClick={onRepair}
-            className="px-3 py-1 rounded border text-[10px] uppercase tracking-[0.15em] transition-colors"
+            className="shrink-0 px-2 sm:px-3 py-1 rounded border text-[10px] uppercase tracking-[0.15em] transition-colors"
             style={{ borderColor: "#ff3b3b66", color: "#ff8a8a" }}
             title="Run self-repair on the agent"
           >
-            🔧 REPAIR
+            🔧<span className="hidden sm:inline"> REPAIR</span>
           </button>
         )}
         <button
           type="button"
           onClick={onOpenPrompt}
-          className="px-3 py-1 rounded border border-border text-[10px] uppercase tracking-[0.15em] text-muted-foreground hover:text-primary hover:border-primary/60 transition-colors"
+          className="shrink-0 px-2 sm:px-3 py-1 rounded border border-border text-[10px] uppercase tracking-[0.15em] text-muted-foreground hover:text-primary hover:border-primary/60 transition-colors"
           title="Edit system prompt"
         >
-          ✏ PROMPT
+          ✏<span className="hidden sm:inline"> PROMPT</span>
         </button>
         {!confirming ? (
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="px-3 py-1 rounded border border-border text-[10px] uppercase tracking-[0.15em] text-muted-foreground hover:text-destructive hover:border-destructive/60 transition-colors"
+            className="shrink-0 px-2 sm:px-3 py-1 rounded border border-border text-[10px] uppercase tracking-[0.15em] text-muted-foreground hover:text-destructive hover:border-destructive/60 transition-colors"
             title="Clear chat history"
           >
-            🗑 CLEAR
+            🗑<span className="hidden sm:inline"> CLEAR</span>
           </button>
         ) : (
           <div
