@@ -255,6 +255,150 @@ export function BuilderStatusPanel({
                 {current.subtext}
               </div>
             )}
+            {current.id === "spec" && (
+              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                {current.specBullets && current.specBullets.length > 0 && (
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: 18,
+                      fontFamily: MONO,
+                      fontSize: 11,
+                      color: "var(--foreground)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 4,
+                    }}
+                  >
+                    {current.specBullets.slice(0, 3).map((b, i) => (
+                      <li key={i}>{b}</li>
+                    ))}
+                  </ul>
+                )}
+                <div
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 11,
+                    color: "var(--muted-foreground)",
+                    fontStyle: "italic",
+                  }}
+                >
+                  Is this right? (yes / change it)
+                </div>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const v = specInput.trim();
+                    if (!v) return;
+                    if (v.toLowerCase() === "yes") {
+                      onSpecConfirm?.();
+                    } else {
+                      onSpecRefine?.(v);
+                    }
+                    setSpecInput("");
+                  }}
+                  style={{ display: "flex", gap: 6 }}
+                >
+                  <input
+                    type="text"
+                    value={specInput}
+                    onChange={(e) => setSpecInput(e.target.value)}
+                    placeholder='type "yes" or describe a change…'
+                    autoFocus
+                    style={{
+                      flex: 1,
+                      padding: "6px 8px",
+                      background: "var(--surface, transparent)",
+                      color: "var(--foreground)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                      fontFamily: MONO,
+                      fontSize: 11,
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      padding: "6px 10px",
+                      background: "var(--primary)",
+                      color: "var(--primary-foreground)",
+                      border: "none",
+                      borderRadius: 6,
+                      fontFamily: MONO,
+                      fontSize: 11,
+                      cursor: "pointer",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Send
+                  </button>
+                </form>
+              </div>
+            )}
+            {current.id === "review" && (
+              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 11,
+                    color: "var(--muted-foreground)",
+                  }}
+                >
+                  Files to be created:
+                </div>
+                <ol
+                  style={{
+                    margin: 0,
+                    paddingLeft: 22,
+                    fontFamily: MONO,
+                    fontSize: 11,
+                    color: "var(--foreground)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 3,
+                  }}
+                >
+                  {(current.plannedFiles ?? []).map((f, i) => (
+                    <li key={f + i}>{f}</li>
+                  ))}
+                </ol>
+                <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => onReviewApprove?.()}
+                    style={{
+                      padding: "6px 12px",
+                      background: "#16a34a",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 6,
+                      fontFamily: MONO,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✓ Looks good — Build it
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onReviewEdit?.()}
+                    style={{
+                      padding: "6px 12px",
+                      background: "transparent",
+                      color: "var(--foreground)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                      fontFamily: MONO,
+                      fontSize: 11,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✎ Edit Plan
+                  </button>
+                </div>
+              </div>
+            )}
             {current.id === "building" && (
               <div
                 style={{
