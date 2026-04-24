@@ -10,6 +10,8 @@ export type BuilderStageId =
   | "critiquing"
   | "fixing"
   | "done"
+  | "spec"
+  | "review"
   | "error";
 
 export interface BuilderStage {
@@ -20,6 +22,10 @@ export interface BuilderStage {
   files?: string[];
   errorMessage?: string;
   ts: number;
+  /** SPEC stage: 3-bullet summary of what Worker Bee understood */
+  specBullets?: string[];
+  /** REVIEW stage: numbered list of files to be created */
+  plannedFiles?: string[];
 }
 
 interface Props {
@@ -27,12 +33,20 @@ interface Props {
   current: BuilderStage | null;
   history: BuilderStage[];
   onTryAgain?: () => void;
+  /** SPEC stage handlers */
+  onSpecConfirm?: () => void;
+  onSpecRefine?: (feedback: string) => void;
+  /** REVIEW stage handlers */
+  onReviewApprove?: () => void;
+  onReviewEdit?: () => void;
 }
 
 const STAGE_DOTS: Array<{ id: BuilderStageId; short: string }> = [
+  { id: "spec", short: "spec" },
   { id: "received", short: "got" },
   { id: "dreaming", short: "drm" },
   { id: "planning", short: "pln" },
+  { id: "review", short: "rev" },
   { id: "building", short: "BLD" },
   { id: "applying", short: "apl" },
   { id: "critiquing", short: "crt" },
@@ -42,9 +56,24 @@ const STAGE_DOTS: Array<{ id: BuilderStageId; short: string }> = [
 
 const MONO = "'JetBrains Mono', monospace";
 
-export function BuilderStatusPanel({ active, current, history, onTryAgain }: Props) {
+export function BuilderStatusPanel({
+  active,
+  current,
+  history,
+  onTryAgain,
+  onSpecConfirm,
+  onSpecRefine,
+  onReviewApprove,
+  onReviewEdit,
+}: Props) {
   const [worried, setWorried] = useState(false);
   const lastTickRef = useRef<number>(Date.now());
+  const [specInput, setSpecInput] = useState("");
+
+  // Reset SPEC input whenever a new spec stage arrives
+  useEffect(() => {
+    if (current?.id === "spec") setSpecInput("");
+  }, [current?.id, current?.ts]);
 
   // Reset worried timer whenever the current stage changes
   useEffect(() => {
@@ -224,6 +253,150 @@ export function BuilderStatusPanel({ active, current, history, onTryAgain }: Pro
                 }}
               >
                 {current.subtext}
+              </div>
+            )}
+            {current.id === "spec" && (
+              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                {current.specBullets && current.specBullets.length > 0 && (
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: 18,
+                      fontFamily: MONO,
+                      fontSize: 11,
+                      color: "var(--foreground)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 4,
+                    }}
+                  >
+                    {current.specBullets.slice(0, 3).map((b, i) => (
+                      <li key={i}>{b}</li>
+                    ))}
+                  </ul>
+                )}
+                <div
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 11,
+                    color: "var(--muted-foreground)",
+                    fontStyle: "italic",
+                  }}
+                >
+                  Is this right? (yes / change it)
+                </div>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const v = specInput.trim();
+                    if (!v) return;
+                    if (v.toLowerCase() === "yes") {
+                      onSpecConfirm?.();
+                    } else {
+                      onSpecRefine?.(v);
+                    }
+                    setSpecInput("");
+                  }}
+                  style={{ display: "flex", gap: 6 }}
+                >
+                  <input
+                    type="text"
+                    value={specInput}
+                    onChange={(e) => setSpecInput(e.target.value)}
+                    placeholder='type "yes" or describe a change…'
+                    autoFocus
+                    style={{
+                      flex: 1,
+                      padding: "6px 8px",
+                      background: "var(--surface, transparent)",
+                      color: "var(--foreground)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                      fontFamily: MONO,
+                      fontSize: 11,
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      padding: "6px 10px",
+                      background: "var(--primary)",
+                      color: "var(--primary-foreground)",
+                      border: "none",
+                      borderRadius: 6,
+                      fontFamily: MONO,
+                      fontSize: 11,
+                      cursor: "pointer",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Send
+                  </button>
+                </form>
+              </div>
+            )}
+            {current.id === "review" && (
+              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: 11,
+                    color: "var(--muted-foreground)",
+                  }}
+                >
+                  Files to be created:
+                </div>
+                <ol
+                  style={{
+                    margin: 0,
+                    paddingLeft: 22,
+                    fontFamily: MONO,
+                    fontSize: 11,
+                    color: "var(--foreground)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 3,
+                  }}
+                >
+                  {(current.plannedFiles ?? []).map((f, i) => (
+                    <li key={f + i}>{f}</li>
+                  ))}
+                </ol>
+                <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => onReviewApprove?.()}
+                    style={{
+                      padding: "6px 12px",
+                      background: "#16a34a",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 6,
+                      fontFamily: MONO,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✓ Looks good — Build it
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onReviewEdit?.()}
+                    style={{
+                      padding: "6px 12px",
+                      background: "transparent",
+                      color: "var(--foreground)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                      fontFamily: MONO,
+                      fontSize: 11,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✎ Edit Plan
+                  </button>
+                </div>
               </div>
             )}
             {current.id === "building" && (
