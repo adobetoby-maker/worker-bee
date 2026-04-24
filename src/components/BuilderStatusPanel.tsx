@@ -10,6 +10,8 @@ export type BuilderStageId =
   | "critiquing"
   | "fixing"
   | "done"
+  | "spec"
+  | "review"
   | "error";
 
 export interface BuilderStage {
@@ -20,6 +22,10 @@ export interface BuilderStage {
   files?: string[];
   errorMessage?: string;
   ts: number;
+  /** SPEC stage: 3-bullet summary of what Worker Bee understood */
+  specBullets?: string[];
+  /** REVIEW stage: numbered list of files to be created */
+  plannedFiles?: string[];
 }
 
 interface Props {
@@ -27,12 +33,20 @@ interface Props {
   current: BuilderStage | null;
   history: BuilderStage[];
   onTryAgain?: () => void;
+  /** SPEC stage handlers */
+  onSpecConfirm?: () => void;
+  onSpecRefine?: (feedback: string) => void;
+  /** REVIEW stage handlers */
+  onReviewApprove?: () => void;
+  onReviewEdit?: () => void;
 }
 
 const STAGE_DOTS: Array<{ id: BuilderStageId; short: string }> = [
+  { id: "spec", short: "spec" },
   { id: "received", short: "got" },
   { id: "dreaming", short: "drm" },
   { id: "planning", short: "pln" },
+  { id: "review", short: "rev" },
   { id: "building", short: "BLD" },
   { id: "applying", short: "apl" },
   { id: "critiquing", short: "crt" },
@@ -42,9 +56,24 @@ const STAGE_DOTS: Array<{ id: BuilderStageId; short: string }> = [
 
 const MONO = "'JetBrains Mono', monospace";
 
-export function BuilderStatusPanel({ active, current, history, onTryAgain }: Props) {
+export function BuilderStatusPanel({
+  active,
+  current,
+  history,
+  onTryAgain,
+  onSpecConfirm,
+  onSpecRefine,
+  onReviewApprove,
+  onReviewEdit,
+}: Props) {
   const [worried, setWorried] = useState(false);
   const lastTickRef = useRef<number>(Date.now());
+  const [specInput, setSpecInput] = useState("");
+
+  // Reset SPEC input whenever a new spec stage arrives
+  useEffect(() => {
+    if (current?.id === "spec") setSpecInput("");
+  }, [current?.id, current?.ts]);
 
   // Reset worried timer whenever the current stage changes
   useEffect(() => {
