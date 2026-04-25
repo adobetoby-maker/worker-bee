@@ -1552,6 +1552,7 @@ export function ChatView({
             </div>
           );
         })}
+        <div ref={messagesEndRef} aria-hidden="true" />
         </div>
       </div>
 
