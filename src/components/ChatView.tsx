@@ -2112,8 +2112,7 @@ export function ChatView({
               <button
                 type="button"
                 onClick={() => {
-                  const el = scrollerRef.current;
-                  if (el) el.scrollTop = el.scrollHeight;
+                  messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
                   setShowScrollButton(false);
                 }}
                 title="Scroll to latest"
