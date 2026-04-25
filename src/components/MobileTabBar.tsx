@@ -7,9 +7,7 @@ interface MobileTabBarProps {
 
 const ITEMS: { id: View; label: string; icon: string }[] = [
   { id: "chat", label: "Chat", icon: "💬" },
-  { id: "builder", label: "Build", icon: "🏗" },
-  { id: "email", label: "Email", icon: "📧" },
-  { id: "vault", label: "Vault", icon: "🔐" },
+  { id: "tools", label: "Tools", icon: "🔧" },
   { id: "config", label: "Config", icon: "⚙" },
 ];
 
