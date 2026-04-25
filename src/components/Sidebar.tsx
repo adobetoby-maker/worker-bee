@@ -7,6 +7,10 @@ interface SidebarProps {
   active: View;
   onChange: (v: View) => void;
   log: LogLine[];
+  /** When true, renders full-width labels regardless of breakpoint (used inside the mobile drawer). */
+  alwaysExpanded?: boolean;
+  /** Hide the desktop visibility wrapper (used when embedding inside a Sheet). */
+  embedded?: boolean;
 }
 
 const NAV: { id: View; label: string; icon: string }[] = [
@@ -19,10 +23,16 @@ const NAV: { id: View; label: string; icon: string }[] = [
   { id: "config", label: "CONFIG", icon: "⚙" },
 ];
 
-export function Sidebar({ active, onChange, log }: SidebarProps) {
+export function Sidebar({ active, onChange, log, alwaysExpanded = false, embedded = false }: SidebarProps) {
+  const widthClass = alwaysExpanded ? "w-full" : "w-[240px]";
+  const labelClass = alwaysExpanded ? "inline" : "hidden md:inline";
+  const logClass = alwaysExpanded ? "flex" : "hidden md:flex";
+  const wrapperClass = embedded
+    ? `flex flex-col ${widthClass} h-full shrink-0`
+    : `hidden md:flex flex-col ${widthClass} shrink-0`;
   return (
     <aside
-      className="flex flex-col w-[56px] md:w-[240px] shrink-0"
+      className={wrapperClass}
       style={{ background: "var(--surface)", borderRight: "1px solid var(--border)" }}
     >
       <nav className="flex flex-col py-3">
@@ -34,7 +44,7 @@ export function Sidebar({ active, onChange, log }: SidebarProps) {
               type="button"
               onClick={() => onChange(item.id)}
               title={item.label}
-              className={`group relative flex items-center gap-3 px-4 md:px-5 py-3 text-left font-mono text-[12px] uppercase tracking-[0.18em] transition-colors ${
+              className={`group relative flex items-center gap-3 px-5 py-3 text-left font-mono text-[12px] uppercase tracking-[0.18em] transition-colors ${
                 isActive
                   ? "bg-primary/10 text-success"
                   : "text-muted-foreground hover:bg-surface-2/60 hover:text-foreground"
@@ -46,16 +56,16 @@ export function Sidebar({ active, onChange, log }: SidebarProps) {
                 }`}
               />
               <span className="text-base leading-none">{item.icon}</span>
-              <span className="hidden md:inline">{item.label}</span>
+              <span className={labelClass}>{item.label}</span>
               {isActive && (
-                <span className="ml-auto text-[10px] text-primary hidden md:inline">●</span>
+                <span className={`ml-auto text-[10px] text-primary ${labelClass}`}>●</span>
               )}
             </button>
           );
         })}
       </nav>
 
-      <div className="hidden md:flex flex-col flex-1 min-h-0">
+      <div className={`${logClass} flex-col flex-1 min-h-0`}>
         <AgentLog lines={log} />
       </div>
     </aside>
