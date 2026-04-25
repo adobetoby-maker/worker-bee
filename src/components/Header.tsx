@@ -60,7 +60,7 @@ export function Header({ connected, model, toolCount, streaming = false, error =
 
   return (
     <header
-      className="sticky top-0 z-40 flex items-center justify-between px-3 sm:px-5 backdrop-blur gap-2"
+      className="sticky top-0 z-40 flex items-center justify-between pl-14 pr-3 sm:pl-5 sm:pr-5 backdrop-blur gap-2"
       style={{ height: 72, background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
     >
       <div className="flex items-center gap-3 min-w-0">
