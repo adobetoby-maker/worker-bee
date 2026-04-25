@@ -297,7 +297,7 @@ export function BuilderStatusPanel({
                     }
                     setSpecInput("");
                   }}
-                  style={{ display: "flex", gap: 6 }}
+                  className="flex gap-1.5 flex-col sm:flex-row"
                 >
                   <input
                     type="text"
@@ -305,6 +305,7 @@ export function BuilderStatusPanel({
                     onChange={(e) => setSpecInput(e.target.value)}
                     placeholder='type "yes" or describe a change…'
                     autoFocus
+                    className="min-h-[44px] sm:min-h-0 text-base sm:text-[11px]"
                     style={{
                       flex: 1,
                       padding: "6px 8px",
@@ -313,11 +314,11 @@ export function BuilderStatusPanel({
                       border: "1px solid var(--border)",
                       borderRadius: 6,
                       fontFamily: MONO,
-                      fontSize: 11,
                     }}
                   />
                   <button
                     type="submit"
+                    className="min-h-[44px] sm:min-h-0 text-base sm:text-[11px]"
                     style={{
                       padding: "6px 10px",
                       background: "var(--primary)",
@@ -325,7 +326,6 @@ export function BuilderStatusPanel({
                       border: "none",
                       borderRadius: 6,
                       fontFamily: MONO,
-                      fontSize: 11,
                       cursor: "pointer",
                       fontWeight: 700,
                     }}
@@ -362,10 +362,11 @@ export function BuilderStatusPanel({
                     <li key={f + i}>{f}</li>
                   ))}
                 </ol>
-                <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                <div className="flex gap-2 mt-1 flex-col sm:flex-row">
                   <button
                     type="button"
                     onClick={() => onReviewApprove?.()}
+                    className="min-h-[48px] sm:min-h-0 text-base sm:text-[11px]"
                     style={{
                       padding: "6px 12px",
                       background: "#16a34a",
@@ -373,7 +374,6 @@ export function BuilderStatusPanel({
                       border: "none",
                       borderRadius: 6,
                       fontFamily: MONO,
-                      fontSize: 11,
                       fontWeight: 700,
                       cursor: "pointer",
                     }}
@@ -383,6 +383,7 @@ export function BuilderStatusPanel({
                   <button
                     type="button"
                     onClick={() => onReviewEdit?.()}
+                    className="min-h-[48px] sm:min-h-0 text-base sm:text-[11px]"
                     style={{
                       padding: "6px 12px",
                       background: "transparent",
@@ -390,7 +391,6 @@ export function BuilderStatusPanel({
                       border: "1px solid var(--border)",
                       borderRadius: 6,
                       fontFamily: MONO,
-                      fontSize: 11,
                       cursor: "pointer",
                     }}
                   >
