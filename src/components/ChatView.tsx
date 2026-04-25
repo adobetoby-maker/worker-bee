@@ -460,7 +460,7 @@ export function ChatView({
           const target = el.scrollTop + (msgRect.top - elRect.top) - 8;
           el.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
         } else {
-          el.scrollTop = el.scrollHeight;
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
         }
         setShowScrollButton(false);
       }, 0);
@@ -468,7 +468,7 @@ export function ChatView({
     }
     // For streaming assistant updates, only follow if user is near the bottom.
     if (isNearBottom) {
-      el.scrollTop = el.scrollHeight;
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
       setShowScrollButton(false);
     } else {
       setShowScrollButton(true);
