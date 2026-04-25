@@ -76,6 +76,7 @@ import {
 } from "@/lib/auto-connect";
 import { WelcomeCard } from "@/components/WelcomeCard";
 import { MobileTabBar } from "@/components/MobileTabBar";
+import { MobileNavDrawer } from "@/components/MobileNavDrawer";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -1202,6 +1203,7 @@ function Index() {
         />
       )}
       <MobileTabBar active={active} onChange={setActive} />
+      <MobileNavDrawer active={active} onChange={setActive} log={log} />
       {/* spacer so content above the fixed bar isn't clipped on phones */}
       <div className="md:hidden" style={{ height: "calc(56px + env(safe-area-inset-bottom))" }} aria-hidden="true" />
     </div>
