@@ -161,6 +161,7 @@ export function ChatView({
   const [streaming, setStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
   // Terminal-style input history.
@@ -459,7 +460,7 @@ export function ChatView({
           const target = el.scrollTop + (msgRect.top - elRect.top) - 8;
           el.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
         } else {
-          el.scrollTop = el.scrollHeight;
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
         }
         setShowScrollButton(false);
       }, 0);
@@ -467,7 +468,7 @@ export function ChatView({
     }
     // For streaming assistant updates, only follow if user is near the bottom.
     if (isNearBottom) {
-      el.scrollTop = el.scrollHeight;
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
       setShowScrollButton(false);
     } else {
       setShowScrollButton(true);
@@ -1551,6 +1552,7 @@ export function ChatView({
             </div>
           );
         })}
+        <div ref={messagesEndRef} aria-hidden="true" />
         </div>
       </div>
 
@@ -2110,8 +2112,7 @@ export function ChatView({
               <button
                 type="button"
                 onClick={() => {
-                  const el = scrollerRef.current;
-                  if (el) el.scrollTop = el.scrollHeight;
+                  messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
                   setShowScrollButton(false);
                 }}
                 title="Scroll to latest"
