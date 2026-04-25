@@ -75,6 +75,7 @@ import {
   type AutoConnectStatus,
 } from "@/lib/auto-connect";
 import { WelcomeCard } from "@/components/WelcomeCard";
+import { MobileTabBar } from "@/components/MobileTabBar";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -1200,6 +1201,9 @@ function Index() {
           onComplete={() => setShowOnboarding(false)}
         />
       )}
+      <MobileTabBar active={active} onChange={setActive} />
+      {/* spacer so content above the fixed bar isn't clipped on phones */}
+      <div className="md:hidden" style={{ height: "calc(56px + env(safe-area-inset-bottom))" }} aria-hidden="true" />
     </div>
   );
 }

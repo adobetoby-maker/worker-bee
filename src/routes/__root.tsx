@@ -50,6 +50,10 @@ export const Route = createRootRoute({
       { name: "twitter:description", content: "Worker Bee is a website builder AI agent interface for local LLMs." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c47e664f-8902-45e4-b14a-507330d29415/id-preview-d6cb3b9e--20ac6b45-0072-4478-af97-e326b9c711e1.lovable.app-1776688796379.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c47e664f-8902-45e4-b14a-507330d29415/id-preview-d6cb3b9e--20ac6b45-0072-4478-af97-e326b9c711e1.lovable.app-1776688796379.png" },
+      { name: "theme-color", content: "#ffaa00" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Worker Bee" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -62,6 +66,10 @@ export const Route = createRootRoute({
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
+      { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -78,6 +86,31 @@ function RootShell({ children }: { children: React.ReactNode }) {
           dangerouslySetInnerHTML={{
             __html:
               "try{var t=localStorage.getItem('workerbee_theme');if(t==='dark'){document.documentElement.classList.add('dark');}document.documentElement.classList.remove('light');}catch(e){}",
+          }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function(){
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+  var inIframe = false;
+  try { inIframe = window.self !== window.top; } catch(e) { inIframe = true; }
+  var host = window.location.hostname || '';
+  var isPreview = host.indexOf('id-preview--') !== -1 ||
+                  host.indexOf('lovableproject.com') !== -1 ||
+                  host.indexOf('lovable.app') !== -1 && host.indexOf('id-preview--') !== -1;
+  // Allow SW on published lovable.app and custom domains, but never in iframe/editor preview.
+  if (inIframe || isPreview) {
+    navigator.serviceWorker.getRegistrations().then(function(rs){
+      rs.forEach(function(r){ r.unregister(); });
+    }).catch(function(){});
+    return;
+  }
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function(){});
+  });
+})();
+`,
           }}
         />
       </head>
