@@ -2,7 +2,16 @@ import { AgentLog } from "./AgentLog";
 import type { LogLine } from "@/lib/agent-state";
 import { Link } from "@tanstack/react-router";
 
-export type View = "chat" | "tools" | "vault" | "connections" | "builder" | "config" | "inbox-cleaner" | "email";
+export type View =
+  | "chat"
+  | "tools"
+  | "vault"
+  | "connections"
+  | "builder"
+  | "blueprint"
+  | "config"
+  | "inbox-cleaner"
+  | "email";
 
 interface SidebarProps {
   active: View;
@@ -17,6 +26,7 @@ interface SidebarProps {
 const NAV: { id: View; label: string; icon: string }[] = [
   { id: "chat", label: "CHAT", icon: "💬" },
   { id: "builder", label: "BUILDER", icon: "🏗" },
+  { id: "blueprint", label: "BLUEPRINT", icon: "🗺" },
   { id: "email", label: "EMAIL", icon: "📧" },
   { id: "tools", label: "TOOLS", icon: "🔧" },
   { id: "vault", label: "KEY VAULT", icon: "🔐" },
