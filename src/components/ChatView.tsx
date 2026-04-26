@@ -60,6 +60,7 @@ import { PlanCard, type PlanCardState, type PlanLogLine, type PlanStepRuntime } 
 import { BeeLogo } from "./BeeLogo";
 import { getIdentity, subscribeIdentity, type Identity } from "@/lib/identity";
 import { TokenStreamPanel } from "./TokenStreamPanel";
+import { TokenStreamBar } from "./TokenStreamBar";
 import {
   tokenStreamBegin,
   tokenStreamPush,
