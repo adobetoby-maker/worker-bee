@@ -27,6 +27,8 @@ export interface Skill {
   gapAnalysis: string[];
   actionItems: { id: string; text: string; status: "in_progress" | "todo" | "done" }[];
   addedAt: string; // ISO
+  /** Server signal: this skill is being exercised right now. */
+  active?: boolean;
 }
 
 export interface SkillsSnapshot {
