@@ -2503,6 +2503,178 @@ export function ChatView({
           onClose={closePreview}
         />
       )}
+      {rightRailOpen && (
+        <aside
+          className="hidden md:flex flex-col min-h-0 border-l"
+          style={{
+            width: 320,
+            background: "color-mix(in oklab, var(--surface) 35%, transparent)",
+            borderColor: "color-mix(in oklab, var(--border) 60%, transparent)",
+          }}
+        >
+          <CockpitActivityRail log={recentLog} />
+        </aside>
+      )}
+
+      {/* Cockpit rail toggles — vertically centered on edges. */}
+      <button
+        type="button"
+        title={leftRailOpen ? "Hide skills rail" : "Show skills rail"}
+        onClick={() => setLeftRailOpen((v) => !v)}
+        className="hidden md:flex"
+        style={{
+          position: "absolute",
+          left: leftRailOpen ? 240 : 0,
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: 18,
+          height: 56,
+          alignItems: "center",
+          justifyContent: "center",
+          background: "color-mix(in oklab, var(--surface) 80%, transparent)",
+          border: "1px solid color-mix(in oklab, var(--border) 70%, transparent)",
+          borderLeft: "none",
+          borderRadius: "0 8px 8px 0",
+          color: "var(--muted-foreground)",
+          cursor: "pointer",
+          fontSize: 11,
+          zIndex: 30,
+          transition: "left 200ms",
+        }}
+      >
+        {leftRailOpen ? "‹" : "›"}
+      </button>
+      <button
+        type="button"
+        title={rightRailOpen ? "Hide activity rail" : "Show activity rail"}
+        onClick={() => setRightRailOpen((v) => !v)}
+        className="hidden md:flex"
+        style={{
+          position: "absolute",
+          right: rightRailOpen ? 320 : 0,
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: 18,
+          height: 56,
+          alignItems: "center",
+          justifyContent: "center",
+          background: "color-mix(in oklab, var(--surface) 80%, transparent)",
+          border: "1px solid color-mix(in oklab, var(--border) 70%, transparent)",
+          borderRight: "none",
+          borderRadius: "8px 0 0 8px",
+          color: "var(--muted-foreground)",
+          cursor: "pointer",
+          fontSize: 11,
+          zIndex: 30,
+          transition: "right 200ms",
+        }}
+      >
+        {rightRailOpen ? "›" : "‹"}
+      </button>
+
+      {/* In-chat search overlay (Cmd+F / Ctrl+F). */}
+      {searchOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 40,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 8px",
+            background: "color-mix(in oklab, var(--surface) 92%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--border) 70%, transparent)",
+            borderRadius: 10,
+            boxShadow: "0 8px 24px -8px color-mix(in oklab, var(--primary) 25%, transparent)",
+            backdropFilter: "blur(8px)",
+            fontFamily: "JetBrains Mono, monospace",
+            fontSize: 12,
+          }}
+        >
+          <input
+            autoFocus
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setSearchMatchIdx(0); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (searchMatches.length > 0) {
+                  setSearchMatchIdx((idx) => (e.shiftKey ? (idx - 1 + searchMatches.length) : (idx + 1)) % searchMatches.length);
+                }
+              } else if (e.key === "Escape") {
+                setSearchOpen(false);
+              }
+            }}
+            placeholder="Find in chat…"
+            style={{
+              width: 220,
+              background: "transparent",
+              color: "var(--foreground)",
+              border: "none",
+              outline: "none",
+              fontSize: 12,
+            }}
+          />
+          <span className="text-muted-foreground" style={{ minWidth: 50, textAlign: "right" }}>
+            {searchQuery.trim() ? `${searchMatches.length === 0 ? 0 : (searchMatchIdx % Math.max(1, searchMatches.length)) + 1}/${searchMatches.length}` : "–"}
+          </span>
+          <button
+            type="button"
+            onClick={() => searchMatches.length && setSearchMatchIdx((i) => (i - 1 + searchMatches.length) % searchMatches.length)}
+            className="text-muted-foreground hover:text-foreground"
+            style={{ background: "transparent", border: "none", cursor: "pointer", padding: "2px 4px" }}
+            title="Previous"
+          >↑</button>
+          <button
+            type="button"
+            onClick={() => searchMatches.length && setSearchMatchIdx((i) => (i + 1) % searchMatches.length)}
+            className="text-muted-foreground hover:text-foreground"
+            style={{ background: "transparent", border: "none", cursor: "pointer", padding: "2px 4px" }}
+            title="Next"
+          >↓</button>
+          <button
+            type="button"
+            onClick={() => setSearchOpen(false)}
+            className="text-muted-foreground hover:text-foreground"
+            style={{ background: "transparent", border: "none", cursor: "pointer", padding: "2px 4px" }}
+            title="Close (Esc)"
+          >✕</button>
+        </div>
+      )}
+
+      {/* Live activity indicator — shows what bee is doing while streaming. */}
+      {streaming && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 96,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 25,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "5px 12px",
+            background: "color-mix(in oklab, var(--surface) 90%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--primary) 40%, transparent)",
+            borderRadius: 999,
+            fontFamily: "JetBrains Mono, monospace",
+            fontSize: 11,
+            color: "var(--primary)",
+            boxShadow: "0 4px 16px -4px color-mix(in oklab, var(--primary) 30%, transparent)",
+            pointerEvents: "none",
+          }}
+        >
+          <span
+            className="inline-block w-1.5 h-1.5 rounded-full"
+            style={{ background: "var(--primary)", animation: "var(--animate-blink)" }}
+          />
+          <span>bee is thinking…</span>
+        </div>
+      )}
     </div>
   );
 }
