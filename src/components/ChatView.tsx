@@ -165,6 +165,18 @@ export function ChatView({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
+  // Force Claude toggle — purple, glows when active, resets after each send.
+  const [forceClaude, setForceClaude] = useState(false);
+
+  // User identity (Toby / Jay) — read from header selector via custom event.
+  const [identity, setIdentityState] = useState<Identity>("toby");
+  useEffect(() => {
+    setIdentityState(getIdentity());
+    return subscribeIdentity(setIdentityState);
+  }, []);
+  const identityRef = useRef<Identity>("toby");
+  useEffect(() => { identityRef.current = identity; }, [identity]);
+
   // Terminal-style input history.
   const HISTORY_KEY = "workerbee_input_history";
   const [inputHistory, setInputHistory] = useState<string[]>([]);
