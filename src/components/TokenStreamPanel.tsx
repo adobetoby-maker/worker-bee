@@ -5,7 +5,11 @@ import {
   tokenStreamClear,
 } from "@/lib/token-stream";
 
-export function TokenStreamPanel() {
+interface TokenStreamPanelProps {
+  onClose?: () => void;
+}
+
+export function TokenStreamPanel({ onClose }: TokenStreamPanelProps = {}) {
   const [, force] = useState(0);
   const [open, setOpen] = useState(true);
   const [minimized, setMinimized] = useState(false);
@@ -77,7 +81,7 @@ export function TokenStreamPanel() {
             {minimized ? "▢" : "—"}
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); setOpen(false); }}
+            onClick={(e) => { e.stopPropagation(); setOpen(false); onClose?.(); }}
             className="text-[10px] text-muted-foreground hover:text-foreground px-1 leading-none"
             title="Hide"
           >

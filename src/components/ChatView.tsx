@@ -60,6 +60,7 @@ import { PlanCard, type PlanCardState, type PlanLogLine, type PlanStepRuntime } 
 import { BeeLogo } from "./BeeLogo";
 import { getIdentity, subscribeIdentity, type Identity } from "@/lib/identity";
 import { TokenStreamPanel } from "./TokenStreamPanel";
+import { TokenStreamBar } from "./TokenStreamBar";
 import {
   tokenStreamBegin,
   tokenStreamPush,
@@ -238,6 +239,9 @@ export function ChatView({
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [savedDraft, setSavedDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Token-stream popout is opt-in only (user toggles from the inline bar).
+  const [tokenPopoutOpen, setTokenPopoutOpen] = useState(false);
 
   // Attachment dropdown (mirrors Email composer behavior).
   type ChatAttachment = { name: string; size: number; type: string; dataUrl?: string };
@@ -1537,7 +1541,9 @@ export function ChatView({
 
   return (
     <div className="flex flex-1 min-h-0 flex-row relative">
-      {!rightRailOpen && <TokenStreamPanel />}
+      {tokenPopoutOpen && !rightRailOpen && (
+        <TokenStreamPanel onClose={() => setTokenPopoutOpen(false)} />
+      )}
       {leftRailOpen && (
         <aside
           className="hidden md:flex flex-col min-h-0 border-r"
@@ -2219,6 +2225,10 @@ export function ChatView({
               ))}
             </div>
           )}
+          <TokenStreamBar
+            expanded={tokenPopoutOpen}
+            onExpand={() => setTokenPopoutOpen((v) => !v)}
+          />
           <div
             className="chat-pill flex flex-row items-end"
             style={{
