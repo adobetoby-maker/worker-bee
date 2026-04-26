@@ -326,6 +326,40 @@ function PanelHeader({ label, right }: { label: string; right?: string }) {
   );
 }
 
+function fmtBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function AttachmentPreview({ att }: { att: ChatAttachment }) {
+  if (att.isImage) {
+    return (
+      <a href={att.dataUrl} target="_blank" rel="noreferrer" className="block">
+        <img
+          src={att.dataUrl}
+          alt={att.name}
+          className="max-h-32 max-w-[180px] rounded border object-cover"
+          style={{ borderColor: "var(--border)" }}
+        />
+      </a>
+    );
+  }
+  return (
+    <a
+      href={att.dataUrl}
+      download={att.name}
+      className="flex items-center gap-2 px-2 py-1.5 rounded border text-[11px] hover:border-primary/60"
+      style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+      title={att.name}
+    >
+      <span>📄</span>
+      <span className="max-w-[140px] truncate">{att.name}</span>
+      <span className="text-muted-foreground tabular-nums">{fmtBytes(att.size)}</span>
+    </a>
+  );
+}
+
 function SkillTile({ skill, pulsing }: { skill: Skill; pulsing: boolean }) {
   const pct = Math.min(100, (skill.iterations / skill.iterationGoal) * 100);
   return (
