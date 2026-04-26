@@ -2688,6 +2688,40 @@ export function ChatView({
         {rightRailOpen ? "›" : "‹"}
       </button>
 
+      {/* Clear chat button — always visible top-right of the chat surface. */}
+      <button
+        type="button"
+        title="Clear this agent's chat (⌘/Ctrl+K)"
+        onClick={() => {
+          if (messages.length === 0) return;
+          if (window.confirm("Clear this agent's history?")) {
+            onMessagesChange(() => []);
+          }
+        }}
+        style={{
+          position: "absolute",
+          top: 10,
+          right: rightRailOpen ? 332 : 28,
+          zIndex: 35,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "5px 10px",
+          background: "color-mix(in oklab, var(--surface) 90%, transparent)",
+          color: "var(--muted-foreground)",
+          border: "1px solid color-mix(in oklab, var(--border) 70%, transparent)",
+          borderRadius: 8,
+          cursor: messages.length === 0 ? "not-allowed" : "pointer",
+          opacity: messages.length === 0 ? 0.45 : 1,
+          fontFamily: "JetBrains Mono, monospace",
+          fontSize: 11,
+          backdropFilter: "blur(8px)",
+          transition: "right 200ms, opacity 150ms",
+        }}
+      >
+        🗑 Clear chat
+      </button>
+
       {/* In-chat search overlay (Cmd+F / Ctrl+F). */}
       {searchOpen && (
         <div
