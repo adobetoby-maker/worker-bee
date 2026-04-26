@@ -1085,6 +1085,7 @@ function Index() {
               )
             )}
             {active === "tools" && <ToolsPanel appendLog={appendLog} connections={connections} />}
+            {active === "blueprint" && <BlueprintView />}
             {active === "vault" && (
               <VaultPanel
                 activeTabId={activeTab.id}
