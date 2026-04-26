@@ -1456,7 +1456,7 @@ export function ChatView({
             return (
               <div key={i} className="flex items-start justify-start">
                 <div
-                  className="w-full"
+                  className="w-full group relative"
                   style={{
                     background: "var(--background)",
                     border: "1px solid var(--primary)",
@@ -1471,15 +1471,24 @@ export function ChatView({
                       fontFamily: "JetBrains Mono, monospace",
                       fontSize: 11,
                       marginBottom: 8,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
                     }}
                   >
-                    🌐 SCREENSHOT — {m.screenshotUrl ?? ""}
+                    <span>🌐 SCREENSHOT — {m.screenshotUrl ?? ""}</span>
+                    <DownloadImageButton
+                      dataUrl={`data:image/png;base64,${m.screenshotB64}`}
+                      filename={`screenshot-${Date.now()}.png`}
+                    />
                   </div>
                   <img
                     src={`data:image/png;base64,${m.screenshotB64}`}
                     alt="browser screenshot"
                     style={{ width: "100%", borderRadius: 6, display: "block" }}
                   />
+                  <CopyMessageButton text={m.screenshotUrl ? `Screenshot of ${m.screenshotUrl}` : "Screenshot"} />
                 </div>
               </div>
             );
@@ -1488,7 +1497,7 @@ export function ChatView({
             return (
               <div key={i} className="flex items-start justify-start">
                 <div
-                  className="w-full"
+                  className="w-full group relative"
                   style={{
                     background: "var(--background)",
                     border: "1px solid var(--success)",
@@ -1505,6 +1514,7 @@ export function ChatView({
                     🔍 VISUAL ANALYSIS (via llava):
                   </div>
                   {m.visionDescription}
+                  <CopyMessageButton text={m.visionDescription} />
                 </div>
               </div>
             );
@@ -1518,7 +1528,7 @@ export function ChatView({
               <div
                 className={
                   isUser
-                    ? "text-sm text-primary-foreground bg-gradient-to-br from-primary to-primary-glow shadow-[var(--shadow-elegant,0_8px_24px_-12px_rgba(255,170,0,0.5))]"
+                    ? "text-sm text-primary-foreground bg-gradient-to-br from-primary to-primary-glow shadow-[var(--shadow-elegant,0_8px_24px_-12px_rgba(255,170,0,0.5))] group relative"
                     : "w-full group relative"
                 }
                 style={
@@ -1529,10 +1539,11 @@ export function ChatView({
                         borderRadius: "18px 18px 4px 18px",
                       }
                     : {
-                        background: "transparent",
-                        borderLeft: "2px solid var(--border)",
-                        padding: "8px 0 8px 16px",
-                        borderRadius: 0,
+                        background:
+                          "color-mix(in oklab, var(--surface) 55%, transparent)",
+                        border: "1px solid color-mix(in oklab, var(--border) 60%, transparent)",
+                        padding: "12px 16px",
+                        borderRadius: 12,
                         fontFamily: "'IBM Plex Sans', sans-serif",
                         fontSize: 15,
                         lineHeight: 1.75,
@@ -1540,7 +1551,10 @@ export function ChatView({
                 }
               >
                 {isUser ? (
-                  <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                  <>
+                    <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                    <CopyMessageButton text={m.content} variant="onPrimary" />
+                  </>
                 ) : (
                   <>
                     <AssistantContent
