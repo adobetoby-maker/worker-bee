@@ -614,10 +614,17 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
                   const icon =
                     h.status === "ok" ? "✅" : h.status === "error" ? "❌" : "⏳";
                   return (
-                    <button
+                    <div
                       key={h.id}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelectedHistoryId(h.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedHistoryId(h.id);
+                        }
+                      }}
                       style={{
                         textAlign: "left",
                         padding: "8px 10px",
@@ -635,18 +642,47 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
+                          alignItems: "center",
                           color: "var(--muted-foreground)",
                           fontSize: 10,
                           marginBottom: 4,
+                          gap: 6,
                         }}
                       >
                         <span>{fmtTime(h.startedAt)}</span>
-                        <span>{icon}</span>
+                        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span>{icon}</span>
+                          <button
+                            type="button"
+                            title="Remove this prompt"
+                            aria-label="Remove this prompt"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (h.status === "running") {
+                                toast.error("Build is still running");
+                                return;
+                              }
+                              setHistory((prev) => prev.filter((x) => x.id !== h.id));
+                              setSelectedHistoryId((cur) => (cur === h.id ? null : cur));
+                            }}
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              color: "var(--muted-foreground)",
+                              cursor: "pointer",
+                              padding: "0 4px",
+                              fontSize: 14,
+                              lineHeight: 1,
+                            }}
+                          >
+                            ×
+                          </button>
+                        </span>
                       </div>
                       <div style={{ wordBreak: "break-word" }}>
                         {h.prompt.length > 50 ? h.prompt.slice(0, 50) + "…" : h.prompt}
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
