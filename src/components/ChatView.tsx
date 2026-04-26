@@ -1296,12 +1296,14 @@ export function ChatView({
     ]);
     setStreaming(true);
     onSendStart?.(content);
+    tokenStreamBegin(tabId);
     let assistantText = "";
     let finished = false;
     const finish = (errorText?: string) => {
       if (finished) return;
       finished = true;
       unsub?.();
+      tokenStreamEnd();
       if (errorText) {
         onMessagesChange((prev) => {
           const copy = prev.slice();
@@ -1316,6 +1318,7 @@ export function ChatView({
       onToken: (tok) => {
         if (!tok) return;
         assistantText += tok;
+        tokenStreamPush(tabId, tok);
         onMessagesChange((prev) => {
           const copy = prev.slice();
           copy[copy.length - 1] = { role: "assistant", content: assistantText };
