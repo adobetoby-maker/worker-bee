@@ -568,6 +568,52 @@ export function ChatView({
     if (!streaming) setShowScrollButton(false);
   }, [streaming]);
 
+  // Cmd+F / Ctrl+F → open in-chat search.
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key.toLowerCase() === "f") {
+        // Only intercept when chat scroller is visible / focused area.
+        e.preventDefault();
+        setSearchOpen(true);
+        setSearchMatchIdx(0);
+      } else if (e.key === "Escape" && searchOpen) {
+        setSearchOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [searchOpen]);
+
+  // Compute message indices that contain the search query.
+  const searchMatches = (() => {
+    if (!searchOpen || !searchQuery.trim()) return [] as number[];
+    const q = searchQuery.toLowerCase();
+    const out: number[] = [];
+    messages.forEach((m, i) => {
+      const txt = (m.content || "") + " " + (m.visionDescription || "");
+      if (txt.toLowerCase().includes(q)) out.push(i);
+    });
+    return out;
+  })();
+
+  // Scroll the matched message into view when the active match changes.
+  useEffect(() => {
+    if (!searchOpen || searchMatches.length === 0) return;
+    const idx = searchMatches[searchMatchIdx % searchMatches.length];
+    const el = scrollerRef.current;
+    if (!el) return;
+    const target = el.querySelector<HTMLElement>(`[data-msg-idx="${idx}"]`);
+    if (target) {
+      const elRect = el.getBoundingClientRect();
+      const tr = target.getBoundingClientRect();
+      el.scrollTo({ top: el.scrollTop + (tr.top - elRect.top) - 80, behavior: "smooth" });
+    }
+    // searchMatches is derived; depending on it would loop, so list its
+    // primitives instead.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchMatchIdx, searchOpen, searchQuery, messages.length]);
+
   // Cmd+K / Ctrl+K — clear this agent's chat history (with confirm).
   useEffect(() => {
     if (typeof window === "undefined") return;
