@@ -19,11 +19,13 @@ const ITEMS: { id: View; label: string; icon: string }[] = [
 export function MobileTabBar({ active, onChange }: MobileTabBarProps) {
   return (
     <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 flex items-stretch border-t"
+      className="md:hidden fixed bottom-0 inset-x-0 z-40 flex items-stretch border-t overflow-x-auto"
       style={{
         background: "var(--surface)",
         borderColor: "var(--border)",
         paddingBottom: "env(safe-area-inset-bottom)",
+        scrollbarWidth: "none",
+        WebkitOverflowScrolling: "touch",
       }}
       aria-label="Primary"
     >
@@ -34,7 +36,7 @@ export function MobileTabBar({ active, onChange }: MobileTabBarProps) {
             key={it.id}
             type="button"
             onClick={() => onChange(it.id)}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors ${
+            className={`shrink-0 flex flex-col items-center justify-center gap-0.5 py-2 px-4 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors ${
               isActive ? "text-success" : "text-muted-foreground active:text-foreground"
             }`}
             style={{
@@ -50,10 +52,10 @@ export function MobileTabBar({ active, onChange }: MobileTabBarProps) {
       })}
       <Link
         to="/learning"
-        className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors text-muted-foreground active:text-foreground"
+        className="shrink-0 flex flex-col items-center justify-center gap-0.5 py-2 px-4 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors text-muted-foreground active:text-foreground"
         activeProps={{
           className:
-            "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-success",
+            "shrink-0 flex flex-col items-center justify-center gap-0.5 py-2 px-4 font-mono text-[10px] uppercase tracking-[0.14em] text-success",
           style: { borderTop: "2px solid var(--primary)", minHeight: 56 },
         }}
         style={{ borderTop: "2px solid transparent", minHeight: 56 }}
@@ -63,10 +65,10 @@ export function MobileTabBar({ active, onChange }: MobileTabBarProps) {
       </Link>
       <Link
         to="/practice"
-        className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors text-muted-foreground active:text-foreground"
+        className="shrink-0 flex flex-col items-center justify-center gap-0.5 py-2 px-4 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors text-muted-foreground active:text-foreground"
         activeProps={{
           className:
-            "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-success",
+            "shrink-0 flex flex-col items-center justify-center gap-0.5 py-2 px-4 font-mono text-[10px] uppercase tracking-[0.14em] text-success",
           style: { borderTop: "2px solid var(--primary)", minHeight: 56 },
         }}
         style={{ borderTop: "2px solid transparent", minHeight: 56 }}
@@ -76,10 +78,10 @@ export function MobileTabBar({ active, onChange }: MobileTabBarProps) {
       </Link>
       <Link
         to="/report"
-        className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors text-muted-foreground active:text-foreground"
+        className="shrink-0 flex flex-col items-center justify-center gap-0.5 py-2 px-4 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors text-muted-foreground active:text-foreground"
         activeProps={{
           className:
-            "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-success",
+            "shrink-0 flex flex-col items-center justify-center gap-0.5 py-2 px-4 font-mono text-[10px] uppercase tracking-[0.14em] text-success",
           style: { borderTop: "2px solid var(--primary)", minHeight: 56 },
         }}
         style={{ borderTop: "2px solid transparent", minHeight: 56 }}
@@ -89,10 +91,10 @@ export function MobileTabBar({ active, onChange }: MobileTabBarProps) {
       </Link>
       <Link
         to="/skills"
-        className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors text-muted-foreground active:text-foreground"
+        className="shrink-0 flex flex-col items-center justify-center gap-0.5 py-2 px-4 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors text-muted-foreground active:text-foreground"
         activeProps={{
           className:
-            "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-success",
+            "shrink-0 flex flex-col items-center justify-center gap-0.5 py-2 px-4 font-mono text-[10px] uppercase tracking-[0.14em] text-success",
           style: { borderTop: "2px solid var(--primary)", minHeight: 56 },
         }}
         style={{ borderTop: "2px solid transparent", minHeight: 56 }}

@@ -2168,7 +2168,9 @@ export function ChatView({
         style={{
           background: "var(--surface)",
           borderTop: "1px solid var(--border)",
-          paddingBottom: "env(safe-area-inset-bottom)",
+          // Leave room for the mobile bottom tab bar (~56px) so the Send
+          // button isn't covered on phones. Desktop has no tab bar.
+          paddingBottom: "calc(env(safe-area-inset-bottom) + var(--mobile-tabbar-h, 0px))",
         }}
       >
         <div className="mx-auto w-full" style={{ maxWidth: 680, padding: "12px 16px" }}>
