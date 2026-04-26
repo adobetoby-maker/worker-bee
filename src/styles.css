@@ -356,3 +356,17 @@ html.dark [class*="drop-shadow"] {
   box-shadow: none !important;
   filter: none !important;
 }
+
+/* ===== Mobile responsiveness ===== */
+/* Reserve space at the bottom of scrollable areas so the fixed mobile tab bar
+   (~56px + safe-area) doesn't cover the chat send button or other controls. */
+@media (max-width: 767px) {
+  :root {
+    --mobile-tabbar-h: 56px;
+  }
+  /* Bigger tap targets for the chat composer's send/attach/mic/claude buttons */
+  .chat-pill button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
