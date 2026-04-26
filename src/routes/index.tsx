@@ -50,6 +50,7 @@ import {
 import { ProjectsDashboard } from "@/components/ProjectsDashboard";
 import { ProjectWorkspace } from "@/components/ProjectWorkspace";
 import { BuilderView } from "@/components/BuilderView";
+import { BlueprintView } from "@/components/BlueprintView";
 import { useWorkingIndicator } from "@/lib/use-working-indicator";
 import { DiffViewer } from "@/components/DiffViewer";
 import {
