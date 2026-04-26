@@ -2436,8 +2436,9 @@ function MessageActions({
   );
 }
 
-function CopyMessageButton({ text }: { text: string }) {
+function CopyMessageButton({ text, variant = "default" }: { text: string; variant?: "default" | "onPrimary" }) {
   const [copied, setCopied] = useState(false);
+  const onPrimary = variant === "onPrimary";
   return (
     <button
       type="button"
@@ -2456,18 +2457,42 @@ function CopyMessageButton({ text }: { text: string }) {
         position: "absolute",
         bottom: 4,
         right: 4,
-        background: "transparent",
-        border: "1px solid var(--border)",
+        background: onPrimary ? "rgba(0,0,0,0.18)" : "transparent",
+        border: onPrimary ? "1px solid rgba(255,255,255,0.3)" : "1px solid var(--border)",
         borderRadius: 4,
         padding: "2px 6px",
         fontSize: 10,
         fontFamily: "JetBrains Mono, monospace",
-        color: "var(--muted-foreground)",
+        color: onPrimary ? "var(--primary-foreground)" : "var(--muted-foreground)",
         cursor: "pointer",
       }}
     >
       {copied ? "✓ copied" : "📋 copy"}
     </button>
+  );
+}
+
+function DownloadImageButton({ dataUrl, filename }: { dataUrl: string; filename: string }) {
+  return (
+    <a
+      href={dataUrl}
+      download={filename}
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: "transparent",
+        border: "1px solid var(--primary)",
+        borderRadius: 4,
+        padding: "2px 8px",
+        fontSize: 10,
+        fontFamily: "JetBrains Mono, monospace",
+        color: "var(--primary)",
+        cursor: "pointer",
+        textDecoration: "none",
+      }}
+      title={`Download ${filename}`}
+    >
+      ⬇ download
+    </a>
   );
 }
 
