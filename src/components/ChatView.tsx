@@ -2225,6 +2225,10 @@ export function ChatView({
               ))}
             </div>
           )}
+          <TokenStreamBar
+            expanded={tokenPopoutOpen}
+            onExpand={() => setTokenPopoutOpen((v) => !v)}
+          />
           <div
             className="chat-pill flex flex-row items-end"
             style={{
