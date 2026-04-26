@@ -176,37 +176,236 @@ function demoSkills(): Skill[] {
   });
 }
 
-async function tryReadManifests(): Promise<Skill[] | null> {
+/* ------------------------------------------------------------------ */
+/* Real manifests/ parser                                             */
+/* ------------------------------------------------------------------ */
+
+const VALID_DOMAINS: Domain[] = [
+  "debugging", "seo", "design", "backend", "frontend",
+  "data", "devops", "writing", "other",
+];
+
+/** Walk a directory recursively, collecting files matching `predicate`. */
+async function walk(
+  dir: string,
+  predicate: (filename: string) => boolean,
+  out: string[] = [],
+): Promise<string[]> {
+  let entries: import("node:fs").Dirent[];
   try {
-    const root = path.resolve("manifests");
-    const stat = await fs.stat(root).catch(() => null);
-    if (!stat || !stat.isDirectory()) return null;
-    // Walk shallowly for *.skill.md / *.practice.md pairs (best-effort).
-    const entries = await fs.readdir(root, { withFileTypes: true });
-    const skills: Skill[] = [];
-    for (const e of entries) {
-      if (!e.isDirectory()) continue;
-      // Stub: real impl would parse markdown frontmatter.
-      skills.push({
-        id: e.name,
-        name: e.name.replace(/[-_]/g, " "),
-        description: "Loaded from manifests/.",
-        domain: "other",
-        tier: "Beginner",
-        iterations: 0,
-        iterationGoal: 10000,
-        lastPracticedAt: null,
-        passRateLast50: 0,
-        recentRuns: [],
-        gapAnalysis: [],
-        actionItems: [],
-        addedAt: new Date().toISOString(),
-      });
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      await walk(full, predicate, out);
+    } else if (e.isFile() && predicate(e.name)) {
+      out.push(full);
     }
-    return skills.length ? skills : null;
+  }
+  return out;
+}
+
+/** Minimal YAML-ish frontmatter parser — supports scalars, quoted strings, numbers, booleans. */
+function parseFrontmatter(src: string): {
+  data: Record<string, string | number | boolean>;
+  body: string;
+} {
+  const m = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!m) return { data: {}, body: src };
+  const data: Record<string, string | number | boolean> = {};
+  for (const rawLine of m[1].split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const idx = line.indexOf(":");
+    if (idx === -1) continue;
+    const key = line.slice(0, idx).trim();
+    let val = line.slice(idx + 1).trim();
+    // Strip surrounding quotes
+    if (
+      (val.startsWith('"') && val.endsWith('"')) ||
+      (val.startsWith("'") && val.endsWith("'"))
+    ) {
+      val = val.slice(1, -1);
+    }
+    // Coerce
+    if (val === "true") data[key] = true;
+    else if (val === "false") data[key] = false;
+    else if (val !== "" && !Number.isNaN(Number(val))) data[key] = Number(val);
+    else data[key] = val;
+  }
+  return { data, body: m[2] };
+}
+
+/** Pull a `## Heading` block out of markdown body (case-insensitive). */
+function extractSection(body: string, heading: string): string {
+  const re = new RegExp(
+    `^##\\s+${heading.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\s*\\r?\\n([\\s\\S]*?)(?=^##\\s|\\Z)`,
+    "im",
+  );
+  const m = body.match(re);
+  return m ? m[1].trim() : "";
+}
+
+/** Parse markdown task-list lines into action items. Supports `- [ ]`, `- [~]`, `- [x]`. */
+function parseActionItems(section: string): Skill["actionItems"] {
+  if (!section) return [];
+  const items: Skill["actionItems"] = [];
+  let n = 0;
+  for (const rawLine of section.split(/\r?\n/)) {
+    const m = rawLine.match(/^\s*[-*]\s+\[(.)\]\s+(.+?)\s*$/);
+    if (!m) continue;
+    const mark = m[1].toLowerCase();
+    const status: Skill["actionItems"][number]["status"] =
+      mark === "x" ? "done" : mark === "~" || mark === "/" ? "in_progress" : "todo";
+    items.push({ id: `item-${++n}`, text: m[2], status });
+  }
+  return items;
+}
+
+/** Parse `- ` bullet list lines into plain strings. */
+function parseBullets(section: string): string[] {
+  if (!section) return [];
+  return section
+    .split(/\r?\n/)
+    .map((l) => l.match(/^\s*[-*]\s+(.+?)\s*$/)?.[1])
+    .filter((x): x is string => Boolean(x));
+}
+
+function coerceDomain(value: unknown): Domain {
+  return typeof value === "string" && (VALID_DOMAINS as string[]).includes(value)
+    ? (value as Domain)
+    : "other";
+}
+
+function safeIso(value: unknown, fallback: string): string {
+  if (typeof value !== "string" || !value) return fallback;
+  const t = Date.parse(value);
+  return Number.isFinite(t) ? new Date(t).toISOString() : fallback;
+}
+
+async function loadSkillFile(file: string): Promise<Skill | null> {
+  let src: string;
+  try {
+    src = await fs.readFile(file, "utf8");
   } catch {
     return null;
   }
+  const { data, body } = parseFrontmatter(src);
+  const id =
+    typeof data.id === "string" && data.id
+      ? data.id
+      : path.basename(file).replace(/\.skill\.md$/i, "");
+
+  // Description: prefer frontmatter `description`, else first paragraph of `## Description`
+  // (or first paragraph of body).
+  let description = typeof data.description === "string" ? data.description : "";
+  if (!description) {
+    const descSection = extractSection(body, "Description");
+    const firstPara = (descSection || body).trim().split(/\r?\n\s*\r?\n/)[0] ?? "";
+    description = firstPara.replace(/\s+/g, " ").trim();
+  }
+
+  const iterations = typeof data.iterations === "number" ? data.iterations : 0;
+  const iterationGoal =
+    typeof data.iterationGoal === "number" && data.iterationGoal > 0
+      ? data.iterationGoal
+      : 10000;
+  const tier = tierFromIterations(iterations);
+  const passRateLast50 =
+    typeof data.passRateLast50 === "number"
+      ? Math.max(0, Math.min(1, data.passRateLast50))
+      : 0;
+
+  return {
+    id,
+    name: typeof data.name === "string" && data.name ? data.name : id,
+    description: description || "(no description)",
+    domain: coerceDomain(data.domain),
+    tier,
+    iterations,
+    iterationGoal,
+    lastPracticedAt: null, // filled in by run merger
+    passRateLast50,        // overridden by run merger when runs exist
+    recentRuns: [],
+    gapAnalysis: parseBullets(extractSection(body, "Gap analysis")),
+    actionItems: parseActionItems(extractSection(body, "Action items")),
+    addedAt: safeIso(data.addedAt, new Date(0).toISOString()),
+  };
+}
+
+interface RawRun {
+  id?: string;
+  skillId?: string;
+  scenario?: string;
+  passed?: boolean;
+  durationMs?: number;
+  at?: string;
+}
+
+async function loadRuns(runsDir: string): Promise<Map<string, PracticeRun[]>> {
+  const files = await walk(runsDir, (n) => n.endsWith(".json"));
+  const bySkill = new Map<string, PracticeRun[]>();
+  for (const file of files) {
+    let raw: RawRun;
+    try {
+      raw = JSON.parse(await fs.readFile(file, "utf8")) as RawRun;
+    } catch {
+      continue;
+    }
+    if (!raw.skillId || typeof raw.skillId !== "string") continue;
+    const run: PracticeRun = {
+      id: raw.id ?? path.basename(file, ".json"),
+      scenario: typeof raw.scenario === "string" ? raw.scenario : "unknown",
+      passed: Boolean(raw.passed),
+      durationMs: typeof raw.durationMs === "number" ? raw.durationMs : 0,
+      at: safeIso(raw.at, new Date(0).toISOString()),
+    };
+    const arr = bySkill.get(raw.skillId) ?? [];
+    arr.push(run);
+    bySkill.set(raw.skillId, arr);
+  }
+  // Newest first.
+  for (const arr of bySkill.values()) {
+    arr.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+  }
+  return bySkill;
+}
+
+/**
+ * Load all skills from `manifests/skills/<domain>/<id>.skill.md` and merge
+ * with practice runs from `manifests/practice/runs/*.json`. Returns null
+ * (so caller falls back to demo data) only when no skill files are found.
+ */
+async function tryReadManifests(): Promise<Skill[] | null> {
+  const root = path.resolve(process.cwd(), "manifests");
+  const rootStat = await fs.stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) return null;
+
+  const skillsDir = path.join(root, "skills");
+  const skillFiles = await walk(skillsDir, (n) => /\.skill\.md$/i.test(n));
+  if (skillFiles.length === 0) return null;
+
+  const parsed = await Promise.all(skillFiles.map(loadSkillFile));
+  const skills = parsed.filter((s): s is Skill => Boolean(s));
+
+  // Merge practice runs.
+  const runs = await loadRuns(path.join(root, "practice", "runs"));
+  for (const skill of skills) {
+    const r = runs.get(skill.id) ?? [];
+    skill.recentRuns = r.slice(0, 50);
+    if (skill.recentRuns.length > 0) {
+      skill.lastPracticedAt = skill.recentRuns[0].at;
+      const passed = skill.recentRuns.filter((x) => x.passed).length;
+      skill.passRateLast50 = passed / skill.recentRuns.length;
+    }
+  }
+
+  // Stable order: most-iterated first.
+  skills.sort((a, b) => b.iterations - a.iterations);
+  return skills;
 }
 
 export const getSkillsSnapshot = createServerFn({ method: "GET" }).handler(
