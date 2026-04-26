@@ -2529,9 +2529,23 @@ export function ChatView({
             </button>
             <button
               type="button"
-              onClick={streaming ? stop : send}
+              onClick={
+                streaming
+                  ? input.trim()
+                    ? send // queue while streaming
+                    : stop
+                  : send
+              }
               disabled={!streaming && !input.trim() && !isQueued}
-              title={streaming ? "Stop" : "Send"}
+              title={
+                streaming
+                  ? input.trim()
+                    ? messageQueue.length >= QUEUE_MAX
+                      ? "Queue full (4 max)"
+                      : "Queue message"
+                    : "Stop"
+                  : "Send"
+              }
               style={{
                 width: 36,
                 height: 36,
