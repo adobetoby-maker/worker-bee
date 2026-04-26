@@ -170,7 +170,10 @@ function JayCockpit() {
     setChat((c) => [...c, { role: "you", text, at }]);
     setInput("");
     setThoughts((t) =>
-      [...t, { ts: at, kind: "think", text: `parsing prompt (${text.length} chars)` }].slice(-200),
+      [
+        ...t,
+        { ts: at, kind: "think" as const, text: `parsing prompt (${text.length} chars)` },
+      ].slice(-200),
     );
     // Local stub reply — real WS wiring lives in the main /chat view.
     window.setTimeout(() => {
@@ -184,7 +187,10 @@ function JayCockpit() {
         },
       ]);
       setThoughts((t) =>
-        [...t, { ts: fmtClock(), kind: "observe", text: "reply emitted" }].slice(-200),
+        [
+          ...t,
+          { ts: fmtClock(), kind: "observe" as const, text: "reply emitted" },
+        ].slice(-200),
       );
     }, 400);
   };
