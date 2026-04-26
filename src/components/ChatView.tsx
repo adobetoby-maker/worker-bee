@@ -741,7 +741,8 @@ export function ChatView({
     setStreaming(false);
   };
 
-  const startStream = async (text: string) => {
+  const startStream = async (text: string, opts: { forceClaude?: boolean } = {}) => {
+    const useForceClaude = !!opts.forceClaude;
     if (!connected || !model) {
       trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
       return;
@@ -844,7 +845,10 @@ export function ChatView({
           });
         }
         const followUp = `${text}\n\nYou are Worker Bee, an AI agent with a real Playwright browser. You just navigated to ${urlForPrompt} and retrieved this content. You CAN browse websites, take screenshots, and interact with pages. Analyze what you found and respond helpfully:\n\n${res.text}`;
-        const ok = sendChat(tabId, followUp, model);
+        const ok = sendChat(tabId, followUp, model, {
+          forceClaude: useForceClaude,
+          identity: identityRef.current,
+        });
         if (!ok) finish("failed to send chat after browser_result");
       },
       onScreenshot: (shot) => {
@@ -875,7 +879,10 @@ export function ChatView({
       return;
     }
 
-    const ok = sendChat(tabId, text, model);
+    const ok = sendChat(tabId, text, model, {
+      forceClaude: useForceClaude,
+      identity: identityRef.current,
+    });
     if (!ok) finish("failed to send over WebSocket");
   };
 
