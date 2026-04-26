@@ -59,6 +59,12 @@ import { LoginStatusCard, type LoginCardState } from "./LoginStatusCard";
 import { PlanCard, type PlanCardState, type PlanLogLine, type PlanStepRuntime } from "./PlanCard";
 import { BeeLogo } from "./BeeLogo";
 import { getIdentity, subscribeIdentity, type Identity } from "@/lib/identity";
+import { TokenStreamPanel } from "./TokenStreamPanel";
+import {
+  tokenStreamBegin,
+  tokenStreamPush,
+  tokenStreamEnd,
+} from "@/lib/token-stream";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -785,6 +791,7 @@ export function ChatView({
       if (finished) return;
       finished = true;
       unsub?.();
+      tokenStreamEnd();
       if (errorText) {
         onMessagesChange((prev) => {
           const copy = prev.slice();
@@ -818,6 +825,7 @@ export function ChatView({
 
     const controller = new AbortController();
     abortRef.current = controller;
+    tokenStreamBegin(tabId);
     controller.signal.addEventListener("abort", () => {
       trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: "stream aborted" });
       finish();
@@ -827,6 +835,7 @@ export function ChatView({
       onToken: (tok) => {
         if (!tok) return;
         assistantText += tok;
+        tokenStreamPush(tabId, tok);
         onMessagesChange((prev) => {
           const copy = prev.slice();
           copy[copy.length - 1] = { role: "assistant", content: assistantText };
@@ -1287,12 +1296,14 @@ export function ChatView({
     ]);
     setStreaming(true);
     onSendStart?.(content);
+    tokenStreamBegin(tabId);
     let assistantText = "";
     let finished = false;
     const finish = (errorText?: string) => {
       if (finished) return;
       finished = true;
       unsub?.();
+      tokenStreamEnd();
       if (errorText) {
         onMessagesChange((prev) => {
           const copy = prev.slice();
@@ -1307,6 +1318,7 @@ export function ChatView({
       onToken: (tok) => {
         if (!tok) return;
         assistantText += tok;
+        tokenStreamPush(tabId, tok);
         onMessagesChange((prev) => {
           const copy = prev.slice();
           copy[copy.length - 1] = { role: "assistant", content: assistantText };
@@ -1370,6 +1382,7 @@ export function ChatView({
 
   return (
     <div className="flex flex-1 min-h-0 flex-row relative">
+      <TokenStreamPanel />
       <div
         className="flex min-h-0 flex-col relative"
         style={{
