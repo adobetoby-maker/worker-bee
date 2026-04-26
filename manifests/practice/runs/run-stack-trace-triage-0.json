@@ -1,0 +1,8 @@
+{
+  "id": "run-stack-trace-triage-0",
+  "skillId": "stack-trace-triage",
+  "scenario": "happy-path",
+  "passed": true,
+  "durationMs": 400,
+  "at": "2026-04-26T05:40:00.083Z"
+}

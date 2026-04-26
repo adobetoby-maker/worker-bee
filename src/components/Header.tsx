@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { BeeLogo } from "./BeeLogo";
 import { StatusBadge } from "./StatusBadge";
 import { ActivityFeed } from "./ActivityFeed";
+import { getIdentity, setIdentity, subscribeIdentity, type Identity } from "@/lib/identity";
 
 function useTheme() {
   const [theme, setTheme] = useState<"dark" | "light">("light");
@@ -52,6 +53,11 @@ const TAGLINES = [
 export function Header({ connected, model, toolCount, streaming = false, error = false, services, onServiceClick, onSearchOpen, onQueueOpen, queueDepth = 0, parallelMode = false, autoStatus = "idle", reconnectInfo = null, onOpenConfig }: HeaderProps) {
   const [taglineIdx, setTaglineIdx] = useState(0);
   const { theme, toggle: toggleTheme } = useTheme();
+  const [identity, setIdentityLocal] = useState<Identity>("toby");
+  useEffect(() => {
+    setIdentityLocal(getIdentity());
+    return subscribeIdentity(setIdentityLocal);
+  }, []);
 
   useEffect(() => {
     const id = setInterval(() => setTaglineIdx((i) => (i + 1) % TAGLINES.length), 6000);
@@ -184,6 +190,45 @@ export function Header({ connected, model, toolCount, streaming = false, error =
           </div>
         )}
         <div className="flex items-center gap-1 ml-1 pl-2 border-l border-border">
+          <div
+            className="hidden sm:inline-flex items-center mr-1 overflow-hidden"
+            role="group"
+            aria-label="User identity"
+            style={{
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              background: "var(--surface)",
+            }}
+          >
+            {(["toby", "jay"] as const).map((id) => {
+              const on = identity === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setIdentity(id)}
+                  aria-pressed={on}
+                  title={
+                    id === "jay"
+                      ? "Jay — short replies, options with time estimates"
+                      : "Toby — default style"
+                  }
+                  className="font-mono uppercase transition"
+                  style={{
+                    padding: "4px 10px",
+                    fontSize: 10,
+                    letterSpacing: "0.16em",
+                    background: on ? "var(--primary)" : "transparent",
+                    color: on ? "var(--primary-foreground)" : "var(--muted-foreground)",
+                    cursor: "pointer",
+                    border: "none",
+                  }}
+                >
+                  {id === "toby" ? "Toby" : "Jay"}
+                </button>
+              );
+            })}
+          </div>
           <button
             type="button"
             onClick={onQueueOpen}

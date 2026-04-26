@@ -1,0 +1,8 @@
+{
+  "id": "run-rls-policies-10",
+  "skillId": "rls-policies",
+  "scenario": "regression",
+  "passed": true,
+  "durationMs": 404,
+  "at": "2026-04-26T05:29:14.083Z"
+}

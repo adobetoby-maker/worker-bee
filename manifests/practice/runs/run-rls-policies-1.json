@@ -1,0 +1,8 @@
+{
+  "id": "run-rls-policies-1",
+  "skillId": "rls-policies",
+  "scenario": "edge-case",
+  "passed": true,
+  "durationMs": 1176,
+  "at": "2026-04-26T05:38:23.083Z"
+}

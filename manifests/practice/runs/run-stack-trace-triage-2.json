@@ -1,0 +1,8 @@
+{
+  "id": "run-stack-trace-triage-2",
+  "skillId": "stack-trace-triage",
+  "scenario": "regression",
+  "passed": true,
+  "durationMs": 584,
+  "at": "2026-04-26T05:37:58.083Z"
+}
