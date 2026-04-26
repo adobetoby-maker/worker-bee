@@ -58,6 +58,19 @@ export const Route = createFileRoute("/report")({
 
 function ReportPage() {
   const initial = Route.useLoaderData() as MorningReport;
+
+  return <ReportPageInner initial={initial} />;
+}
+
+function ClientTime({ iso }: { iso: string }) {
+  const [text, setText] = useState("");
+  useEffect(() => {
+    setText(new Date(iso).toLocaleString());
+  }, [iso]);
+  return <span suppressHydrationWarning>{text || "—"}</span>;
+}
+
+function ReportPageInner({ initial }: { initial: MorningReport }) {
   const [report, setReport] = useState<MorningReport>(initial);
   const [priorityInput, setPriorityInput] = useState(initial.currentPriority);
   const [savingPriority, setSavingPriority] = useState(false);
