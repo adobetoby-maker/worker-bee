@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   getPracticeSnapshot,
+  recordPracticeRun,
+  setPracticeState,
   type PracticeSnapshot,
   type PracticeRun,
   type SkillHealth,
@@ -193,11 +195,71 @@ function PracticePage() {
       </header>
 
       <main className="px-4 md:px-6 py-4 md:py-6 space-y-6 max-w-[1400px] mx-auto pb-24 md:pb-6">
+        <TestRunButton />
         <LoopStatus snap={snap} maxRuns={maxRuns} />
         <LiveFeed feed={snap.feed} />
         <SkillGrid skills={snap.skills} />
       </main>
     </div>
+  );
+}
+
+function TestRunButton() {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const SKILLS = [
+    "tanstack/loaders",
+    "tanstack/server-functions",
+    "supabase/rls",
+    "react/hooks",
+    "tailwind/tokens",
+  ];
+  const SCENARIOS = ["edge-case", "happy-path", "regression", "fuzz", "teach-back"];
+
+  const insert = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const skill = SKILLS[Math.floor(Math.random() * SKILLS.length)]!;
+      const scenario = SCENARIOS[Math.floor(Math.random() * SCENARIOS.length)]!;
+      const pass = Math.random() > 0.2;
+      const durationMs = 200 + Math.floor(Math.random() * 4000);
+
+      await setPracticeState({ data: { running: true, currentSkill: skill } });
+      await recordPracticeRun({
+        data: { skill, scenario, pass, durationMs },
+      });
+      setMsg(`Inserted: ${skill} · ${scenario} · ${pass ? "✅" : "❌"} ${durationMs}ms`);
+    } catch (e) {
+      setMsg(`Failed: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section
+      className="border p-3 md:p-4 flex items-center justify-between gap-4 flex-wrap"
+      style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+    >
+      <div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          Realtime test
+        </div>
+        <div className="text-xs text-muted-foreground mt-1">
+          {msg ?? "Click to insert a sample run; it should appear in the feed below instantly."}
+        </div>
+      </div>
+      <button
+        onClick={insert}
+        disabled={busy}
+        className="px-3 py-1.5 border text-xs uppercase tracking-[0.16em] hover:bg-surface-2/40 disabled:opacity-50"
+        style={{ borderColor: "var(--border)" }}
+      >
+        {busy ? "Inserting…" : "Insert test run"}
+      </button>
+    </section>
   );
 }
 
