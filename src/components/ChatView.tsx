@@ -175,6 +175,9 @@ export function ChatView({
   // Track which assistant message index we've already pinned to top, so we
   // don't keep re-scrolling the user on every streamed token (causes bounce).
   const pinnedAsstIdxRef = useRef<number>(-1);
+  // Track previous message count so we can always snap to bottom when a brand
+  // new message appears (per user request: auto-scroll on new messages).
+  const prevMsgCountRef = useRef<number>(0);
 
   // Cockpit rails — show/hide skills (left) and activity/stream (right).
   const [leftRailOpen, setLeftRailOpen] = useState<boolean>(() => {
