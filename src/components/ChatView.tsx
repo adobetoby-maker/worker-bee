@@ -508,6 +508,28 @@ export function ChatView({
     onStreamingChange(streaming);
   }, [streaming, onStreamingChange]);
 
+  // Drain the in-tab message queue: when streaming flips off and we have
+  // queued messages, shift the next one and start it.
+  const drainingRef = useRef(false);
+  useEffect(() => {
+    if (streaming) return;
+    if (messageQueue.length === 0) return;
+    if (drainingRef.current) return;
+    drainingRef.current = true;
+    const next = messageQueue[0];
+    setMessageQueue((prev) => prev.slice(1));
+    // Small delay so the previous response settles before the next starts.
+    const t = window.setTimeout(() => {
+      drainingRef.current = false;
+      startStream(next.text, { forceClaude: next.forceClaude });
+    }, 250);
+    return () => {
+      window.clearTimeout(t);
+      drainingRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streaming, messageQueue]);
+
   // Auto-scroll to bottom whenever a brand-new message is appended.
   useEffect(() => {
     const el = scrollerRef.current;
