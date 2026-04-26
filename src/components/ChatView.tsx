@@ -2758,6 +2758,108 @@ export function ChatView({
           <span>bee is thinking…</span>
         </div>
       )}
+
+      {/* In-tab message queue — shows pending messages typed while streaming. */}
+      {messageQueue.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 130,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 26,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            maxWidth: "min(640px, 90%)",
+            width: "max-content",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "JetBrains Mono, monospace",
+              fontSize: 10,
+              color: "var(--muted-foreground)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              textAlign: "center",
+            }}
+          >
+            queued · {messageQueue.length}/{QUEUE_MAX}
+          </div>
+          {messageQueue.map((q, i) => (
+            <div
+              key={q.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 10px",
+                background: "color-mix(in oklab, var(--surface) 92%, transparent)",
+                border: "1px solid color-mix(in oklab, var(--border) 80%, transparent)",
+                borderRadius: 8,
+                fontFamily: "JetBrains Mono, monospace",
+                fontSize: 11,
+                color: "var(--foreground)",
+                boxShadow: "0 2px 8px -2px color-mix(in oklab, var(--foreground) 12%, transparent)",
+              }}
+              title={q.text}
+            >
+              <span
+                style={{
+                  fontSize: 9,
+                  color: "var(--muted-foreground)",
+                  minWidth: 14,
+                }}
+              >
+                {i + 1}.
+              </span>
+              {q.forceClaude && (
+                <span
+                  style={{
+                    fontSize: 9,
+                    color: "oklch(0.72 0.21 145)",
+                    border: "1px solid oklch(0.72 0.21 145)",
+                    borderRadius: 3,
+                    padding: "0 4px",
+                  }}
+                >
+                  C
+                </span>
+              )}
+              <span
+                style={{
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  maxWidth: 420,
+                }}
+              >
+                {q.text}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setMessageQueue((prev) => prev.filter((m) => m.id !== q.id))
+                }
+                title="Remove from queue"
+                style={{
+                  marginLeft: "auto",
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--muted-foreground)",
+                  cursor: "pointer",
+                  padding: "0 2px",
+                  fontSize: 12,
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
