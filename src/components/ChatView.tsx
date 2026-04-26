@@ -761,6 +761,7 @@ export function ChatView({
       consecutiveErrRef.current = 0;
     }
     appendLog(line);
+    pushRecentLog(line);
   };
 
   // Manual repair trigger from TabControls.
