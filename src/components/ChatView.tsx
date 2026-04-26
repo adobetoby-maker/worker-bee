@@ -240,6 +240,9 @@ export function ChatView({
   const [savedDraft, setSavedDraft] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Token-stream popout is opt-in only (user toggles from the inline bar).
+  const [tokenPopoutOpen, setTokenPopoutOpen] = useState(false);
+
   // Attachment dropdown (mirrors Email composer behavior).
   type ChatAttachment = { name: string; size: number; type: string; dataUrl?: string };
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
