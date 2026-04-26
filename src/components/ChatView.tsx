@@ -65,6 +65,8 @@ import {
   tokenStreamPush,
   tokenStreamEnd,
 } from "@/lib/token-stream";
+import { CockpitSkillsRail } from "./CockpitSkillsRail";
+import { CockpitActivityRail } from "./CockpitActivityRail";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
