@@ -502,6 +502,19 @@ export function ChatView({
     onStreamingChange(streaming);
   }, [streaming, onStreamingChange]);
 
+  // Auto-scroll to bottom whenever a brand-new message is appended.
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    if (messages.length > prevMsgCountRef.current) {
+      // Defer one frame so the new node is painted, then snap to the bottom.
+      window.requestAnimationFrame(() => {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      });
+    }
+    prevMsgCountRef.current = messages.length;
+  }, [messages.length]);
+
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
