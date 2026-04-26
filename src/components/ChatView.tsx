@@ -176,6 +176,41 @@ export function ChatView({
   // don't keep re-scrolling the user on every streamed token (causes bounce).
   const pinnedAsstIdxRef = useRef<number>(-1);
 
+  // Cockpit rails — show/hide skills (left) and activity/stream (right).
+  const [leftRailOpen, setLeftRailOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try { return window.localStorage.getItem("wb_cockpit_left") === "1"; } catch { return false; }
+  });
+  const [rightRailOpen, setRightRailOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try { return window.localStorage.getItem("wb_cockpit_right") === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem("wb_cockpit_left", leftRailOpen ? "1" : "0"); } catch { /* noop */ }
+  }, [leftRailOpen]);
+  useEffect(() => {
+    try { window.localStorage.setItem("wb_cockpit_right", rightRailOpen ? "1" : "0"); } catch { /* noop */ }
+  }, [rightRailOpen]);
+
+  // In-component log mirror so the right rail can show recent agent activity
+  // without us refactoring the parent's log store.
+  const [recentLog, setRecentLog] = useState<LogLine[]>([]);
+  const pushRecentLog = (line: LogLine) => {
+    setRecentLog((prev) => {
+      const next = [...prev, line];
+      return next.length > 200 ? next.slice(next.length - 200) : next;
+    });
+  };
+
+  // In-chat search overlay state (Cmd+F / Ctrl+F).
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchMatchIdx, setSearchMatchIdx] = useState(0);
+
+  // Edit-and-resend state for user messages.
+  const [editingMsgIdx, setEditingMsgIdx] = useState<number | null>(null);
+  const [editingDraft, setEditingDraft] = useState("");
+
   // Force Claude toggle — purple, glows when active, resets after each send.
   const [forceClaude, setForceClaude] = useState(false);
 
