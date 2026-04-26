@@ -61,6 +61,19 @@ export function MobileTabBar({ active, onChange }: MobileTabBarProps) {
         <span className="text-lg leading-none">🎓</span>
         <span>Learn</span>
       </Link>
+      <Link
+        to="/practice"
+        className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors text-muted-foreground active:text-foreground"
+        activeProps={{
+          className:
+            "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-success",
+          style: { borderTop: "2px solid var(--primary)", minHeight: 56 },
+        }}
+        style={{ borderTop: "2px solid transparent", minHeight: 56 }}
+      >
+        <span className="text-lg leading-none">🔁</span>
+        <span>Practice</span>
+      </Link>
     </nav>
   );
 }
