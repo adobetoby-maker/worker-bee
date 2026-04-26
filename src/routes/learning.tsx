@@ -533,8 +533,11 @@ function trendArrow(t: FluencySkill["failureRateTrend"]) {
 function formatTime(iso: string) {
   if (!iso) return "—";
   try {
+    // Use UTC to keep server- and client-rendered output identical (avoids
+    // SSR hydration mismatch from per-locale formatting).
     const d = new Date(iso);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}Z`;
   } catch {
     return iso;
   }
