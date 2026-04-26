@@ -791,6 +791,7 @@ export function ChatView({
       if (finished) return;
       finished = true;
       unsub?.();
+      tokenStreamEnd();
       if (errorText) {
         onMessagesChange((prev) => {
           const copy = prev.slice();
@@ -824,6 +825,7 @@ export function ChatView({
 
     const controller = new AbortController();
     abortRef.current = controller;
+    tokenStreamBegin(tabId);
     controller.signal.addEventListener("abort", () => {
       trackedAppendLog({ ts: nowTs(), level: "ARROW", msg: "stream aborted" });
       finish();
