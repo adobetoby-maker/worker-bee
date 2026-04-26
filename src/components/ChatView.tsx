@@ -2157,6 +2157,43 @@ export function ChatView({
             )}
             <button
               type="button"
+              onClick={() => setForceClaude((v) => !v)}
+              title={
+                forceClaude
+                  ? "Force Claude is ON for next message"
+                  : "Force this message to Claude"
+              }
+              aria-pressed={forceClaude}
+              style={{
+                height: 30,
+                padding: "0 10px",
+                borderRadius: 999,
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 10,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                flexShrink: 0,
+                alignSelf: "center",
+                transition: "all 0.15s",
+                ...(forceClaude
+                  ? {
+                      background: "color-mix(in oklab, oklch(0.55 0.22 295) 18%, transparent)",
+                      color: "oklch(0.82 0.18 295)",
+                      border: "1px solid oklch(0.65 0.22 295)",
+                      boxShadow: "0 0 12px oklch(0.55 0.22 295 / 0.55), inset 0 0 6px oklch(0.55 0.22 295 / 0.25)",
+                    }
+                  : {
+                      background: "transparent",
+                      color: "var(--muted-foreground)",
+                      border: "1px solid var(--border)",
+                    }),
+              }}
+            >
+              {forceClaude ? "● Ask Claude" : "Ask Claude"}
+            </button>
+            <button
+              type="button"
               onClick={streaming ? stop : send}
               disabled={!streaming && !input.trim() && !isQueued}
               title={streaming ? "Stop" : "Send"}
