@@ -30,6 +30,7 @@ export interface AgentWSMessage {
     | "dev_server_result" | "build_applied"
     | "build_log" | "build_complete" | "build_error"
     | "build_phase" | "build_brief" | "build_vision"
+    | "narrator_status" | "build_committed" | "github_pushed"
     | "projects_list" | "scaffold_result";
   content?: string;
   text?: string;
@@ -81,6 +82,9 @@ export interface AgentWSHandlers {
   onBuildPhase?: (info: { phase: string; message?: string }) => void;
   onBuildBrief?: (info: { brief: string }) => void;
   onBuildVision?: (info: { text: string; ok?: boolean }) => void;
+  onNarratorStatus?: (info: { line: string }) => void;
+  onBuildCommitted?: (info: { commitHash: string }) => void;
+  onGithubPushed?: (info: { repoUrl: string }) => void;
   onProjectsList?: (info: { projects: Array<{ name: string; path?: string; updatedAt?: number }> }) => void;
   onScaffoldResult?: (info: { ok: boolean; name?: string; message?: string }) => void;
 }
