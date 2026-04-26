@@ -30,6 +30,7 @@ export interface AgentWSMessage {
     | "dev_server_result" | "build_applied"
     | "build_log" | "build_complete" | "build_error"
     | "build_phase" | "build_brief" | "build_vision"
+    | "narrator_status" | "build_committed" | "github_pushed"
     | "projects_list" | "scaffold_result";
   content?: string;
   text?: string;
@@ -81,6 +82,9 @@ export interface AgentWSHandlers {
   onBuildPhase?: (info: { phase: string; message?: string }) => void;
   onBuildBrief?: (info: { brief: string }) => void;
   onBuildVision?: (info: { text: string; ok?: boolean }) => void;
+  onNarratorStatus?: (info: { line: string }) => void;
+  onBuildCommitted?: (info: { commitHash: string }) => void;
+  onGithubPushed?: (info: { repoUrl: string }) => void;
   onProjectsList?: (info: { projects: Array<{ name: string; path?: string; updatedAt?: number }> }) => void;
   onScaffoldResult?: (info: { ok: boolean; name?: string; message?: string }) => void;
 }
@@ -550,6 +554,42 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         }
         if (!vtext && text) vtext = text;
         entry.handlers.forEach((h) => h.onBuildVision?.({ text: vtext, ok: vok }));
+        break;
+      }
+      case "narrator_status": {
+        let line = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.line === "string") line = d.line;
+          else if (typeof d.message === "string") line = d.message;
+          else if (typeof d.text === "string") line = d.text;
+        } else if (typeof data === "string") {
+          line = data;
+        }
+        if (!line && text) line = text;
+        entry.handlers.forEach((h) => h.onNarratorStatus?.({ line }));
+        break;
+      }
+      case "build_committed": {
+        let commitHash = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.commit_hash === "string") commitHash = d.commit_hash;
+          else if (typeof d.commitHash === "string") commitHash = d.commitHash;
+          else if (typeof d.hash === "string") commitHash = d.hash;
+        }
+        entry.handlers.forEach((h) => h.onBuildCommitted?.({ commitHash }));
+        break;
+      }
+      case "github_pushed": {
+        let repoUrl = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.repo_url === "string") repoUrl = d.repo_url;
+          else if (typeof d.repoUrl === "string") repoUrl = d.repoUrl;
+          else if (typeof d.url === "string") repoUrl = d.url;
+        }
+        entry.handlers.forEach((h) => h.onGithubPushed?.({ repoUrl }));
         break;
       }
       case "projects_list": {
