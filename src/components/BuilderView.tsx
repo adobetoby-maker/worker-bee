@@ -18,6 +18,7 @@ import {
   type BuilderStageId,
 } from "@/components/BuilderStatusPanel";
 import { ProjectSelector } from "@/components/ProjectSelector";
+import { BuildProgress } from "@/components/BuildProgress";
 
 interface BuildHistoryEntry {
   id: string;
@@ -652,6 +653,7 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
 
           {/* Input area */}
           <div style={{ padding: 12, borderTop: "1px solid var(--border)" }}>
+            <BuildProgress tabId={tabId} building={building} />
             <BuilderStatusPanel
               active={statusActive}
               current={stageCurrent}
