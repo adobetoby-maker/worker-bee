@@ -58,6 +58,7 @@ import { LoginPromptCard, type LoginSubmitArgs } from "./LoginPromptCard";
 import { LoginStatusCard, type LoginCardState } from "./LoginStatusCard";
 import { PlanCard, type PlanCardState, type PlanLogLine, type PlanStepRuntime } from "./PlanCard";
 import { BeeLogo } from "./BeeLogo";
+import { getIdentity, subscribeIdentity, type Identity } from "@/lib/identity";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
