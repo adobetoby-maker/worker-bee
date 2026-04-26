@@ -59,6 +59,12 @@ import { LoginStatusCard, type LoginCardState } from "./LoginStatusCard";
 import { PlanCard, type PlanCardState, type PlanLogLine, type PlanStepRuntime } from "./PlanCard";
 import { BeeLogo } from "./BeeLogo";
 import { getIdentity, subscribeIdentity, type Identity } from "@/lib/identity";
+import { TokenStreamPanel } from "./TokenStreamPanel";
+import {
+  tokenStreamBegin,
+  tokenStreamPush,
+  tokenStreamEnd,
+} from "@/lib/token-stream";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -827,6 +833,7 @@ export function ChatView({
       onToken: (tok) => {
         if (!tok) return;
         assistantText += tok;
+        tokenStreamPush(tabId, tok);
         onMessagesChange((prev) => {
           const copy = prev.slice();
           copy[copy.length - 1] = { role: "assistant", content: assistantText };
