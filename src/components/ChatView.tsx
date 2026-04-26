@@ -1475,7 +1475,19 @@ export function ChatView({
 
   return (
     <div className="flex flex-1 min-h-0 flex-row relative">
-      <TokenStreamPanel />
+      {!rightRailOpen && <TokenStreamPanel />}
+      {leftRailOpen && (
+        <aside
+          className="hidden md:flex flex-col min-h-0 border-r"
+          style={{
+            width: 240,
+            background: "color-mix(in oklab, var(--surface) 35%, transparent)",
+            borderColor: "color-mix(in oklab, var(--border) 60%, transparent)",
+          }}
+        >
+          <CockpitSkillsRail />
+        </aside>
+      )}
       <div
         className="flex min-h-0 flex-col relative"
         style={{
