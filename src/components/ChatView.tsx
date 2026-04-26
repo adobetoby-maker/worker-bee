@@ -952,7 +952,9 @@ export function ChatView({
       return;
     }
     setInput("");
-    await startStream(text);
+    const fc = forceClaude;
+    if (fc) setForceClaude(false); // resets after each send
+    await startStream(text, { forceClaude: fc });
   };
 
   // Subscribe to login events for this tab.
