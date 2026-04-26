@@ -1037,7 +1037,7 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
                   padding: 24,
                 }}
               >
-                <div style={{ fontSize: 48 }}>🏗</div>
+                <div style={{ fontSize: 192 }}>🏗</div>
                 <div
                   style={{
                     fontFamily: "'JetBrains Mono', monospace",
