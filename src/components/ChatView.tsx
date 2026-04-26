@@ -1671,8 +1671,103 @@ export function ChatView({
               >
                 {isUser ? (
                   <>
-                    <div className="whitespace-pre-wrap break-words">{m.content}</div>
-                    <CopyMessageButton text={m.content} variant="onPrimary" />
+                    {editingMsgIdx === i ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 280 }}>
+                        <textarea
+                          autoFocus
+                          value={editingDraft}
+                          onChange={(e) => setEditingDraft(e.target.value)}
+                          rows={Math.min(8, Math.max(2, editingDraft.split("\n").length))}
+                          style={{
+                            background: "rgba(0,0,0,0.18)",
+                            color: "#fff",
+                            border: "1px solid rgba(255,255,255,0.4)",
+                            borderRadius: 8,
+                            padding: "8px 10px",
+                            fontSize: 14,
+                            resize: "vertical",
+                            outline: "none",
+                          }}
+                        />
+                        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                          <button
+                            type="button"
+                            onClick={() => { setEditingMsgIdx(null); setEditingDraft(""); }}
+                            style={{
+                              background: "transparent",
+                              color: "rgba(255,255,255,0.85)",
+                              border: "1px solid rgba(255,255,255,0.4)",
+                              borderRadius: 6,
+                              padding: "3px 10px",
+                              fontSize: 11,
+                              cursor: "pointer",
+                            }}
+                          >Cancel</button>
+                          <button
+                            type="button"
+                            disabled={!editingDraft.trim() || streaming}
+                            onClick={() => {
+                              const newText = editingDraft.trim();
+                              if (!newText) return;
+                              // Truncate history to before this user message and resend.
+                              onMessagesChange((prev) => prev.slice(0, i));
+                              setEditingMsgIdx(null);
+                              setEditingDraft("");
+                              window.setTimeout(() => sendFollowUpChat(newText), 0);
+                            }}
+                            style={{
+                              background: "rgba(255,255,255,0.95)",
+                              color: "var(--primary)",
+                              border: "1px solid rgba(255,255,255,0.95)",
+                              borderRadius: 6,
+                              padding: "3px 10px",
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              opacity: !editingDraft.trim() || streaming ? 0.5 : 1,
+                            }}
+                          >Resend</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                        <div
+                          className="opacity-0 group-hover:opacity-100"
+                          style={{
+                            position: "absolute",
+                            top: -8,
+                            left: -8,
+                            display: "flex",
+                            gap: 4,
+                            transition: "opacity 150ms",
+                          }}
+                        >
+                          <button
+                            type="button"
+                            title="Edit and resend"
+                            onClick={() => {
+                              setEditingMsgIdx(i);
+                              setEditingDraft(m.content);
+                            }}
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: 999,
+                              background: "var(--surface)",
+                              border: "1px solid var(--border)",
+                              color: "var(--muted-foreground)",
+                              fontSize: 11,
+                              lineHeight: 1,
+                              cursor: "pointer",
+                            }}
+                          >
+                            ✎
+                          </button>
+                        </div>
+                        <CopyMessageButton text={m.content} variant="onPrimary" />
+                      </>
+                    )}
                   </>
                 ) : (
                   <>
