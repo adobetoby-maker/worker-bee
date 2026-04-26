@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   getMorningReport,
   setPriority,
@@ -58,6 +58,19 @@ export const Route = createFileRoute("/report")({
 
 function ReportPage() {
   const initial = Route.useLoaderData() as MorningReport;
+
+  return <ReportPageInner initial={initial} />;
+}
+
+function ClientTime({ iso }: { iso: string }) {
+  const [text, setText] = useState("");
+  useEffect(() => {
+    setText(new Date(iso).toLocaleString());
+  }, [iso]);
+  return <span suppressHydrationWarning>{text || "—"}</span>;
+}
+
+function ReportPageInner({ initial }: { initial: MorningReport }) {
   const [report, setReport] = useState<MorningReport>(initial);
   const [priorityInput, setPriorityInput] = useState(initial.currentPriority);
   const [savingPriority, setSavingPriority] = useState(false);
@@ -104,7 +117,7 @@ function ReportPage() {
           </h1>
         </div>
         <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          {new Date(report.generatedAt).toLocaleString()} · source: {report.source}
+          <ClientTime iso={report.generatedAt} /> · source: {report.source}
         </span>
       </header>
 
