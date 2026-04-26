@@ -668,7 +668,11 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
                   handleBuild();
                 }
               }}
-              placeholder="Describe what to build or change…"
+              placeholder={
+                currentProject
+                  ? "What do you want to build today?"
+                  : "Select a project above to start building…"
+              }
               style={{
                 width: "100%",
                 background: "var(--background)",
