@@ -481,7 +481,19 @@ export function ChatView({
     }
     // For streaming assistant updates, only follow if user is near the bottom.
     if (isNearBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      // Pin the latest assistant message toward the top of the viewport so
+      // there's breathing room below for the next incoming exchange — mirrors
+      // the Jay cockpit feel.
+      const assistantEls = el.querySelectorAll<HTMLElement>('[data-role="assistant"]');
+      const lastAsstEl = assistantEls[assistantEls.length - 1];
+      if (lastAsstEl) {
+        const elRect = el.getBoundingClientRect();
+        const msgRect = lastAsstEl.getBoundingClientRect();
+        const target = el.scrollTop + (msgRect.top - elRect.top) - 24;
+        el.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      }
       setShowScrollButton(false);
     } else {
       setShowScrollButton(true);
