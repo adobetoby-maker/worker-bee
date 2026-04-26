@@ -470,6 +470,7 @@ export function ChatView({
     // When the user just sent a message, scroll that user message to the top
     // of the viewport (iMessage / Claude.ai feel).
     if (last?.role === "user") {
+      pinnedAsstIdxRef.current = -1;
       window.setTimeout(() => {
         const userEls = el.querySelectorAll<HTMLElement>('[data-role="user"]');
         const lastUserEl = userEls[userEls.length - 1];
