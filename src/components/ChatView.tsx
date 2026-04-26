@@ -1541,7 +1541,7 @@ export function ChatView({
 
   return (
     <div className="flex flex-1 min-h-0 flex-row relative">
-      {!rightRailOpen && <TokenStreamPanel />}
+      {tokenPopoutOpen && !rightRailOpen && <TokenStreamPanel />}
       {leftRailOpen && (
         <aside
           className="hidden md:flex flex-col min-h-0 border-r"
