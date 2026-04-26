@@ -1033,7 +1033,25 @@ export function ChatView({
 
   const send = async () => {
     const text = input.trim();
-    if (!text || streaming) return;
+    if (!text) return;
+    // If bee is busy, push into the in-tab queue (max 4) and clear input.
+    if (streaming) {
+      setMessageQueue((prev) => {
+        if (prev.length >= QUEUE_MAX) return prev;
+        return [
+          ...prev,
+          {
+            id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            text,
+            forceClaude,
+          },
+        ];
+      });
+      pushHistory(text);
+      setInput("");
+      if (forceClaude) setForceClaude(false);
+      return;
+    }
     pushHistory(text);
     // Hidden developer smoke test trigger.
     if (text === "🐝🐝🐝" && onSmokeTest) {
