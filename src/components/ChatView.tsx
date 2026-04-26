@@ -1897,7 +1897,16 @@ export function ChatView({
         if (!last || last.role !== "assistant") return null;
         const action = detectBrowserAction(last.content);
         if (!action) return null;
-        return <BrowserTaskCard action={action} onStop={stop} />;
+        return (
+          <div
+            className="pointer-events-none absolute left-2 top-2 z-20"
+            style={{ maxWidth: "50%", width: "min(420px, 50%)" }}
+          >
+            <div className="pointer-events-auto">
+              <BrowserTaskCard action={action} onStop={stop} />
+            </div>
+          </div>
+        );
       })()}
 
       {memorySearchCard && (
