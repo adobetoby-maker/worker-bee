@@ -65,6 +65,8 @@ import {
   tokenStreamPush,
   tokenStreamEnd,
 } from "@/lib/token-stream";
+import { CockpitSkillsRail } from "./CockpitSkillsRail";
+import { CockpitActivityRail } from "./CockpitActivityRail";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -173,6 +175,41 @@ export function ChatView({
   // Track which assistant message index we've already pinned to top, so we
   // don't keep re-scrolling the user on every streamed token (causes bounce).
   const pinnedAsstIdxRef = useRef<number>(-1);
+
+  // Cockpit rails — show/hide skills (left) and activity/stream (right).
+  const [leftRailOpen, setLeftRailOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try { return window.localStorage.getItem("wb_cockpit_left") === "1"; } catch { return false; }
+  });
+  const [rightRailOpen, setRightRailOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try { return window.localStorage.getItem("wb_cockpit_right") === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem("wb_cockpit_left", leftRailOpen ? "1" : "0"); } catch { /* noop */ }
+  }, [leftRailOpen]);
+  useEffect(() => {
+    try { window.localStorage.setItem("wb_cockpit_right", rightRailOpen ? "1" : "0"); } catch { /* noop */ }
+  }, [rightRailOpen]);
+
+  // In-component log mirror so the right rail can show recent agent activity
+  // without us refactoring the parent's log store.
+  const [recentLog, setRecentLog] = useState<LogLine[]>([]);
+  const pushRecentLog = (line: LogLine) => {
+    setRecentLog((prev) => {
+      const next = [...prev, line];
+      return next.length > 200 ? next.slice(next.length - 200) : next;
+    });
+  };
+
+  // In-chat search overlay state (Cmd+F / Ctrl+F).
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchMatchIdx, setSearchMatchIdx] = useState(0);
+
+  // Edit-and-resend state for user messages.
+  const [editingMsgIdx, setEditingMsgIdx] = useState<number | null>(null);
+  const [editingDraft, setEditingDraft] = useState("");
 
   // Force Claude toggle — purple, glows when active, resets after each send.
   const [forceClaude, setForceClaude] = useState(false);
@@ -531,6 +568,52 @@ export function ChatView({
     if (!streaming) setShowScrollButton(false);
   }, [streaming]);
 
+  // Cmd+F / Ctrl+F → open in-chat search.
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key.toLowerCase() === "f") {
+        // Only intercept when chat scroller is visible / focused area.
+        e.preventDefault();
+        setSearchOpen(true);
+        setSearchMatchIdx(0);
+      } else if (e.key === "Escape" && searchOpen) {
+        setSearchOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [searchOpen]);
+
+  // Compute message indices that contain the search query.
+  const searchMatches = (() => {
+    if (!searchOpen || !searchQuery.trim()) return [] as number[];
+    const q = searchQuery.toLowerCase();
+    const out: number[] = [];
+    messages.forEach((m, i) => {
+      const txt = (m.content || "") + " " + (m.visionDescription || "");
+      if (txt.toLowerCase().includes(q)) out.push(i);
+    });
+    return out;
+  })();
+
+  // Scroll the matched message into view when the active match changes.
+  useEffect(() => {
+    if (!searchOpen || searchMatches.length === 0) return;
+    const idx = searchMatches[searchMatchIdx % searchMatches.length];
+    const el = scrollerRef.current;
+    if (!el) return;
+    const target = el.querySelector<HTMLElement>(`[data-msg-idx="${idx}"]`);
+    if (target) {
+      const elRect = el.getBoundingClientRect();
+      const tr = target.getBoundingClientRect();
+      el.scrollTo({ top: el.scrollTop + (tr.top - elRect.top) - 80, behavior: "smooth" });
+    }
+    // searchMatches is derived; depending on it would loop, so list its
+    // primitives instead.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchMatchIdx, searchOpen, searchQuery, messages.length]);
+
   // Cmd+K / Ctrl+K — clear this agent's chat history (with confirm).
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -724,6 +807,7 @@ export function ChatView({
       consecutiveErrRef.current = 0;
     }
     appendLog(line);
+    pushRecentLog(line);
   };
 
   // Manual repair trigger from TabControls.
@@ -1391,7 +1475,19 @@ export function ChatView({
 
   return (
     <div className="flex flex-1 min-h-0 flex-row relative">
-      <TokenStreamPanel />
+      {!rightRailOpen && <TokenStreamPanel />}
+      {leftRailOpen && (
+        <aside
+          className="hidden md:flex flex-col min-h-0 border-r"
+          style={{
+            width: 240,
+            background: "color-mix(in oklab, var(--surface) 35%, transparent)",
+            borderColor: "color-mix(in oklab, var(--border) 60%, transparent)",
+          }}
+        >
+          <CockpitSkillsRail />
+        </aside>
+      )}
       <div
         className="flex min-h-0 flex-col relative"
         style={{
@@ -1545,7 +1641,20 @@ export function ChatView({
             <div
               key={i}
               data-role={isUser ? "user" : "assistant"}
+              data-msg-idx={i}
               className={`flex items-start ${isUser ? "justify-end" : "justify-start"}`}
+              style={
+                searchOpen && searchMatches.includes(i)
+                  ? {
+                      outline:
+                        searchMatches[searchMatchIdx % Math.max(1, searchMatches.length)] === i
+                          ? "2px solid var(--primary)"
+                          : "1px dashed color-mix(in oklab, var(--primary) 50%, transparent)",
+                      outlineOffset: 2,
+                      borderRadius: 14,
+                    }
+                  : undefined
+              }
             >
               <div
                 className={
@@ -1574,8 +1683,103 @@ export function ChatView({
               >
                 {isUser ? (
                   <>
-                    <div className="whitespace-pre-wrap break-words">{m.content}</div>
-                    <CopyMessageButton text={m.content} variant="onPrimary" />
+                    {editingMsgIdx === i ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 280 }}>
+                        <textarea
+                          autoFocus
+                          value={editingDraft}
+                          onChange={(e) => setEditingDraft(e.target.value)}
+                          rows={Math.min(8, Math.max(2, editingDraft.split("\n").length))}
+                          style={{
+                            background: "rgba(0,0,0,0.18)",
+                            color: "#fff",
+                            border: "1px solid rgba(255,255,255,0.4)",
+                            borderRadius: 8,
+                            padding: "8px 10px",
+                            fontSize: 14,
+                            resize: "vertical",
+                            outline: "none",
+                          }}
+                        />
+                        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                          <button
+                            type="button"
+                            onClick={() => { setEditingMsgIdx(null); setEditingDraft(""); }}
+                            style={{
+                              background: "transparent",
+                              color: "rgba(255,255,255,0.85)",
+                              border: "1px solid rgba(255,255,255,0.4)",
+                              borderRadius: 6,
+                              padding: "3px 10px",
+                              fontSize: 11,
+                              cursor: "pointer",
+                            }}
+                          >Cancel</button>
+                          <button
+                            type="button"
+                            disabled={!editingDraft.trim() || streaming}
+                            onClick={() => {
+                              const newText = editingDraft.trim();
+                              if (!newText) return;
+                              // Truncate history to before this user message and resend.
+                              onMessagesChange((prev) => prev.slice(0, i));
+                              setEditingMsgIdx(null);
+                              setEditingDraft("");
+                              window.setTimeout(() => sendFollowUpChat(newText), 0);
+                            }}
+                            style={{
+                              background: "rgba(255,255,255,0.95)",
+                              color: "var(--primary)",
+                              border: "1px solid rgba(255,255,255,0.95)",
+                              borderRadius: 6,
+                              padding: "3px 10px",
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              opacity: !editingDraft.trim() || streaming ? 0.5 : 1,
+                            }}
+                          >Resend</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                        <div
+                          className="opacity-0 group-hover:opacity-100"
+                          style={{
+                            position: "absolute",
+                            top: -8,
+                            left: -8,
+                            display: "flex",
+                            gap: 4,
+                            transition: "opacity 150ms",
+                          }}
+                        >
+                          <button
+                            type="button"
+                            title="Edit and resend"
+                            onClick={() => {
+                              setEditingMsgIdx(i);
+                              setEditingDraft(m.content);
+                            }}
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: 999,
+                              background: "var(--surface)",
+                              border: "1px solid var(--border)",
+                              color: "var(--muted-foreground)",
+                              fontSize: 11,
+                              lineHeight: 1,
+                              cursor: "pointer",
+                            }}
+                          >
+                            ✎
+                          </button>
+                        </div>
+                        <CopyMessageButton text={m.content} variant="onPrimary" />
+                      </>
+                    )}
                   </>
                 ) : (
                   <>
@@ -2298,6 +2502,178 @@ export function ChatView({
           flash={previewFlash}
           onClose={closePreview}
         />
+      )}
+      {rightRailOpen && (
+        <aside
+          className="hidden md:flex flex-col min-h-0 border-l"
+          style={{
+            width: 320,
+            background: "color-mix(in oklab, var(--surface) 35%, transparent)",
+            borderColor: "color-mix(in oklab, var(--border) 60%, transparent)",
+          }}
+        >
+          <CockpitActivityRail log={recentLog} />
+        </aside>
+      )}
+
+      {/* Cockpit rail toggles — vertically centered on edges. */}
+      <button
+        type="button"
+        title={leftRailOpen ? "Hide skills rail" : "Show skills rail"}
+        onClick={() => setLeftRailOpen((v) => !v)}
+        className="hidden md:flex"
+        style={{
+          position: "absolute",
+          left: leftRailOpen ? 240 : 0,
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: 18,
+          height: 56,
+          alignItems: "center",
+          justifyContent: "center",
+          background: "color-mix(in oklab, var(--surface) 80%, transparent)",
+          border: "1px solid color-mix(in oklab, var(--border) 70%, transparent)",
+          borderLeft: "none",
+          borderRadius: "0 8px 8px 0",
+          color: "var(--muted-foreground)",
+          cursor: "pointer",
+          fontSize: 11,
+          zIndex: 30,
+          transition: "left 200ms",
+        }}
+      >
+        {leftRailOpen ? "‹" : "›"}
+      </button>
+      <button
+        type="button"
+        title={rightRailOpen ? "Hide activity rail" : "Show activity rail"}
+        onClick={() => setRightRailOpen((v) => !v)}
+        className="hidden md:flex"
+        style={{
+          position: "absolute",
+          right: rightRailOpen ? 320 : 0,
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: 18,
+          height: 56,
+          alignItems: "center",
+          justifyContent: "center",
+          background: "color-mix(in oklab, var(--surface) 80%, transparent)",
+          border: "1px solid color-mix(in oklab, var(--border) 70%, transparent)",
+          borderRight: "none",
+          borderRadius: "8px 0 0 8px",
+          color: "var(--muted-foreground)",
+          cursor: "pointer",
+          fontSize: 11,
+          zIndex: 30,
+          transition: "right 200ms",
+        }}
+      >
+        {rightRailOpen ? "›" : "‹"}
+      </button>
+
+      {/* In-chat search overlay (Cmd+F / Ctrl+F). */}
+      {searchOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 40,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 8px",
+            background: "color-mix(in oklab, var(--surface) 92%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--border) 70%, transparent)",
+            borderRadius: 10,
+            boxShadow: "0 8px 24px -8px color-mix(in oklab, var(--primary) 25%, transparent)",
+            backdropFilter: "blur(8px)",
+            fontFamily: "JetBrains Mono, monospace",
+            fontSize: 12,
+          }}
+        >
+          <input
+            autoFocus
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setSearchMatchIdx(0); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (searchMatches.length > 0) {
+                  setSearchMatchIdx((idx) => (e.shiftKey ? (idx - 1 + searchMatches.length) : (idx + 1)) % searchMatches.length);
+                }
+              } else if (e.key === "Escape") {
+                setSearchOpen(false);
+              }
+            }}
+            placeholder="Find in chat…"
+            style={{
+              width: 220,
+              background: "transparent",
+              color: "var(--foreground)",
+              border: "none",
+              outline: "none",
+              fontSize: 12,
+            }}
+          />
+          <span className="text-muted-foreground" style={{ minWidth: 50, textAlign: "right" }}>
+            {searchQuery.trim() ? `${searchMatches.length === 0 ? 0 : (searchMatchIdx % Math.max(1, searchMatches.length)) + 1}/${searchMatches.length}` : "–"}
+          </span>
+          <button
+            type="button"
+            onClick={() => searchMatches.length && setSearchMatchIdx((i) => (i - 1 + searchMatches.length) % searchMatches.length)}
+            className="text-muted-foreground hover:text-foreground"
+            style={{ background: "transparent", border: "none", cursor: "pointer", padding: "2px 4px" }}
+            title="Previous"
+          >↑</button>
+          <button
+            type="button"
+            onClick={() => searchMatches.length && setSearchMatchIdx((i) => (i + 1) % searchMatches.length)}
+            className="text-muted-foreground hover:text-foreground"
+            style={{ background: "transparent", border: "none", cursor: "pointer", padding: "2px 4px" }}
+            title="Next"
+          >↓</button>
+          <button
+            type="button"
+            onClick={() => setSearchOpen(false)}
+            className="text-muted-foreground hover:text-foreground"
+            style={{ background: "transparent", border: "none", cursor: "pointer", padding: "2px 4px" }}
+            title="Close (Esc)"
+          >✕</button>
+        </div>
+      )}
+
+      {/* Live activity indicator — shows what bee is doing while streaming. */}
+      {streaming && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 96,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 25,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "5px 12px",
+            background: "color-mix(in oklab, var(--surface) 90%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--primary) 40%, transparent)",
+            borderRadius: 999,
+            fontFamily: "JetBrains Mono, monospace",
+            fontSize: 11,
+            color: "var(--primary)",
+            boxShadow: "0 4px 16px -4px color-mix(in oklab, var(--primary) 30%, transparent)",
+            pointerEvents: "none",
+          }}
+        >
+          <span
+            className="inline-block w-1.5 h-1.5 rounded-full"
+            style={{ background: "var(--primary)", animation: "var(--animate-blink)" }}
+          />
+          <span>bee is thinking…</span>
+        </div>
       )}
     </div>
   );
