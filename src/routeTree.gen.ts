@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ReportRouteImport } from './routes/report'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as LearningRouteImport } from './routes/learning'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSendEmailRouteImport } from './routes/api/send-email'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 
+const ReportRoute = ReportRouteImport.update({
+  id: '/report',
+  path: '/report',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PracticeRoute = PracticeRouteImport.update({
   id: '/practice',
   path: '/practice',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/learning': typeof LearningRoute
   '/practice': typeof PracticeRoute
+  '/report': typeof ReportRoute
   '/api/send-email': typeof ApiSendEmailRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/learning': typeof LearningRoute
   '/practice': typeof PracticeRoute
+  '/report': typeof ReportRoute
   '/api/send-email': typeof ApiSendEmailRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
@@ -61,6 +69,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/learning': typeof LearningRoute
   '/practice': typeof PracticeRoute
+  '/report': typeof ReportRoute
   '/api/send-email': typeof ApiSendEmailRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
@@ -70,6 +79,7 @@ export interface FileRouteTypes {
     | '/'
     | '/learning'
     | '/practice'
+    | '/report'
     | '/api/send-email'
     | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
@@ -77,6 +87,7 @@ export interface FileRouteTypes {
     | '/'
     | '/learning'
     | '/practice'
+    | '/report'
     | '/api/send-email'
     | '/lovable/email/queue/process'
   id:
@@ -84,6 +95,7 @@ export interface FileRouteTypes {
     | '/'
     | '/learning'
     | '/practice'
+    | '/report'
     | '/api/send-email'
     | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
@@ -92,12 +104,20 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LearningRoute: typeof LearningRoute
   PracticeRoute: typeof PracticeRoute
+  ReportRoute: typeof ReportRoute
   ApiSendEmailRoute: typeof ApiSendEmailRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/report': {
+      id: '/report'
+      path: '/report'
+      fullPath: '/report'
+      preLoaderRoute: typeof ReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/practice': {
       id: '/practice'
       path: '/practice'
@@ -140,6 +160,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LearningRoute: LearningRoute,
   PracticeRoute: PracticeRoute,
+  ReportRoute: ReportRoute,
   ApiSendEmailRoute: ApiSendEmailRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }

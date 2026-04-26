@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Header } from "@/components/Header";
 import { VaultPanel } from "@/components/VaultPanel";
@@ -133,6 +133,7 @@ function loadStoredTabs(): TabState[] | null {
 }
 
 function Index() {
+  const navigate = useNavigate();
   const [active, setActive] = useState<View>("chat");
   const [log, setLog] = useState<LogLine[]>(INITIAL_LOG);
   const [endpoint, setEndpoint] = useState("http://localhost:11434");
@@ -156,6 +157,23 @@ function Index() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [injectedByTab, setInjectedByTab] = useState<Record<string, string[]>>({});
   const [vaultPots, setVaultPots] = useState<PotSnapshot[]>([]);
+
+  // Auto-redirect to /report between 5am-9am, once per day per browser session.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const now = new Date();
+      const hour = now.getHours();
+      if (hour < 5 || hour >= 9) return;
+      const today = now.toISOString().slice(0, 10);
+      const key = "workerbee_morning_report_shown";
+      if (sessionStorage.getItem(key) === today) return;
+      sessionStorage.setItem(key, today);
+      navigate({ to: "/report" });
+    } catch {
+      // ignore
+    }
+  }, [navigate]);
   const [queueOpen, setQueueOpen] = useState(false);
   const [queueState, setQueueState] = useState<QueueState>({
     activeTabId: null,
