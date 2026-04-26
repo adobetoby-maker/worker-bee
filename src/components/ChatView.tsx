@@ -1303,7 +1303,7 @@ export function ChatView({
       onError: (m) => finish(m || "agent error"),
       onClose: () => finish("WebSocket closed during stream"),
     });
-    const ok = sendChat(tabId, content, model);
+    const ok = sendChat(tabId, content, model, { identity: identityRef.current });
     if (!ok) finish("failed to send over WebSocket");
   };
 
