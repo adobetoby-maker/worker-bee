@@ -520,46 +520,27 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
         >
           {/* Project selector */}
           <div style={{ padding: 14, borderBottom: "1px solid var(--border)" }}>
-            <div
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 10,
-                color: "var(--muted-foreground)",
-                textTransform: "uppercase",
-                letterSpacing: "0.15em",
-                marginBottom: 6,
-              }}
-            >
-              Project
-            </div>
-            <select
-              value={currentProject ?? ""}
-              onChange={(e) => handleProjectChange(e.target.value)}
+            <ProjectSelector
+              selectedProject={currentProject}
+              onProjectChange={handleProjectChange}
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewModal(true)}
               style={{
                 width: "100%",
                 padding: "8px 10px",
-                background: "var(--background)",
-                color: "var(--foreground)",
-                border: "1px solid var(--border)",
+                background: "transparent",
+                color: "var(--muted-foreground)",
+                border: "1px dashed var(--border)",
                 borderRadius: 6,
                 fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 12,
+                fontSize: 11,
+                cursor: "pointer",
               }}
             >
-              <option value="">
-                {projectsLoading && !projectsLoaded
-                  ? "Loading projects…"
-                  : allProjects.length === 0
-                    ? "No projects — create one below"
-                    : "— Select a project —"}
-              </option>
-              {allProjects.map((p) => (
-                <option key={p.name} value={p.name}>
-                  {p.name}
-                </option>
-              ))}
-              <option value="__new__">＋ New Project…</option>
-            </select>
+              ＋ New Project…
+            </button>
           </div>
 
           {/* Build history */}
