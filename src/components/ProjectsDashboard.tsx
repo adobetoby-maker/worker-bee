@@ -8,6 +8,7 @@ import {
   type Project,
 } from "@/lib/projects";
 import { NewProjectModal } from "./NewProjectModal";
+import { GithubSyncIndicator } from "./GithubSyncIndicator";
 
 interface Props {
   tabs: { id: string; name: string }[];
@@ -42,6 +43,7 @@ export function ProjectsDashboard({ tabs, onOpenProject, appendLog }: Props) {
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto p-6">
+      <GithubSyncIndicator />
       <div className="flex items-start justify-between mb-2">
         <div>
           <h2
