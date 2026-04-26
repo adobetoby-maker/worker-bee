@@ -58,6 +58,7 @@ import { LoginPromptCard, type LoginSubmitArgs } from "./LoginPromptCard";
 import { LoginStatusCard, type LoginCardState } from "./LoginStatusCard";
 import { PlanCard, type PlanCardState, type PlanLogLine, type PlanStepRuntime } from "./PlanCard";
 import { BeeLogo } from "./BeeLogo";
+import { getIdentity, subscribeIdentity, type Identity } from "@/lib/identity";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -163,6 +164,18 @@ export function ChatView({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+
+  // Force Claude toggle — purple, glows when active, resets after each send.
+  const [forceClaude, setForceClaude] = useState(false);
+
+  // User identity (Toby / Jay) — read from header selector via custom event.
+  const [identity, setIdentityState] = useState<Identity>("toby");
+  useEffect(() => {
+    setIdentityState(getIdentity());
+    return subscribeIdentity(setIdentityState);
+  }, []);
+  const identityRef = useRef<Identity>("toby");
+  useEffect(() => { identityRef.current = identity; }, [identity]);
 
   // Terminal-style input history.
   const HISTORY_KEY = "workerbee_input_history";
@@ -728,7 +741,8 @@ export function ChatView({
     setStreaming(false);
   };
 
-  const startStream = async (text: string) => {
+  const startStream = async (text: string, opts: { forceClaude?: boolean } = {}) => {
+    const useForceClaude = !!opts.forceClaude;
     if (!connected || !model) {
       trackedAppendLog({ ts: nowTs(), level: "ERR", msg: "not connected — open CONFIG" });
       return;
@@ -831,7 +845,10 @@ export function ChatView({
           });
         }
         const followUp = `${text}\n\nYou are Worker Bee, an AI agent with a real Playwright browser. You just navigated to ${urlForPrompt} and retrieved this content. You CAN browse websites, take screenshots, and interact with pages. Analyze what you found and respond helpfully:\n\n${res.text}`;
-        const ok = sendChat(tabId, followUp, model);
+        const ok = sendChat(tabId, followUp, model, {
+          forceClaude: useForceClaude,
+          identity: identityRef.current,
+        });
         if (!ok) finish("failed to send chat after browser_result");
       },
       onScreenshot: (shot) => {
@@ -862,7 +879,10 @@ export function ChatView({
       return;
     }
 
-    const ok = sendChat(tabId, text, model);
+    const ok = sendChat(tabId, text, model, {
+      forceClaude: useForceClaude,
+      identity: identityRef.current,
+    });
     if (!ok) finish("failed to send over WebSocket");
   };
 
@@ -932,7 +952,9 @@ export function ChatView({
       return;
     }
     setInput("");
-    await startStream(text);
+    const fc = forceClaude;
+    if (fc) setForceClaude(false); // resets after each send
+    await startStream(text, { forceClaude: fc });
   };
 
   // Subscribe to login events for this tab.
@@ -1283,7 +1305,7 @@ export function ChatView({
       onError: (m) => finish(m || "agent error"),
       onClose: () => finish("WebSocket closed during stream"),
     });
-    const ok = sendChat(tabId, content, model);
+    const ok = sendChat(tabId, content, model, { identity: identityRef.current });
     if (!ok) finish("failed to send over WebSocket");
   };
 
@@ -2133,6 +2155,43 @@ export function ChatView({
                 ↓ latest
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setForceClaude((v) => !v)}
+              title={
+                forceClaude
+                  ? "Force Claude is ON for next message"
+                  : "Force this message to Claude"
+              }
+              aria-pressed={forceClaude}
+              style={{
+                height: 30,
+                padding: "0 10px",
+                borderRadius: 999,
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 10,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                flexShrink: 0,
+                alignSelf: "center",
+                transition: "all 0.15s",
+                ...(forceClaude
+                  ? {
+                      background: "color-mix(in oklab, oklch(0.55 0.22 295) 18%, transparent)",
+                      color: "oklch(0.82 0.18 295)",
+                      border: "1px solid oklch(0.65 0.22 295)",
+                      boxShadow: "0 0 12px oklch(0.55 0.22 295 / 0.55), inset 0 0 6px oklch(0.55 0.22 295 / 0.25)",
+                    }
+                  : {
+                      background: "transparent",
+                      color: "var(--muted-foreground)",
+                      border: "1px solid var(--border)",
+                    }),
+              }}
+            >
+              {forceClaude ? "● Ask Claude" : "Ask Claude"}
+            </button>
             <button
               type="button"
               onClick={streaming ? stop : send}
