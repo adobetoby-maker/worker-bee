@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   getMorningReport,
   setPriority,
@@ -104,7 +104,7 @@ function ReportPage() {
           </h1>
         </div>
         <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          {new Date(report.generatedAt).toLocaleString()} · source: {report.source}
+          <ClientTime iso={report.generatedAt} /> · source: {report.source}
         </span>
       </header>
 
