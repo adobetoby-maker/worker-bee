@@ -2688,10 +2688,6 @@ export function ChatView({
         {rightRailOpen ? "›" : "‹"}
       </button>
 
-      {/* In-chat search overlay (Cmd+F / Ctrl+F). */}
-      {searchOpen && (
-        <></>
-      )}
       {/* Clear chat button — always visible top-right of the chat surface. */}
       <button
         type="button"
