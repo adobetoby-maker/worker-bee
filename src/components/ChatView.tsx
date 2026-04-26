@@ -1379,7 +1379,7 @@ export function ChatView({
         }}
       >
       <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto py-6">
-        <div className="mx-auto w-full space-y-6" style={{ maxWidth: 680, padding: "0 16px" }}>
+        <div className="mx-auto w-full space-y-6" style={{ maxWidth: 680, padding: "0 16px", paddingBottom: "40vh" }}>
         {!connected && (
           <div className="flex justify-center">
             <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground border border-border bg-surface/40 px-4 py-2 rounded">
