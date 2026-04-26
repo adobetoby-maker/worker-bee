@@ -19,11 +19,13 @@ const ITEMS: { id: View; label: string; icon: string }[] = [
 export function MobileTabBar({ active, onChange }: MobileTabBarProps) {
   return (
     <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 flex items-stretch border-t"
+      className="md:hidden fixed bottom-0 inset-x-0 z-40 flex items-stretch border-t overflow-x-auto"
       style={{
         background: "var(--surface)",
         borderColor: "var(--border)",
         paddingBottom: "env(safe-area-inset-bottom)",
+        scrollbarWidth: "none",
+        WebkitOverflowScrolling: "touch",
       }}
       aria-label="Primary"
     >
