@@ -217,6 +217,12 @@ export function ChatView({
   // Force Claude toggle — purple, glows when active, resets after each send.
   const [forceClaude, setForceClaude] = useState(false);
 
+  // In-tab message queue — messages typed while bee is streaming.
+  // Max 4 pending. Auto-sends the next one as soon as streaming finishes.
+  type QueuedMsg = { id: string; text: string; forceClaude: boolean };
+  const QUEUE_MAX = 4;
+  const [messageQueue, setMessageQueue] = useState<QueuedMsg[]>([]);
+
   // User identity (Toby / Jay) — read from header selector via custom event.
   const [identity, setIdentityState] = useState<Identity>("toby");
   useEffect(() => {
