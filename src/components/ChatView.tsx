@@ -170,6 +170,9 @@ export function ChatView({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  // Track which assistant message index we've already pinned to top, so we
+  // don't keep re-scrolling the user on every streamed token (causes bounce).
+  const pinnedAsstIdxRef = useRef<number>(-1);
 
   // Force Claude toggle — purple, glows when active, resets after each send.
   const [forceClaude, setForceClaude] = useState(false);
@@ -467,6 +470,7 @@ export function ChatView({
     // When the user just sent a message, scroll that user message to the top
     // of the viewport (iMessage / Claude.ai feel).
     if (last?.role === "user") {
+      pinnedAsstIdxRef.current = -1;
       window.setTimeout(() => {
         const userEls = el.querySelectorAll<HTMLElement>('[data-role="user"]');
         const lastUserEl = userEls[userEls.length - 1];
@@ -487,18 +491,23 @@ export function ChatView({
     }
     // For streaming assistant updates, only follow if user is near the bottom.
     if (isNearBottom) {
-      // Pin the latest assistant message toward the top of the viewport so
-      // there's breathing room below for the next incoming exchange — mirrors
-      // the Jay cockpit feel.
-      const assistantEls = el.querySelectorAll<HTMLElement>('[data-role="assistant"]');
-      const lastAsstEl = assistantEls[assistantEls.length - 1];
-      if (lastAsstEl) {
-        const elRect = el.getBoundingClientRect();
-        const msgRect = lastAsstEl.getBoundingClientRect();
-        const target = el.scrollTop + (msgRect.top - elRect.top) - 24;
-        el.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+      const lastIdx = messages.length - 1;
+      // Pin the new assistant message to the top ONCE when it first appears.
+      // After that, follow the bottom on subsequent token updates so the user
+      // can keep reading without being yanked back up.
+      if (last?.role === "assistant" && pinnedAsstIdxRef.current !== lastIdx) {
+        pinnedAsstIdxRef.current = lastIdx;
+        const assistantEls = el.querySelectorAll<HTMLElement>('[data-role="assistant"]');
+        const lastAsstEl = assistantEls[assistantEls.length - 1];
+        if (lastAsstEl) {
+          const elRect = el.getBoundingClientRect();
+          const msgRect = lastAsstEl.getBoundingClientRect();
+          const target = el.scrollTop + (msgRect.top - elRect.top) - 24;
+          el.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+        }
       } else {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+        // Smoothly follow new tokens at the bottom — no bounce to top.
+        el.scrollTop = el.scrollHeight;
       }
       setShowScrollButton(false);
     } else {
