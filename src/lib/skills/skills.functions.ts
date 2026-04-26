@@ -241,8 +241,11 @@ function parseFrontmatter(src: string): {
 
 /** Pull a `## Heading` block out of markdown body (case-insensitive). */
 function extractSection(body: string, heading: string): string {
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // Match `## Heading` to next `## ` or end of string. JS regex has no \Z;
+  // we use $(?![\s\S]) — i.e. end of input — combined with non-greedy capture.
   const re = new RegExp(
-    `^##\\s+${heading.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\s*\\r?\\n([\\s\\S]*?)(?=^##\\s|\\Z)`,
+    `^##\\s+${escaped}\\s*\\r?\\n([\\s\\S]*?)(?=^##\\s|$(?![\\s\\S]))`,
     "im",
   );
   const m = body.match(re);
