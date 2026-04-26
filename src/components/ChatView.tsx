@@ -1629,7 +1629,20 @@ export function ChatView({
             <div
               key={i}
               data-role={isUser ? "user" : "assistant"}
+              data-msg-idx={i}
               className={`flex items-start ${isUser ? "justify-end" : "justify-start"}`}
+              style={
+                searchOpen && searchMatches.includes(i)
+                  ? {
+                      outline:
+                        searchMatches[searchMatchIdx % Math.max(1, searchMatches.length)] === i
+                          ? "2px solid var(--primary)"
+                          : "1px dashed color-mix(in oklab, var(--primary) 50%, transparent)",
+                      outlineOffset: 2,
+                      borderRadius: 14,
+                    }
+                  : undefined
+              }
             >
               <div
                 className={
