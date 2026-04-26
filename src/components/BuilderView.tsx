@@ -548,15 +548,53 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
           <div className="flex-1 min-h-0 overflow-y-auto" style={{ padding: 14 }}>
             <div
               style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 10,
-                color: "var(--muted-foreground)",
-                textTransform: "uppercase",
-                letterSpacing: "0.15em",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
                 marginBottom: 8,
               }}
             >
-              Build History
+              <div
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 10,
+                  color: "var(--muted-foreground)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.15em",
+                }}
+              >
+                Build History
+              </div>
+              {history.length > 0 && (
+                <button
+                  type="button"
+                  title="Clear all previous build prompts"
+                  onClick={() => {
+                    if (building) {
+                      toast.error("Wait for the current build to finish");
+                      return;
+                    }
+                    if (window.confirm("Clear all previous build prompts?")) {
+                      setHistory([]);
+                      setSelectedHistoryId(null);
+                    }
+                  }}
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 10,
+                    color: "var(--muted-foreground)",
+                    background: "transparent",
+                    border: "1px solid var(--border)",
+                    borderRadius: 4,
+                    padding: "2px 8px",
+                    cursor: "pointer",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  🗑 Clear
+                </button>
+              )}
             </div>
             {history.length === 0 ? (
               <div
