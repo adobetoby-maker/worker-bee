@@ -40,7 +40,7 @@ export function BrowserTaskCard({ action, onStop }: Props) {
 
   return (
     <div
-      className="mx-4 mb-2 rounded-md p-3 font-mono text-[11px]"
+      className="rounded-md p-3 font-mono text-[11px] shadow-lg"
       style={{
         background: "#0d0a00",
         border: "1px solid #ffaa0066",
