@@ -556,6 +556,42 @@ function handleMessage(entry: Entry, event: MessageEvent): void {
         entry.handlers.forEach((h) => h.onBuildVision?.({ text: vtext, ok: vok }));
         break;
       }
+      case "narrator_status": {
+        let line = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.line === "string") line = d.line;
+          else if (typeof d.message === "string") line = d.message;
+          else if (typeof d.text === "string") line = d.text;
+        } else if (typeof data === "string") {
+          line = data;
+        }
+        if (!line && text) line = text;
+        entry.handlers.forEach((h) => h.onNarratorStatus?.({ line }));
+        break;
+      }
+      case "build_committed": {
+        let commitHash = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.commit_hash === "string") commitHash = d.commit_hash;
+          else if (typeof d.commitHash === "string") commitHash = d.commitHash;
+          else if (typeof d.hash === "string") commitHash = d.hash;
+        }
+        entry.handlers.forEach((h) => h.onBuildCommitted?.({ commitHash }));
+        break;
+      }
+      case "github_pushed": {
+        let repoUrl = "";
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.repo_url === "string") repoUrl = d.repo_url;
+          else if (typeof d.repoUrl === "string") repoUrl = d.repoUrl;
+          else if (typeof d.url === "string") repoUrl = d.url;
+        }
+        entry.handlers.forEach((h) => h.onGithubPushed?.({ repoUrl }));
+        break;
+      }
       case "projects_list": {
         let projects: Array<{ name: string; path?: string; updatedAt?: number }> = [];
         const raw = data ?? (msg as { projects?: unknown }).projects;
