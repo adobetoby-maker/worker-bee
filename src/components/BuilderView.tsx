@@ -17,6 +17,7 @@ import {
   type BuilderStage,
   type BuilderStageId,
 } from "@/components/BuilderStatusPanel";
+import { ProjectSelector } from "@/components/ProjectSelector";
 
 interface BuildHistoryEntry {
   id: string;
@@ -427,6 +428,10 @@ export function BuilderView({ tabId, connected, appendLog }: Props) {
     if (!text) return;
     if (!connected) {
       toast.error("Not connected to agent");
+      return;
+    }
+    if (!currentProject) {
+      toast.error("Select a project before building");
       return;
     }
     const id = crypto.randomUUID();
