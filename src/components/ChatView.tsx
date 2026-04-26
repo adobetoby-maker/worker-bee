@@ -217,6 +217,12 @@ export function ChatView({
   // Force Claude toggle — purple, glows when active, resets after each send.
   const [forceClaude, setForceClaude] = useState(false);
 
+  // In-tab message queue — messages typed while bee is streaming.
+  // Max 4 pending. Auto-sends the next one as soon as streaming finishes.
+  type QueuedMsg = { id: string; text: string; forceClaude: boolean };
+  const QUEUE_MAX = 4;
+  const [messageQueue, setMessageQueue] = useState<QueuedMsg[]>([]);
+
   // User identity (Toby / Jay) — read from header selector via custom event.
   const [identity, setIdentityState] = useState<Identity>("toby");
   useEffect(() => {
@@ -501,6 +507,28 @@ export function ChatView({
   useEffect(() => {
     onStreamingChange(streaming);
   }, [streaming, onStreamingChange]);
+
+  // Drain the in-tab message queue: when streaming flips off and we have
+  // queued messages, shift the next one and start it.
+  const drainingRef = useRef(false);
+  useEffect(() => {
+    if (streaming) return;
+    if (messageQueue.length === 0) return;
+    if (drainingRef.current) return;
+    drainingRef.current = true;
+    const next = messageQueue[0];
+    setMessageQueue((prev) => prev.slice(1));
+    // Small delay so the previous response settles before the next starts.
+    const t = window.setTimeout(() => {
+      drainingRef.current = false;
+      startStream(next.text, { forceClaude: next.forceClaude });
+    }, 250);
+    return () => {
+      window.clearTimeout(t);
+      drainingRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streaming, messageQueue]);
 
   // Auto-scroll to bottom whenever a brand-new message is appended.
   useEffect(() => {
@@ -1027,7 +1055,25 @@ export function ChatView({
 
   const send = async () => {
     const text = input.trim();
-    if (!text || streaming) return;
+    if (!text) return;
+    // If bee is busy, push into the in-tab queue (max 4) and clear input.
+    if (streaming) {
+      setMessageQueue((prev) => {
+        if (prev.length >= QUEUE_MAX) return prev;
+        return [
+          ...prev,
+          {
+            id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            text,
+            forceClaude,
+          },
+        ];
+      });
+      pushHistory(text);
+      setInput("");
+      if (forceClaude) setForceClaude(false);
+      return;
+    }
     pushHistory(text);
     // Hidden developer smoke test trigger.
     if (text === "🐝🐝🐝" && onSmokeTest) {
@@ -2483,9 +2529,23 @@ export function ChatView({
             </button>
             <button
               type="button"
-              onClick={streaming ? stop : send}
+              onClick={
+                streaming
+                  ? input.trim()
+                    ? send // queue while streaming
+                    : stop
+                  : send
+              }
               disabled={!streaming && !input.trim() && !isQueued}
-              title={streaming ? "Stop" : "Send"}
+              title={
+                streaming
+                  ? input.trim()
+                    ? messageQueue.length >= QUEUE_MAX
+                      ? "Queue full (4 max)"
+                      : "Queue message"
+                    : "Stop"
+                  : "Send"
+              }
               style={{
                 width: 36,
                 height: 36,
@@ -2710,6 +2770,108 @@ export function ChatView({
             style={{ background: "var(--primary)", animation: "var(--animate-blink)" }}
           />
           <span>bee is thinking…</span>
+        </div>
+      )}
+
+      {/* In-tab message queue — shows pending messages typed while streaming. */}
+      {messageQueue.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 130,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 26,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            maxWidth: "min(640px, 90%)",
+            width: "max-content",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "JetBrains Mono, monospace",
+              fontSize: 10,
+              color: "var(--muted-foreground)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              textAlign: "center",
+            }}
+          >
+            queued · {messageQueue.length}/{QUEUE_MAX}
+          </div>
+          {messageQueue.map((q, i) => (
+            <div
+              key={q.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 10px",
+                background: "color-mix(in oklab, var(--surface) 92%, transparent)",
+                border: "1px solid color-mix(in oklab, var(--border) 80%, transparent)",
+                borderRadius: 8,
+                fontFamily: "JetBrains Mono, monospace",
+                fontSize: 11,
+                color: "var(--foreground)",
+                boxShadow: "0 2px 8px -2px color-mix(in oklab, var(--foreground) 12%, transparent)",
+              }}
+              title={q.text}
+            >
+              <span
+                style={{
+                  fontSize: 9,
+                  color: "var(--muted-foreground)",
+                  minWidth: 14,
+                }}
+              >
+                {i + 1}.
+              </span>
+              {q.forceClaude && (
+                <span
+                  style={{
+                    fontSize: 9,
+                    color: "oklch(0.72 0.21 145)",
+                    border: "1px solid oklch(0.72 0.21 145)",
+                    borderRadius: 3,
+                    padding: "0 4px",
+                  }}
+                >
+                  C
+                </span>
+              )}
+              <span
+                style={{
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  maxWidth: 420,
+                }}
+              >
+                {q.text}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setMessageQueue((prev) => prev.filter((m) => m.id !== q.id))
+                }
+                title="Remove from queue"
+                style={{
+                  marginLeft: "auto",
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--muted-foreground)",
+                  cursor: "pointer",
+                  padding: "0 2px",
+                  fontSize: 12,
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>
