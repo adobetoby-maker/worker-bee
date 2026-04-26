@@ -65,6 +65,43 @@ function skillColor(skill: string): string {
   return `oklch(0.72 0.15 ${hue})`;
 }
 
+// Merge a newly-arrived run into the snapshot: prepend to feed and recompute aggregates.
+function mergeRun(prev: PracticeSnapshot, run: PracticeRun): PracticeSnapshot {
+  if (prev.feed.some((f) => f.id === run.id)) return prev;
+  const feed = [run, ...prev.feed].slice(0, 50);
+
+  const skillMap = new Map(prev.runsPerSkill.map((r) => [r.skill, r.runs]));
+  skillMap.set(run.skill, (skillMap.get(run.skill) ?? 0) + 1);
+  const runsPerSkill = [...skillMap.entries()]
+    .map(([skill, runs]) => ({ skill, runs }))
+    .sort((a, b) => b.runs - a.runs);
+
+  // Recompute that skill's pass rate using the in-memory feed (best-effort; periodic refetch corrects drift).
+  const skills: SkillHealth[] = runsPerSkill.map(({ skill, runs }) => {
+    const existing = prev.skills.find((s) => s.skill === skill);
+    const sampleRuns = feed.filter((f) => f.skill === skill);
+    const passes = sampleRuns.filter((r) => r.pass).length;
+    const passRate = sampleRuns.length
+      ? (passes / sampleRuns.length) * 100
+      : (existing?.passRatePct ?? 0);
+    return {
+      skill,
+      runsToday: runs,
+      passRatePct: Math.round(passRate * 10) / 10,
+      circuitBreakerActive: passRate < 60 && sampleRuns.length >= 5,
+    };
+  });
+
+  return {
+    ...prev,
+    feed,
+    runsPerSkill,
+    skills,
+    totalRunsToday: prev.totalRunsToday + 1,
+    source: "live",
+  };
+}
+
 function PracticePage() {
   const initial = Route.useLoaderData() as PracticeSnapshot;
   const [snap, setSnap] = useState<PracticeSnapshot>(initial);
