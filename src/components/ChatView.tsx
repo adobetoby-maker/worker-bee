@@ -481,7 +481,19 @@ export function ChatView({
     }
     // For streaming assistant updates, only follow if user is near the bottom.
     if (isNearBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      // Pin the latest assistant message toward the top of the viewport so
+      // there's breathing room below for the next incoming exchange — mirrors
+      // the Jay cockpit feel.
+      const assistantEls = el.querySelectorAll<HTMLElement>('[data-role="assistant"]');
+      const lastAsstEl = assistantEls[assistantEls.length - 1];
+      if (lastAsstEl) {
+        const elRect = el.getBoundingClientRect();
+        const msgRect = lastAsstEl.getBoundingClientRect();
+        const target = el.scrollTop + (msgRect.top - elRect.top) - 24;
+        el.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      }
       setShowScrollButton(false);
     } else {
       setShowScrollButton(true);
@@ -1367,7 +1379,7 @@ export function ChatView({
         }}
       >
       <div ref={scrollerRef} className="flex-1 min-h-0 overflow-y-auto py-6">
-        <div className="mx-auto w-full space-y-6" style={{ maxWidth: 680, padding: "0 16px" }}>
+        <div className="mx-auto w-full space-y-6" style={{ maxWidth: 680, padding: "0 16px", paddingBottom: "40vh" }}>
         {!connected && (
           <div className="flex justify-center">
             <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground border border-border bg-surface/40 px-4 py-2 rounded">
@@ -1444,7 +1456,7 @@ export function ChatView({
             return (
               <div key={i} className="flex items-start justify-start">
                 <div
-                  className="w-full"
+                  className="w-full group relative"
                   style={{
                     background: "var(--background)",
                     border: "1px solid var(--primary)",
@@ -1459,15 +1471,24 @@ export function ChatView({
                       fontFamily: "JetBrains Mono, monospace",
                       fontSize: 11,
                       marginBottom: 8,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
                     }}
                   >
-                    🌐 SCREENSHOT — {m.screenshotUrl ?? ""}
+                    <span>🌐 SCREENSHOT — {m.screenshotUrl ?? ""}</span>
+                    <DownloadImageButton
+                      dataUrl={`data:image/png;base64,${m.screenshotB64}`}
+                      filename={`screenshot-${Date.now()}.png`}
+                    />
                   </div>
                   <img
                     src={`data:image/png;base64,${m.screenshotB64}`}
                     alt="browser screenshot"
                     style={{ width: "100%", borderRadius: 6, display: "block" }}
                   />
+                  <CopyMessageButton text={m.screenshotUrl ? `Screenshot of ${m.screenshotUrl}` : "Screenshot"} />
                 </div>
               </div>
             );
@@ -1476,7 +1497,7 @@ export function ChatView({
             return (
               <div key={i} className="flex items-start justify-start">
                 <div
-                  className="w-full"
+                  className="w-full group relative"
                   style={{
                     background: "var(--background)",
                     border: "1px solid var(--success)",
@@ -1493,6 +1514,7 @@ export function ChatView({
                     🔍 VISUAL ANALYSIS (via llava):
                   </div>
                   {m.visionDescription}
+                  <CopyMessageButton text={m.visionDescription} />
                 </div>
               </div>
             );
@@ -1506,7 +1528,7 @@ export function ChatView({
               <div
                 className={
                   isUser
-                    ? "text-sm text-primary-foreground bg-gradient-to-br from-primary to-primary-glow shadow-[var(--shadow-elegant,0_8px_24px_-12px_rgba(255,170,0,0.5))]"
+                    ? "text-sm text-primary-foreground bg-gradient-to-br from-primary to-primary-glow shadow-[var(--shadow-elegant,0_8px_24px_-12px_rgba(255,170,0,0.5))] group relative"
                     : "w-full group relative"
                 }
                 style={
@@ -1517,10 +1539,11 @@ export function ChatView({
                         borderRadius: "18px 18px 4px 18px",
                       }
                     : {
-                        background: "transparent",
-                        borderLeft: "2px solid var(--border)",
-                        padding: "8px 0 8px 16px",
-                        borderRadius: 0,
+                        background:
+                          "color-mix(in oklab, var(--surface) 55%, transparent)",
+                        border: "1px solid color-mix(in oklab, var(--border) 60%, transparent)",
+                        padding: "12px 16px",
+                        borderRadius: 12,
                         fontFamily: "'IBM Plex Sans', sans-serif",
                         fontSize: 15,
                         lineHeight: 1.75,
@@ -1528,7 +1551,10 @@ export function ChatView({
                 }
               >
                 {isUser ? (
-                  <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                  <>
+                    <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                    <CopyMessageButton text={m.content} variant="onPrimary" />
+                  </>
                 ) : (
                   <>
                     <AssistantContent
@@ -2410,8 +2436,9 @@ function MessageActions({
   );
 }
 
-function CopyMessageButton({ text }: { text: string }) {
+function CopyMessageButton({ text, variant = "default" }: { text: string; variant?: "default" | "onPrimary" }) {
   const [copied, setCopied] = useState(false);
+  const onPrimary = variant === "onPrimary";
   return (
     <button
       type="button"
@@ -2430,18 +2457,42 @@ function CopyMessageButton({ text }: { text: string }) {
         position: "absolute",
         bottom: 4,
         right: 4,
-        background: "transparent",
-        border: "1px solid var(--border)",
+        background: onPrimary ? "rgba(0,0,0,0.18)" : "transparent",
+        border: onPrimary ? "1px solid rgba(255,255,255,0.3)" : "1px solid var(--border)",
         borderRadius: 4,
         padding: "2px 6px",
         fontSize: 10,
         fontFamily: "JetBrains Mono, monospace",
-        color: "var(--muted-foreground)",
+        color: onPrimary ? "var(--primary-foreground)" : "var(--muted-foreground)",
         cursor: "pointer",
       }}
     >
       {copied ? "✓ copied" : "📋 copy"}
     </button>
+  );
+}
+
+function DownloadImageButton({ dataUrl, filename }: { dataUrl: string; filename: string }) {
+  return (
+    <a
+      href={dataUrl}
+      download={filename}
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: "transparent",
+        border: "1px solid var(--primary)",
+        borderRadius: 4,
+        padding: "2px 8px",
+        fontSize: 10,
+        fontFamily: "JetBrains Mono, monospace",
+        color: "var(--primary)",
+        cursor: "pointer",
+        textDecoration: "none",
+      }}
+      title={`Download ${filename}`}
+    >
+      ⬇ download
+    </a>
   );
 }
 
