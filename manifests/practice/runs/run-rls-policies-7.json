@@ -1,0 +1,8 @@
+{
+  "id": "run-rls-policies-7",
+  "skillId": "rls-policies",
+  "scenario": "stress",
+  "passed": false,
+  "durationMs": 1728,
+  "at": "2026-04-26T05:32:17.083Z"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "run-rls-policies-0",
+  "skillId": "rls-policies",
+  "scenario": "happy-path",
+  "passed": true,
+  "durationMs": 1084,
+  "at": "2026-04-26T05:39:24.083Z"
+}
