@@ -228,6 +228,57 @@ export type Database = {
           },
         ]
       }
+      practice_runs: {
+        Row: {
+          created_at: string
+          duration_ms: number
+          id: string
+          pass: boolean
+          scenario: string
+          skill: string
+          ts: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number
+          id?: string
+          pass: boolean
+          scenario: string
+          skill: string
+          ts?: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number
+          id?: string
+          pass?: boolean
+          scenario?: string
+          skill?: string
+          ts?: string
+        }
+        Relationships: []
+      }
+      practice_state: {
+        Row: {
+          current_skill: string
+          id: number
+          running: boolean
+          updated_at: string
+        }
+        Insert: {
+          current_skill?: string
+          id?: number
+          running?: boolean
+          updated_at?: string
+        }
+        Update: {
+          current_skill?: string
+          id?: number
+          running?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       suppressed_emails: {
         Row: {
           created_at: string

@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   getPracticeSnapshot,
   type PracticeSnapshot,
@@ -64,24 +65,103 @@ function skillColor(skill: string): string {
   return `oklch(0.72 0.15 ${hue})`;
 }
 
+// Merge a newly-arrived run into the snapshot: prepend to feed and recompute aggregates.
+function mergeRun(prev: PracticeSnapshot, run: PracticeRun): PracticeSnapshot {
+  if (prev.feed.some((f) => f.id === run.id)) return prev;
+  const feed = [run, ...prev.feed].slice(0, 50);
+
+  const skillMap = new Map(prev.runsPerSkill.map((r) => [r.skill, r.runs]));
+  skillMap.set(run.skill, (skillMap.get(run.skill) ?? 0) + 1);
+  const runsPerSkill = [...skillMap.entries()]
+    .map(([skill, runs]) => ({ skill, runs }))
+    .sort((a, b) => b.runs - a.runs);
+
+  // Recompute that skill's pass rate using the in-memory feed (best-effort; periodic refetch corrects drift).
+  const skills: SkillHealth[] = runsPerSkill.map(({ skill, runs }) => {
+    const existing = prev.skills.find((s) => s.skill === skill);
+    const sampleRuns = feed.filter((f) => f.skill === skill);
+    const passes = sampleRuns.filter((r) => r.pass).length;
+    const passRate = sampleRuns.length
+      ? (passes / sampleRuns.length) * 100
+      : (existing?.passRatePct ?? 0);
+    return {
+      skill,
+      runsToday: runs,
+      passRatePct: Math.round(passRate * 10) / 10,
+      circuitBreakerActive: passRate < 60 && sampleRuns.length >= 5,
+    };
+  });
+
+  return {
+    ...prev,
+    feed,
+    runsPerSkill,
+    skills,
+    totalRunsToday: prev.totalRunsToday + 1,
+    source: "live",
+  };
+}
+
 function PracticePage() {
   const initial = Route.useLoaderData() as PracticeSnapshot;
   const [snap, setSnap] = useState<PracticeSnapshot>(initial);
 
   useEffect(() => {
     let cancelled = false;
-    const tick = async () => {
+    const refetch = async () => {
       try {
         const next = await getPracticeSnapshot();
         if (!cancelled) setSnap(next);
       } catch {
-        // keep last good snapshot
+        /* keep last good snapshot */
       }
     };
-    const id = window.setInterval(tick, 5000);
+
+    const channel = supabase
+      .channel("practice-live")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "practice_runs" },
+        (payload) => {
+          const r = payload.new as {
+            id: string;
+            skill: string;
+            scenario: string;
+            pass: boolean;
+            duration_ms: number;
+            ts: string;
+          };
+          const newRun: PracticeRun = {
+            id: r.id,
+            skill: r.skill,
+            scenario: r.scenario,
+            pass: r.pass,
+            durationMs: r.duration_ms,
+            ts: r.ts,
+          };
+          setSnap((prev) => mergeRun(prev, newRun));
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "practice_state" },
+        (payload) => {
+          const s = payload.new as { running: boolean; current_skill: string };
+          setSnap((prev) => ({
+            ...prev,
+            running: !!s.running,
+            currentSkill: s.current_skill ?? "",
+          }));
+        },
+      )
+      .subscribe();
+
+    // Safety net: re-sync every 60s in case a realtime event is missed.
+    const id = window.setInterval(refetch, 60000);
     return () => {
       cancelled = true;
       window.clearInterval(id);
+      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -108,7 +188,7 @@ function PracticePage() {
           </h1>
         </div>
         <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          source: {snap.source} · refresh 5s
+          source: {snap.source} · realtime
         </span>
       </header>
 
