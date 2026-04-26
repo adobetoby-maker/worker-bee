@@ -175,6 +175,9 @@ export function ChatView({
   // Track which assistant message index we've already pinned to top, so we
   // don't keep re-scrolling the user on every streamed token (causes bounce).
   const pinnedAsstIdxRef = useRef<number>(-1);
+  // Track previous message count so we can always snap to bottom when a brand
+  // new message appears (per user request: auto-scroll on new messages).
+  const prevMsgCountRef = useRef<number>(0);
 
   // Cockpit rails — show/hide skills (left) and activity/stream (right).
   const [leftRailOpen, setLeftRailOpen] = useState<boolean>(() => {
@@ -498,6 +501,19 @@ export function ChatView({
   useEffect(() => {
     onStreamingChange(streaming);
   }, [streaming, onStreamingChange]);
+
+  // Auto-scroll to bottom whenever a brand-new message is appended.
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    if (messages.length > prevMsgCountRef.current) {
+      // Defer one frame so the new node is painted, then snap to the bottom.
+      window.requestAnimationFrame(() => {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      });
+    }
+    prevMsgCountRef.current = messages.length;
+  }, [messages.length]);
 
   useEffect(() => {
     const el = scrollerRef.current;
@@ -2412,8 +2428,8 @@ export function ChatView({
               onClick={() => setForceClaude((v) => !v)}
               title={
                 forceClaude
-                  ? "Force Claude is ON for next message"
-                  : "Force this message to Claude"
+                  ? "Claude mode ON — next message goes to Claude Sonnet"
+                  : "Ask Claude — bypass local models for the next message"
               }
               aria-pressed={forceClaude}
               style={{
@@ -2428,12 +2444,14 @@ export function ChatView({
                 flexShrink: 0,
                 alignSelf: "center",
                 transition: "all 0.15s",
+                position: "relative",
                 ...(forceClaude
                   ? {
-                      background: "color-mix(in oklab, oklch(0.55 0.22 295) 18%, transparent)",
-                      color: "oklch(0.82 0.18 295)",
-                      border: "1px solid oklch(0.65 0.22 295)",
-                      boxShadow: "0 0 12px oklch(0.55 0.22 295 / 0.55), inset 0 0 6px oklch(0.55 0.22 295 / 0.25)",
+                      background: "color-mix(in oklab, oklch(0.72 0.21 145) 18%, transparent)",
+                      color: "oklch(0.88 0.20 145)",
+                      border: "1px solid oklch(0.72 0.21 145)",
+                      boxShadow:
+                        "0 0 14px oklch(0.72 0.21 145 / 0.65), inset 0 0 6px oklch(0.72 0.21 145 / 0.30)",
                     }
                   : {
                       background: "transparent",
@@ -2443,6 +2461,25 @@ export function ChatView({
               }}
             >
               {forceClaude ? "● Ask Claude" : "Ask Claude"}
+              {forceClaude && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    top: -14,
+                    fontSize: 8,
+                    letterSpacing: "0.2em",
+                    color: "oklch(0.88 0.20 145)",
+                    textShadow: "0 0 6px oklch(0.72 0.21 145 / 0.7)",
+                    whiteSpace: "nowrap",
+                    pointerEvents: "none",
+                  }}
+                >
+                  CLAUDE MODE
+                </span>
+              )}
             </button>
             <button
               type="button"
