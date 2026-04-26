@@ -9,19 +9,14 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SkillsRouteImport } from './routes/skills'
 import { Route as ReportRouteImport } from './routes/report'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as LearningRouteImport } from './routes/learning'
+import { Route as JayRouteImport } from './routes/jay'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSendEmailRouteImport } from './routes/api/send-email'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 
-const SkillsRoute = SkillsRouteImport.update({
-  id: '/skills',
-  path: '/skills',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ReportRoute = ReportRouteImport.update({
   id: '/report',
   path: '/report',
@@ -35,6 +30,11 @@ const PracticeRoute = PracticeRouteImport.update({
 const LearningRoute = LearningRouteImport.update({
   id: '/learning',
   path: '/learning',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JayRoute = JayRouteImport.update({
+  id: '/jay',
+  path: '/jay',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -56,29 +56,29 @@ const LovableEmailQueueProcessRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/jay': typeof JayRoute
   '/learning': typeof LearningRoute
   '/practice': typeof PracticeRoute
   '/report': typeof ReportRoute
-  '/skills': typeof SkillsRoute
   '/api/send-email': typeof ApiSendEmailRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/jay': typeof JayRoute
   '/learning': typeof LearningRoute
   '/practice': typeof PracticeRoute
   '/report': typeof ReportRoute
-  '/skills': typeof SkillsRoute
   '/api/send-email': typeof ApiSendEmailRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/jay': typeof JayRoute
   '/learning': typeof LearningRoute
   '/practice': typeof PracticeRoute
   '/report': typeof ReportRoute
-  '/skills': typeof SkillsRoute
   '/api/send-email': typeof ApiSendEmailRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
@@ -86,51 +86,44 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/jay'
     | '/learning'
     | '/practice'
     | '/report'
-    | '/skills'
     | '/api/send-email'
     | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/jay'
     | '/learning'
     | '/practice'
     | '/report'
-    | '/skills'
     | '/api/send-email'
     | '/lovable/email/queue/process'
   id:
     | '__root__'
     | '/'
+    | '/jay'
     | '/learning'
     | '/practice'
     | '/report'
-    | '/skills'
     | '/api/send-email'
     | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  JayRoute: typeof JayRoute
   LearningRoute: typeof LearningRoute
   PracticeRoute: typeof PracticeRoute
   ReportRoute: typeof ReportRoute
-  SkillsRoute: typeof SkillsRoute
   ApiSendEmailRoute: typeof ApiSendEmailRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/skills': {
-      id: '/skills'
-      path: '/skills'
-      fullPath: '/skills'
-      preLoaderRoute: typeof SkillsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/report': {
       id: '/report'
       path: '/report'
@@ -150,6 +143,13 @@ declare module '@tanstack/react-router' {
       path: '/learning'
       fullPath: '/learning'
       preLoaderRoute: typeof LearningRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jay': {
+      id: '/jay'
+      path: '/jay'
+      fullPath: '/jay'
+      preLoaderRoute: typeof JayRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -178,10 +178,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  JayRoute: JayRoute,
   LearningRoute: LearningRoute,
   PracticeRoute: PracticeRoute,
   ReportRoute: ReportRoute,
-  SkillsRoute: SkillsRoute,
   ApiSendEmailRoute: ApiSendEmailRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }

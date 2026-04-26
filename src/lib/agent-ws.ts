@@ -992,17 +992,7 @@ export function isWSOpen(tabId: string): boolean {
   return !!ws && ws.readyState === WebSocket.OPEN;
 }
 
-export interface SendChatExtras {
-  forceClaude?: boolean;
-  identity?: "toby" | "jay";
-}
-
-export function sendChat(
-  tabId: string,
-  content: string,
-  model: string | null,
-  extras: SendChatExtras = {},
-): boolean {
+export function sendChat(tabId: string, content: string, model: string | null): boolean {
   const entry = tabs.get(tabId);
   const ws = entry?.ws;
   if (!ws) {
@@ -1015,13 +1005,10 @@ export function sendChat(
     console.error("WS send aborted: readyState=", ws.readyState);
     return false;
   }
-  const base: { action: string; content: string; model?: string } =
+  const payload: { action: string; content: string; model?: string } =
     !model || model === "__auto__"
       ? { action: "chat", content }
       : { action: "chat", content, model };
-  const payload: Record<string, unknown> = { ...base };
-  if (extras.forceClaude) payload.force_claude = true;
-  if (extras.identity) payload.identity = extras.identity;
   const json = JSON.stringify(payload);
   entry?.log?.({ ts: nowTs(), level: "ARROW", msg: "WS send: " + json });
   console.log("WS readyState:", ws.readyState, "sending:", payload);

@@ -94,16 +94,6 @@ export function Sidebar({ active, onChange, log, alwaysExpanded = false, embedde
           <span className="text-base leading-none">🔁</span>
           <span className={labelClass}>PRACTICE</span>
         </Link>
-        <Link
-          to="/skills"
-          title="Skills"
-          className="group relative flex items-center gap-3 px-5 py-3 text-left font-mono text-[12px] uppercase tracking-[0.18em] transition-colors text-muted-foreground hover:bg-surface-2/60 hover:text-foreground"
-          activeProps={{ className: "bg-primary/10 text-success" }}
-        >
-          <span className="absolute left-0 top-0 h-full w-[3px] bg-transparent group-hover:bg-border" />
-          <span className="text-base leading-none">🧠</span>
-          <span className={labelClass}>SKILLS</span>
-        </Link>
       </nav>
 
       <div className={`${logClass} flex-col flex-1 min-h-0`}>
