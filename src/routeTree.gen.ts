@@ -14,6 +14,7 @@ import { Route as ReportRouteImport } from './routes/report'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as LearningRouteImport } from './routes/learning'
 import { Route as JayRouteImport } from './routes/jay'
+import { Route as DexRouteImport } from './routes/dex'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSendEmailRouteImport } from './routes/api/send-email'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
@@ -43,6 +44,11 @@ const JayRoute = JayRouteImport.update({
   path: '/jay',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DexRoute = DexRouteImport.update({
+  id: '/dex',
+  path: '/dex',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -62,6 +68,7 @@ const LovableEmailQueueProcessRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dex': typeof DexRoute
   '/jay': typeof JayRoute
   '/learning': typeof LearningRoute
   '/practice': typeof PracticeRoute
@@ -72,6 +79,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dex': typeof DexRoute
   '/jay': typeof JayRoute
   '/learning': typeof LearningRoute
   '/practice': typeof PracticeRoute
@@ -83,6 +91,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dex': typeof DexRoute
   '/jay': typeof JayRoute
   '/learning': typeof LearningRoute
   '/practice': typeof PracticeRoute
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/dex'
     | '/jay'
     | '/learning'
     | '/practice'
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/dex'
     | '/jay'
     | '/learning'
     | '/practice'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/dex'
     | '/jay'
     | '/learning'
     | '/practice'
@@ -126,6 +138,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DexRoute: typeof DexRoute
   JayRoute: typeof JayRoute
   LearningRoute: typeof LearningRoute
   PracticeRoute: typeof PracticeRoute
@@ -172,6 +185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dex': {
+      id: '/dex'
+      path: '/dex'
+      fullPath: '/dex'
+      preLoaderRoute: typeof DexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -198,6 +218,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DexRoute: DexRoute,
   JayRoute: JayRoute,
   LearningRoute: LearningRoute,
   PracticeRoute: PracticeRoute,
