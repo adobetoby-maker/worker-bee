@@ -41,62 +41,62 @@
 }
 
 :root {
-  --radius: 0.25rem;
-  /* Light minimal palette — default theme */
-  --background: #f5f4f0;
-  --foreground: #1a1714;
+  --radius: 0.5rem;
+  /* Warm minimal palette — light theme */
+  --background: #faf9f7;
+  --foreground: #1c1917;
   --surface: #ffffff;
-  --surface-2: #eeece8;
-  --surface-raised: #eeece8;
+  --surface-2: #f0ede9;
+  --surface-raised: #f5f3f0;
   --card: #ffffff;
-  --card-foreground: #1a1714;
+  --card-foreground: #1c1917;
   --popover: #ffffff;
-  --popover-foreground: #1a1714;
-  --primary: #c17f24;
+  --popover-foreground: #1c1917;
+  --primary: #c2621d;
   --primary-foreground: #ffffff;
-  --primary-glow: #d4920f;
-  --secondary: #eeece8;
-  --secondary-foreground: #1a1714;
-  --muted: #eeece8;
-  --muted-foreground: #6b6460;
-  --accent: #eeece8;
-  --accent-foreground: #1a1714;
-  --success: #2d7a2d;
+  --primary-glow: #d97324;
+  --secondary: #f0ede9;
+  --secondary-foreground: #1c1917;
+  --muted: #f0ede9;
+  --muted-foreground: #736b63;
+  --accent: #f0ede9;
+  --accent-foreground: #1c1917;
+  --success: #2d7a3e;
   --success-foreground: #ffffff;
-  --destructive: #c0392b;
+  --destructive: #c03b2b;
   --destructive-foreground: #ffffff;
-  --border: #e2dedd;
-  --input: #e2dedd;
-  --ring: #c17f24;
+  --border: #e6e0d8;
+  --input: #e6e0d8;
+  --ring: #c2621d;
 }
 
-/* Dark theme overrides — applied when <html> has class "dark" */
+/* Dark theme — warm dark, not cyberpunk */
 html.dark {
-  --background: #080808;
-  --foreground: #e0e0e0;
-  --surface: #0d0d0d;
-  --surface-2: #1a1a1a;
-  --surface-raised: #1a1a1a;
-  --card: #0d0d0d;
-  --card-foreground: #e0e0e0;
-  --popover: #0d0d0d;
-  --popover-foreground: #e0e0e0;
-  --primary: #ffaa00;
-  --primary-foreground: #080808;
-  --primary-glow: #ffc04a;
-  --secondary: #1a1a1a;
-  --secondary-foreground: #e0e0e0;
-  --muted: #1a1a1a;
-  --muted-foreground: #888888;
-  --accent: #1a1a1a;
-  --accent-foreground: #e0e0e0;
-  --success: #39ff14;
-  --success-foreground: #080808;
-  --destructive: #ff3b3b;
+  --background: #141210;
+  --foreground: #e8e4df;
+  --surface: #1c1917;
+  --surface-2: #252220;
+  --surface-raised: #252220;
+  --card: #1c1917;
+  --card-foreground: #e8e4df;
+  --popover: #1c1917;
+  --popover-foreground: #e8e4df;
+  --primary: #e8864a;
+  --primary-foreground: #141210;
+  --primary-glow: #f59e5c;
+  --secondary: #252220;
+  --secondary-foreground: #e8e4df;
+  --muted: #252220;
+  --muted-foreground: #9a9188;
+  --accent: #252220;
+  --accent-foreground: #e8e4df;
+  --success: #5dab70;
+  --success-foreground: #141210;
+  --destructive: #d95c4e;
   --destructive-foreground: #ffffff;
-  --border: #1e1e1e;
-  --input: #1e1e1e;
-  --ring: #ffaa00;
+  --border: #2e2926;
+  --input: #2e2926;
+  --ring: #e8864a;
 }
 
 @keyframes blink {
@@ -212,21 +212,12 @@ html.dark {
     font-family: var(--font-sans);
   }
 
-  /* Dark theme keeps the cyberpunk scanlines + amber glow */
   html.dark body {
-    background-image:
-      repeating-linear-gradient(
-        to bottom,
-        transparent 0,
-        transparent 2px,
-        color-mix(in oklab, var(--primary) 3%, transparent) 2px,
-        color-mix(in oklab, var(--primary) 3%, transparent) 3px
-      ),
-      radial-gradient(
-        circle at 50% 0%,
-        color-mix(in oklab, var(--primary) 8%, transparent),
-        transparent 60%
-      );
+    background-image: radial-gradient(
+      circle at 50% 0%,
+      color-mix(in oklab, var(--primary) 5%, transparent),
+      transparent 50%
+    );
     background-attachment: fixed;
   }
 
@@ -275,23 +266,22 @@ pre {
   color: #1a1714;
 }
 
-/* Dark theme: restore cyberpunk terminal look */
 html.dark .agent-log,
 html.dark [data-agent-log] {
-  background: #0a0a0a !important;
-  color: #e0e0e0 !important;
+  background: #111009 !important;
+  color: #d8d4cf !important;
 }
-html.dark [data-log-level="OK"]    { color: #39ff14 !important; }
-html.dark [data-log-level="ERR"]   { color: #ff3b3b !important; }
-html.dark [data-log-level="ARROW"] { color: #ffaa00 !important; }
+html.dark [data-log-level="OK"]    { color: #5dab70 !important; }
+html.dark [data-log-level="ERR"]   { color: #d95c4e !important; }
+html.dark [data-log-level="ARROW"] { color: #e8864a !important; }
 html.dark pre {
-  background: #0d0d0d !important;
-  color: #e0e0e0 !important;
+  background: #1c1917 !important;
+  color: #e8e4df !important;
 }
-html.dark *::-webkit-scrollbar-track { background: #0a0a0a; }
-html.dark *::-webkit-scrollbar-thumb { background: #2a2a2a; }
-html.dark *::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
-html.dark * { scrollbar-color: #2a2a2a #0a0a0a; }
+html.dark *::-webkit-scrollbar-track { background: #141210; }
+html.dark *::-webkit-scrollbar-thumb { background: #312d29; }
+html.dark *::-webkit-scrollbar-thumb:hover { background: #413d39; }
+html.dark * { scrollbar-color: #312d29 #141210; }
 
 @keyframes wizard-slide-in-right {
   from { transform: translateX(40px); opacity: 0; }

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { BeeLogo } from "./BeeLogo";
-import { StatusBadge } from "./StatusBadge";
 import { ActivityFeed } from "./ActivityFeed";
 import { getIdentity, setIdentity, subscribeIdentity, type Identity } from "@/lib/identity";
 
@@ -19,7 +18,11 @@ function useTheme() {
       const next = prev === "dark" ? "light" : "dark";
       document.documentElement.classList.toggle("dark", next === "dark");
       document.documentElement.classList.remove("light");
-      try { localStorage.setItem("workerbee_theme", next); } catch {}
+      try {
+        localStorage.setItem("workerbee_theme", next);
+      } catch (_) {
+        // ignore localStorage quota errors
+      }
       return next;
     });
   };
@@ -43,15 +46,22 @@ interface HeaderProps {
   onOpenConfig?: () => void;
 }
 
-const TAGLINES = [
-  "Building the web, one cell at a time",
-  "Always buzzing. Never sleeping.",
-  "Your hive. Your rules.",
-  "Fueled by Ollama. Guided by you.",
-];
-
-export function Header({ connected, model, toolCount, streaming = false, error = false, services, onServiceClick, onSearchOpen, onQueueOpen, queueDepth = 0, parallelMode = false, autoStatus = "idle", reconnectInfo = null, onOpenConfig }: HeaderProps) {
-  const [taglineIdx, setTaglineIdx] = useState(0);
+export function Header({
+  connected,
+  model,
+  toolCount,
+  streaming = false,
+  error = false,
+  services,
+  onServiceClick,
+  onSearchOpen,
+  onQueueOpen,
+  queueDepth = 0,
+  parallelMode = false,
+  autoStatus = "idle",
+  reconnectInfo = null,
+  onOpenConfig,
+}: HeaderProps) {
   const { theme, toggle: toggleTheme } = useTheme();
   const [identity, setIdentityLocal] = useState<Identity>("toby");
   useEffect(() => {
@@ -59,115 +69,128 @@ export function Header({ connected, model, toolCount, streaming = false, error =
     return subscribeIdentity(setIdentityLocal);
   }, []);
 
-  useEffect(() => {
-    const id = setInterval(() => setTaglineIdx((i) => (i + 1) % TAGLINES.length), 6000);
-    return () => clearInterval(id);
-  }, []);
-
   return (
     <header
-      className="sticky top-0 z-40 flex items-center justify-between pl-14 pr-3 sm:pl-5 sm:pr-5 backdrop-blur gap-2"
-      style={{ height: 72, background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
+      className="sticky top-0 z-40 flex items-center justify-between pl-14 pr-3 sm:pl-4 sm:pr-4 backdrop-blur gap-3"
+      style={{ height: 60, background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
     >
-      <div className="flex items-center gap-3 min-w-0">
-        <BeeLogo size={44} streaming={streaming} error={error} />
+      {/* Logo + name */}
+      <div className="flex items-center gap-2.5 min-w-0 shrink-0">
+        <BeeLogo size={36} streaming={streaming} error={error} />
         <div className="flex flex-col leading-none">
           <span
-            className="font-mono font-bold tracking-[0.18em] select-none"
-            style={{ fontSize: 18 }}
+            className="font-semibold text-[15px] tracking-tight select-none"
+            style={{ color: "var(--foreground)" }}
           >
-            <span style={{ color: "var(--primary)" }}>WORKER</span>
-            <span style={{ color: "var(--success)", marginLeft: 4 }}>BEE</span>
+            Worker<span style={{ color: "var(--primary)" }}>Bee</span>
           </span>
           <span
-            className="mt-1 font-mono uppercase select-none"
-            style={{ color: "var(--muted-foreground)", fontSize: 9, letterSpacing: "0.15em" }}
+            className="mt-0.5 text-[10px] select-none"
+            style={{ color: "var(--muted-foreground)" }}
           >
-            WEBSITE BUILDER AGENT
+            website builder
           </span>
         </div>
       </div>
 
-      <div className="hidden md:flex flex-1 justify-center px-6 overflow-hidden">
-        <span
-          key={taglineIdx}
-          className="italic truncate"
-          style={{
-            color: "var(--muted-foreground)",
-            fontSize: 11,
-            fontFamily: 'var(--font-sans, "IBM Plex Sans"), sans-serif',
-            animation: "tagline-fade 6s ease-in-out",
-          }}
-        >
-          {TAGLINES[taglineIdx]}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2 min-w-0 flex-shrink">
+      {/* Right controls */}
+      <div className="flex items-center gap-1.5 min-w-0">
+        {/* Connection status */}
         {connected ? (
-          <StatusBadge variant="success" dot>
-            OLLAMA LIVE
-          </StatusBadge>
+          <span
+            className="hidden sm:inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md"
+            style={{
+              color: "var(--success)",
+              background: "color-mix(in oklab, var(--success) 10%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--success) 25%, transparent)",
+            }}
+          >
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--success)" }} />
+            Ollama live
+          </span>
         ) : autoStatus === "trying" || autoStatus === "reconnecting" ? (
           <span
-            className="inline-flex items-center gap-1.5 font-mono uppercase"
+            className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md"
             style={{
-              fontSize: 10,
-              letterSpacing: "0.18em",
               color: "var(--primary)",
-              border: "1px solid var(--primary)",
-              padding: "3px 8px",
-              borderRadius: 2,
               background: "color-mix(in oklab, var(--primary) 8%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--primary) 20%, transparent)",
             }}
           >
             <span
+              className="h-1.5 w-1.5 rounded-full"
               style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
                 background: "var(--primary)",
                 animation: "pulse-neon 1.4s ease-in-out infinite",
-                opacity: 0.7,
               }}
             />
             {autoStatus === "reconnecting" && reconnectInfo
-              ? `RECONNECTING… (${reconnectInfo.attempt}/${reconnectInfo.max})`
-              : "CONNECTING…"}
+              ? `Reconnecting… (${reconnectInfo.attempt}/${reconnectInfo.max})`
+              : "Connecting…"}
           </span>
         ) : autoStatus === "failed" ? (
           <button
             type="button"
             onClick={onOpenConfig}
-            className="inline-flex items-center gap-1.5 font-mono uppercase hover:bg-surface-2/40 transition"
+            className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md hover:opacity-80 transition"
             style={{
-              fontSize: 10,
-              letterSpacing: "0.16em",
-              color: "var(--primary)",
-              border: "1px solid var(--primary)",
-              padding: "3px 8px",
-              borderRadius: 2,
-              background: "color-mix(in oklab, var(--primary) 8%, transparent)",
+              color: "var(--destructive)",
+              background: "color-mix(in oklab, var(--destructive) 8%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--destructive) 20%, transparent)",
             }}
-            title="Open CONFIG"
           >
-            ⚠ AGENT OFFLINE — CHECK CONFIG
+            ⚠ Offline — check config
           </button>
         ) : (
-          <StatusBadge variant="destructive" dot>
-            DISCONNECTED
-          </StatusBadge>
+          <span
+            className="hidden sm:inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md"
+            style={{
+              color: "var(--muted-foreground)",
+              background: "color-mix(in oklab, var(--border) 50%, transparent)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ background: "var(--muted-foreground)" }}
+            />
+            Disconnected
+          </span>
         )}
-        <span className="hidden md:inline-flex">
-        <StatusBadge variant="primary">
-          [ MODEL: {model ?? "none"} ]
-        </StatusBadge>
+
+        {/* Model badge */}
+        {model && model !== "none" && (
+          <span
+            className="hidden md:inline-flex items-center text-[11px] px-2 py-1 rounded-md font-mono truncate max-w-[140px]"
+            style={{
+              color: "var(--muted-foreground)",
+              background: "var(--surface-2)",
+              border: "1px solid var(--border)",
+            }}
+            title={model}
+          >
+            {model}
+          </span>
+        )}
+
+        {/* Tool count */}
+        <span
+          className="hidden lg:inline-flex items-center text-[11px] px-2 py-1 rounded-md"
+          style={{
+            color: "var(--muted-foreground)",
+            background: "var(--surface-2)",
+            border: "1px solid var(--border)",
+          }}
+        >
+          🔧 {toolCount}
         </span>
-        <span className="hidden lg:inline-flex">
-        <StatusBadge variant="success">🔧 {toolCount} tools active</StatusBadge>
-        </span>
+
+        {/* Services */}
         {services && (
-          <div className="hidden sm:flex items-center gap-1 ml-1 pl-2 border-l border-border">
+          <div
+            className="hidden sm:flex items-center gap-0.5 pl-1.5 ml-0.5 border-l"
+            style={{ borderColor: "var(--border)" }}
+          >
             {(["gmail", "slack", "whatsapp"] as const).map((s) => {
               const icon = s === "gmail" ? "📧" : s === "slack" ? "💬" : "📱";
               const on = services[s];
@@ -177,11 +200,8 @@ export function Header({ connected, model, toolCount, streaming = false, error =
                   type="button"
                   onClick={onServiceClick}
                   title={`${s}: ${on ? "connected" : "not connected"}`}
-                  className="text-base leading-none px-1 py-0.5 rounded hover:bg-surface-2/40 transition"
-                  style={{
-                    opacity: on ? 1 : 0.35,
-                    filter: on ? "drop-shadow(0 0 6px var(--success))" : "grayscale(0.6)",
-                  }}
+                  className="text-[15px] leading-none px-1 py-1 rounded-md hover:bg-surface-2/70 transition"
+                  style={{ opacity: on ? 1 : 0.3 }}
                 >
                   {icon}
                 </button>
@@ -189,16 +209,17 @@ export function Header({ connected, model, toolCount, streaming = false, error =
             })}
           </div>
         )}
-        <div className="flex items-center gap-1 ml-1 pl-2 border-l border-border">
+
+        <div
+          className="flex items-center gap-0.5 pl-1.5 ml-0.5 border-l"
+          style={{ borderColor: "var(--border)" }}
+        >
+          {/* Identity toggle */}
           <div
-            className="hidden sm:inline-flex items-center mr-1 overflow-hidden"
+            className="hidden sm:inline-flex items-center mr-0.5 overflow-hidden rounded-md"
             role="group"
             aria-label="User identity"
-            style={{
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              background: "var(--surface)",
-            }}
+            style={{ border: "1px solid var(--border)", background: "var(--surface-2)" }}
           >
             {(["toby", "jay"] as const).map((id) => {
               const on = identity === id;
@@ -213,11 +234,8 @@ export function Header({ connected, model, toolCount, streaming = false, error =
                       ? "Jay — short replies, options with time estimates"
                       : "Toby — default style"
                   }
-                  className="font-mono uppercase transition"
+                  className="text-[11px] transition px-2.5 py-1"
                   style={{
-                    padding: "4px 10px",
-                    fontSize: 10,
-                    letterSpacing: "0.16em",
                     background: on ? "var(--primary)" : "transparent",
                     color: on ? "var(--primary-foreground)" : "var(--muted-foreground)",
                     cursor: "pointer",
@@ -229,55 +247,50 @@ export function Header({ connected, model, toolCount, streaming = false, error =
               );
             })}
           </div>
+
+          {/* Queue button */}
           <button
             type="button"
             onClick={onQueueOpen}
             title={`Agent queue${queueDepth ? ` · ${queueDepth} waiting` : ""}${parallelMode ? " · parallel mode ON" : ""}`}
-            className="relative text-base leading-none px-1.5 py-0.5 rounded hover:bg-surface-2/40 transition"
-            style={{ filter: queueDepth ? "drop-shadow(0 0 6px var(--primary))" : undefined }}
+            className="relative text-[15px] leading-none px-1.5 py-1.5 rounded-md hover:bg-surface-2/70 transition"
           >
             📋
             {queueDepth > 0 && (
               <span
-                className="absolute -top-1 -right-1 font-mono text-[9px] px-1 rounded-full"
-                style={{ background: "var(--primary)", color: "var(--primary-foreground)", lineHeight: "12px" }}
+                className="absolute -top-1 -right-1 font-mono text-[9px] px-1 rounded-full leading-[12px]"
+                style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
               >
                 {queueDepth}
               </span>
             )}
             {parallelMode && (
               <span
-                className="absolute -bottom-1 -right-1 font-mono text-[8px] px-1 rounded"
-                style={{ background: "var(--destructive)", color: "var(--destructive-foreground)", lineHeight: "10px" }}
+                className="absolute -bottom-1 -right-1 font-mono text-[8px] px-1 rounded leading-[10px]"
+                style={{ background: "var(--destructive)", color: "var(--destructive-foreground)" }}
               >
                 ⚡
               </span>
             )}
           </button>
+
           <ActivityFeed />
+
           <button
             type="button"
             onClick={onSearchOpen}
             title="Search (⌘K)"
-            className="text-base leading-none px-1.5 py-0.5 rounded hover:bg-surface-2/40 transition"
+            className="text-[15px] leading-none px-1.5 py-1.5 rounded-md hover:bg-surface-2/70 transition"
           >
             🔍
           </button>
+
           <button
             type="button"
             onClick={toggleTheme}
             title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-            className="flex items-center justify-center transition hover:border-primary"
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 8,
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              cursor: "pointer",
-              fontSize: 16,
-              lineHeight: 1,
-            }}
+            className="flex items-center justify-center transition hover:bg-surface-2/70 rounded-md"
+            style={{ width: 32, height: 32, fontSize: 15, border: "1px solid var(--border)" }}
           >
             {theme === "light" ? "☀️" : "🌙"}
           </button>

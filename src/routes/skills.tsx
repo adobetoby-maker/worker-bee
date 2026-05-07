@@ -14,28 +14,44 @@ export const Route = createFileRoute("/skills")({
   errorComponent: ({ error, reset }) => {
     const router = useRouter();
     return (
-      <div className="p-6 font-mono text-sm text-foreground">
-        <p className="mb-3">Failed to load skills: {error.message}</p>
+      <div className="p-6 text-sm text-foreground">
+        <p className="mb-3 text-destructive font-medium">Failed to load skills: {error.message}</p>
         <button
           onClick={() => {
             router.invalidate();
             reset();
           }}
-          className="px-3 py-1 border border-border rounded"
+          className="px-3 py-1.5 rounded-md border border-border text-sm hover:bg-surface-2/60"
         >
           Retry
         </button>
       </div>
     );
   },
-  notFoundComponent: () => <div className="p-6">Skills not found.</div>,
+  notFoundComponent: () => <div className="p-6 text-sm text-foreground">Skills not found.</div>,
 });
 
-const TIER_COLOR: Record<FluencyTier, string> = {
-  Beginner: "text-red-300 bg-red-500/15 border-red-500/40",
-  Practicing: "text-yellow-200 bg-yellow-500/15 border-yellow-500/40",
-  Proficient: "text-green-300 bg-green-500/15 border-green-500/40",
-  Fluent: "text-blue-300 bg-blue-500/15 border-blue-500/40",
+const TIER_COLOR: Record<FluencyTier, { text: string; bg: string; border: string }> = {
+  Beginner: {
+    text: "text-red-600 dark:text-red-400",
+    bg: "bg-red-50 dark:bg-red-950/30",
+    border: "border-red-200 dark:border-red-900",
+  },
+  Practicing: {
+    text: "text-amber-700 dark:text-amber-400",
+    bg: "bg-amber-50 dark:bg-amber-950/30",
+    border: "border-amber-200 dark:border-amber-900",
+  },
+  Proficient: {
+    text: "text-emerald-700 dark:text-emerald-400",
+    bg: "bg-emerald-50 dark:bg-emerald-950/30",
+    border: "border-emerald-200 dark:border-emerald-900",
+  },
+  Fluent: {
+    text: "text-blue-600 dark:text-blue-400",
+    bg: "bg-blue-50 dark:bg-blue-950/30",
+    border: "border-blue-200 dark:border-blue-900",
+  },
 };
 
 const ALL_TIERS: FluencyTier[] = ["Beginner", "Practicing", "Proficient", "Fluent"];
@@ -90,37 +106,34 @@ function SkillsPage() {
       if (tier !== "all" && sk.tier !== tier) return false;
       if (domain !== "all" && sk.domain !== domain) return false;
       if (recentOnly && new Date(sk.addedAt).getTime() < recentCutoff) return false;
-      if (q && !(`${sk.name} ${sk.description} ${sk.domain}`.toLowerCase().includes(q))) return false;
+      if (q && !`${sk.name} ${sk.description} ${sk.domain}`.toLowerCase().includes(q)) return false;
       return true;
     });
   }, [snap.skills, query, tier, domain, recentOnly]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-mono">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-6xl mx-auto p-4 md:p-6 pb-24">
-        <header className="mb-4">
-          <h1 className="text-xl md:text-2xl uppercase tracking-[0.2em] text-success">
-            🧠 Skills
-          </h1>
-          <p className="text-xs text-muted-foreground mt-1">
+        <header className="mb-5">
+          <h1 className="text-xl font-semibold">🧠 Skills</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             {snap.skills.length} skills tracked · updated {timeAgo(snap.generatedAt)}
           </p>
         </header>
 
-        {/* Filters */}
         <div
-          className="rounded border p-3 mb-4 flex flex-col gap-3"
+          className="rounded-lg border p-4 mb-5 space-y-3"
           style={{ background: "var(--surface)", borderColor: "var(--border)" }}
         >
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search skills…"
-            className="w-full px-3 py-2 rounded border bg-background text-sm"
+            className="w-full px-3 py-2 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transition"
             style={{ borderColor: "var(--border)" }}
           />
-          <div className="flex flex-wrap gap-2 items-center text-xs">
-            <span className="text-muted-foreground uppercase tracking-[0.16em]">Tier:</span>
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-muted-foreground">Tier:</span>
             <FilterChip active={tier === "all"} onClick={() => setTier("all")}>
               All
             </FilterChip>
@@ -130,8 +143,8 @@ function SkillsPage() {
               </FilterChip>
             ))}
           </div>
-          <div className="flex flex-wrap gap-2 items-center text-xs">
-            <span className="text-muted-foreground uppercase tracking-[0.16em]">Domain:</span>
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs text-muted-foreground">Domain:</span>
             <FilterChip active={domain === "all"} onClick={() => setDomain("all")}>
               All
             </FilterChip>
@@ -147,45 +160,53 @@ function SkillsPage() {
           </div>
         </div>
 
-        {/* List */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {filtered.map((sk) => (
-            <button
-              key={sk.id}
-              onClick={() => setSelected(sk)}
-              className="text-left rounded border p-3 hover:border-primary/60 transition-colors"
-              style={{ background: "var(--surface)", borderColor: "var(--border)" }}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold truncate">{sk.name}</div>
-                  <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                    {sk.description}
+          {filtered.map((sk) => {
+            const tc = TIER_COLOR[sk.tier];
+            return (
+              <button
+                key={sk.id}
+                onClick={() => setSelected(sk)}
+                className="text-left rounded-lg border p-4 hover:border-primary/50 hover:shadow-sm transition-all"
+                style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+              >
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold truncate">{sk.name}</div>
+                    <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                      {sk.description}
+                    </div>
                   </div>
+                  <span
+                    className={`shrink-0 px-2 py-0.5 rounded-md border text-[11px] font-medium ${tc.text} ${tc.bg} ${tc.border}`}
+                  >
+                    {sk.tier}
+                  </span>
                 </div>
-                <span
-                  className={`shrink-0 px-2 py-0.5 rounded border text-[10px] uppercase tracking-[0.12em] ${TIER_COLOR[sk.tier]}`}
-                >
-                  {sk.tier}
-                </span>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
-                <Stat label="Iterations" value={`${sk.iterations.toLocaleString()}/${sk.iterationGoal.toLocaleString()}`} />
-                <Stat label="Pass rate" value={`${Math.round(sk.passRateLast50 * 100)}%`} />
-                <Stat label="Last run" value={timeAgo(sk.lastPracticedAt)} />
-              </div>
-              <div className="mt-2 h-1.5 rounded bg-surface-2 overflow-hidden">
+                <div className="grid grid-cols-3 gap-2 text-xs mb-3">
+                  <Stat
+                    label="Iterations"
+                    value={`${sk.iterations.toLocaleString()}/${sk.iterationGoal.toLocaleString()}`}
+                  />
+                  <Stat label="Pass rate" value={`${Math.round(sk.passRateLast50 * 100)}%`} />
+                  <Stat label="Last run" value={timeAgo(sk.lastPracticedAt)} />
+                </div>
                 <div
-                  className="h-full bg-primary"
-                  style={{ width: `${Math.min(100, (sk.iterations / sk.iterationGoal) * 100)}%` }}
-                />
-              </div>
-              <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground uppercase tracking-[0.14em]">
-                <span>{sk.domain}</span>
-                <span>added {timeAgo(sk.addedAt)}</span>
-              </div>
-            </button>
-          ))}
+                  className="h-1.5 rounded-full overflow-hidden"
+                  style={{ background: "var(--surface-2)" }}
+                >
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${Math.min(100, (sk.iterations / sk.iterationGoal) * 100)}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{sk.domain}</span>
+                  <span>added {timeAgo(sk.addedAt)}</span>
+                </div>
+              </button>
+            );
+          })}
           {filtered.length === 0 && (
             <div className="col-span-full text-center text-sm text-muted-foreground py-12">
               No skills match these filters.
@@ -212,10 +233,10 @@ function FilterChip({
     <button
       type="button"
       onClick={onClick}
-      className={`px-2 py-1 rounded border text-[11px] uppercase tracking-[0.12em] transition-colors ${
+      className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
         active
-          ? "bg-primary/15 border-primary/60 text-success"
-          : "border-border text-muted-foreground hover:text-foreground"
+          ? "border-primary/50 bg-primary/8 text-primary"
+          : "border-border text-muted-foreground hover:text-foreground hover:border-border/80"
       }`}
     >
       {children}
@@ -226,83 +247,88 @@ function FilterChip({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
-      <div className="text-foreground">{value}</div>
+      <div className="text-[10px] text-muted-foreground mb-0.5">{label}</div>
+      <div className="text-foreground font-medium">{value}</div>
     </div>
   );
 }
 
 function SkillDrawer({ skill, onClose }: { skill: Skill; onClose: () => void }) {
+  const tc = TIER_COLOR[skill.tier];
   return (
     <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
       <div
-        className="relative ml-auto h-full w-full md:max-w-lg overflow-y-auto border-l p-4 md:p-6"
+        className="relative ml-auto h-full w-full md:max-w-lg overflow-y-auto border-l p-5 md:p-6"
         style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
-        <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-start justify-between gap-3 mb-4">
           <div>
             <h2 className="text-lg font-semibold">{skill.name}</h2>
-            <div className="text-xs text-muted-foreground mt-0.5 uppercase tracking-[0.14em]">
-              {skill.domain}
-            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">{skill.domain}</div>
           </div>
           <span
-            className={`shrink-0 px-2 py-0.5 rounded border text-[10px] uppercase tracking-[0.12em] ${TIER_COLOR[skill.tier]}`}
+            className={`shrink-0 px-2 py-0.5 rounded-md border text-[11px] font-medium ${tc.text} ${tc.bg} ${tc.border}`}
           >
             {skill.tier}
           </span>
         </div>
 
-        <p className="text-sm text-foreground/90 mb-4">{skill.description}</p>
+        <p className="text-sm text-foreground/90 mb-4 leading-relaxed">{skill.description}</p>
 
-        <div className="grid grid-cols-3 gap-2 text-[11px] mb-4">
-          <Stat label="Iterations" value={`${skill.iterations.toLocaleString()}/${skill.iterationGoal.toLocaleString()}`} />
+        <div className="grid grid-cols-3 gap-3 text-xs mb-5">
+          <Stat
+            label="Iterations"
+            value={`${skill.iterations.toLocaleString()}/${skill.iterationGoal.toLocaleString()}`}
+          />
           <Stat label="Pass rate (50)" value={`${Math.round(skill.passRateLast50 * 100)}%`} />
           <Stat label="Last run" value={timeAgo(skill.lastPracticedAt)} />
         </div>
 
-        <Section title="Recent practice runs">
-          <ul className="space-y-1 text-xs">
+        <DrawerSection title="Recent practice runs">
+          <ul className="space-y-1">
             {skill.recentRuns.map((r) => (
-              <li key={r.id} className="flex items-center justify-between border-b border-border/40 pb-1">
+              <li
+                key={r.id}
+                className="flex items-center justify-between py-1 border-b border-border/40 text-sm"
+              >
                 <span className="truncate">
                   <span className="mr-2">{r.passed ? "✅" : "❌"}</span>
                   {r.scenario}
                 </span>
-                <span className="text-muted-foreground tabular-nums">
+                <span className="text-xs text-muted-foreground tabular-nums ml-3 shrink-0">
                   {r.durationMs}ms · {timeAgo(r.at)}
                 </span>
               </li>
             ))}
             {skill.recentRuns.length === 0 && (
-              <li className="text-muted-foreground">No recent runs.</li>
+              <li className="text-sm text-muted-foreground py-1">No recent runs.</li>
             )}
           </ul>
-        </Section>
+        </DrawerSection>
 
-        <Section title="Gap analysis (last learning session)">
+        <DrawerSection title="Gap analysis (last learning session)">
           {skill.gapAnalysis.length ? (
-            <ul className="list-disc pl-5 text-xs space-y-1">
+            <ul className="list-disc pl-5 text-sm space-y-1">
               {skill.gapAnalysis.map((g, i) => (
                 <li key={i}>{g}</li>
               ))}
             </ul>
           ) : (
-            <p className="text-xs text-muted-foreground">No gaps recorded.</p>
+            <p className="text-sm text-muted-foreground">No gaps recorded.</p>
           )}
-        </Section>
+        </DrawerSection>
 
-        <Section title="Action items in progress">
-          <ul className="space-y-1 text-xs">
+        <DrawerSection title="Action items in progress">
+          <ul className="space-y-1.5">
             {skill.actionItems
               .filter((a) => a.status !== "done")
               .map((a) => (
-                <li key={a.id} className="flex items-center gap-2">
+                <li key={a.id} className="flex items-center gap-2 text-sm">
                   <span
-                    className={`px-1.5 py-0.5 rounded border text-[9px] uppercase tracking-[0.12em] ${
+                    className={`px-2 py-0.5 rounded-md border text-[10px] font-medium shrink-0 ${
                       a.status === "in_progress"
-                        ? "border-primary/60 text-success"
+                        ? "border-primary/40 text-primary bg-primary/8"
                         : "border-border text-muted-foreground"
                     }`}
                   >
@@ -312,14 +338,14 @@ function SkillDrawer({ skill, onClose }: { skill: Skill; onClose: () => void }) 
                 </li>
               ))}
             {skill.actionItems.filter((a) => a.status !== "done").length === 0 && (
-              <li className="text-muted-foreground">None open.</li>
+              <li className="text-sm text-muted-foreground">None open.</li>
             )}
           </ul>
-        </Section>
+        </DrawerSection>
 
         <button
           onClick={onClose}
-          className="mt-4 w-full px-3 py-2 rounded border text-xs uppercase tracking-[0.16em]"
+          className="mt-4 w-full px-3 py-2.5 rounded-md border text-sm font-medium hover:bg-surface-2/60 transition"
           style={{ borderColor: "var(--border)" }}
         >
           Close
@@ -329,10 +355,10 @@ function SkillDrawer({ skill, onClose }: { skill: Skill; onClose: () => void }) 
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function DrawerSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mb-4">
-      <h3 className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2">
+    <div className="mb-5">
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
         {title}
       </h3>
       {children}
