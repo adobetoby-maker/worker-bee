@@ -996,6 +996,3 @@ function ServiceCard({ name, url, description, status, openable }: {
     </div>
   )
 }
-    </div>
-  )
-}
