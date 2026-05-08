@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Loader2 } from 'lucide-react'
+import { Zap, Loader2 } from 'lucide-react'
 
 interface Submission {
   id: string
@@ -14,14 +14,16 @@ interface Submission {
 
 export default function SubmissionActions({ submission }: { submission: Submission }) {
   const [creating, setCreating] = useState(false)
+  const [error, setError] = useState('')
   const router = useRouter()
 
-  async function createSite() {
+  async function buildSite() {
     setCreating(true)
+    setError('')
     try {
-      // Create the site
       const name = submission.business || submission.name
       const siteName = `${name}'s Site`
+
       const res = await fetch('/api/sites', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -36,7 +38,6 @@ export default function SubmissionActions({ submission }: { submission: Submissi
       if (!res.ok) throw new Error('Failed to create site')
       const { id: siteId } = await res.json()
 
-      // Migrate the blueprint to the new site
       await fetch(`/api/sites/${siteId}/blueprint`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
@@ -53,23 +54,27 @@ export default function SubmissionActions({ submission }: { submission: Submissi
         }),
       })
 
-      router.push(`/sites/${siteId}/blueprint`)
+      router.push(`/sites/${siteId}/build`)
     } catch (err) {
-      console.error(err)
+      setError(err instanceof Error ? err.message : 'Failed')
       setCreating(false)
     }
   }
 
   return (
-    <button onClick={createSite} disabled={creating}
-      className="flex items-center gap-1.5 text-sm border px-3 py-2 rounded-lg transition-colors shrink-0"
-      style={{
-        borderColor: creating ? 'var(--border)' : 'rgba(99,102,241,0.4)',
-        color: creating ? 'var(--muted)' : '#818cf8',
-        background: creating ? 'transparent' : 'rgba(99,102,241,0.08)',
-      }}>
-      {creating ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
-      {creating ? 'Creating…' : 'Create Site'}
-    </button>
+    <div className="flex flex-col items-end gap-1 shrink-0">
+      <button onClick={buildSite} disabled={creating}
+        className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg font-semibold transition-colors"
+        style={{
+          background: creating ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.15)',
+          border: `1px solid ${creating ? 'rgba(16,185,129,0.3)' : 'rgba(16,185,129,0.4)'}`,
+          color: creating ? '#6ee7b7' : '#10b981',
+          cursor: creating ? 'default' : 'pointer',
+        }}>
+        {creating ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
+        {creating ? 'Setting up…' : 'Build Site'}
+      </button>
+      {error && <span className="text-xs text-red-400">{error}</span>}
+    </div>
   )
 }

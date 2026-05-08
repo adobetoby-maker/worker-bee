@@ -705,13 +705,28 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showTerminal, setShowTerminal] = useState(false)
   const [building, setBuilding] = useState(false)
-  const [buildLog, setBuildLog] = useState('')
-  const [buildError, setBuildError] = useState('')
+  const [buildLog, setBuildLog] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return localStorage.getItem(`build-log-${site.id}`) ?? ''
+  })
+  const [buildError, setBuildError] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return localStorage.getItem(`build-error-${site.id}`) ?? ''
+  })
 
   // When site type changes, update enhancement defaults automatically
   useEffect(() => {
     setConfig(c => ({ ...c, enhancements: DEFAULT_ENHANCEMENTS[c.siteType] ?? DEFAULT_ENHANCEMENTS.general }))
   }, [config.siteType])
+
+  useEffect(() => {
+    if (buildLog) localStorage.setItem(`build-log-${site.id}`, buildLog)
+  }, [buildLog, site.id])
+
+  useEffect(() => {
+    if (buildError) localStorage.setItem(`build-error-${site.id}`, buildError)
+    else localStorage.removeItem(`build-error-${site.id}`)
+  }, [buildError, site.id])
 
   const typedNodes = nodes as BlueprintNode[]
   const typedEdges = edges as BlueprintEdge[]
