@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { Download, Copy, Cpu, ChevronDown, ChevronRight, RefreshCw, Terminal, Package, BookOpen, Hash } from 'lucide-react'
+import { Download, Copy, Cpu, ChevronDown, ChevronRight, RefreshCw, Terminal, Package, BookOpen, Hash, Wifi, WifiOff, ExternalLink, RotateCcw } from 'lucide-react'
+import { useEffect, useCallback } from 'react'
 
 // ── Project Configurator data ─────────────────────────────────────────────────
 
@@ -76,7 +77,8 @@ ${d.buildCommand || '# add your build command here'}
   },
 }
 
-type Mode = 'project' | 'restore' | 'commands'
+type Mode = 'project' | 'restore' | 'commands' | 'tunnel'
+type ServiceStatus = 'checking' | 'up' | 'down'
 type TemplateKey = keyof typeof TEMPLATES
 type FormData = {
   name: string; description: string; url: string; routes: string; rules: string
@@ -397,6 +399,39 @@ export default function ConfiguratorPage() {
   const [showHooks, setShowHooks] = useState(false)
   const [showGstack, setShowGstack] = useState(false)
 
+  // Tunnel status
+  const [buildApiStatus, setBuildApiStatus] = useState<ServiceStatus>('checking')
+  const [terminalStatus, setTerminalStatus] = useState<ServiceStatus>('checking')
+  const [lastChecked, setLastChecked] = useState<Date | null>(null)
+
+  const checkServices = useCallback(async () => {
+    setBuildApiStatus('checking')
+    setTerminalStatus('checking')
+    const check = async (url: string): Promise<ServiceStatus> => {
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
+        return res.ok ? 'up' : 'down'
+      } catch {
+        return 'down'
+      }
+    }
+    const [api, term] = await Promise.all([
+      check('https://build-api.worker-bee.app/health'),
+      check('https://terminal.worker-bee.app'),
+    ])
+    setBuildApiStatus(api)
+    setTerminalStatus(term)
+    setLastChecked(new Date())
+  }, [])
+
+  useEffect(() => {
+    if (mode === 'tunnel') {
+      checkServices()
+      const id = setInterval(checkServices, 30000)
+      return () => clearInterval(id)
+    }
+  }, [mode, checkServices])
+
   const [copied, setCopied] = useState('')
 
   function set(k: keyof FormData, v: string | boolean) {
@@ -457,6 +492,12 @@ export default function ConfiguratorPage() {
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${mode === 'commands' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
         >
           <Hash size={14} />Slash Commands
+        </button>
+        <button
+          onClick={() => setMode('tunnel')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${mode === 'tunnel' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+        >
+          <Terminal size={14} />Dev Tunnel
         </button>
       </div>
 
@@ -742,43 +783,164 @@ export default function ConfiguratorPage() {
         </div>
       )}
 
-      {/* ── Slash Commands ── */}
-      {mode === 'commands' && (
-        <div className="space-y-5">
-          <p className="text-sm" style={{ color: 'var(--muted-light)' }}>
-            Every slash command available across built-in Claude Code, plugins, and GStack skills.
-          </p>
-          {COMMAND_GROUPS.map(group => (
-            <div key={group.label} className="rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center gap-2.5 px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: group.color }} />
-                <span className="text-sm font-bold text-white">{group.label}</span>
-                <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--surface2)', color: 'var(--muted)' }}>
-                  {group.commands.length} commands
-                </span>
+      {/* ── Dev Tunnel ── */}
+      {mode === 'tunnel' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <p className="text-sm" style={{ color: 'var(--muted-light)' }}>
+              Local services exposed via Cloudflare Tunnel. Requires <code className="text-xs px-1 py-0.5 rounded" style={{ background: 'var(--surface2)' }}>start.sh</code> running on your Mac.
+            </p>
+            <button onClick={checkServices} className="flex items-center gap-1.5 text-xs border px-2.5 py-1.5 rounded-lg transition-colors hover:border-white/20" style={{ borderColor: 'var(--border)', color: 'var(--muted-light)' }}>
+              <RotateCcw size={11} />Refresh
+            </button>
+          </div>
+
+          {/* Service cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ServiceCard
+              name="Build API"
+              url="https://build-api.worker-bee.app"
+              description="Streams Claude Code output for one-click builds"
+              status={buildApiStatus}
+            />
+            <ServiceCard
+              name="Browser Terminal"
+              url="https://terminal.worker-bee.app"
+              description="ttyd bash shell running on your Mac"
+              status={terminalStatus}
+              openable
+            />
+          </div>
+
+          {lastChecked && (
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>
+              Last checked: {lastChecked.toLocaleTimeString()} · auto-refreshes every 30s
+            </p>
+          )}
+
+          {/* Start script */}
+          <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <h3 className="text-sm font-bold text-white mb-1">Start Services</h3>
+            <p className="text-xs mb-3" style={{ color: 'var(--muted)' }}>Run this on your Mac whenever services are down.</p>
+            <pre className="text-xs p-3 rounded-lg mb-3" style={{ background: 'var(--surface2)', color: 'var(--muted-light)' }}>
+              bash ~/worker-bee-dev/start.sh
+            </pre>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>
+              Stop all: <code className="px-1 py-0.5 rounded" style={{ background: 'var(--surface2)' }}>pkill -f ttyd; pkill -f build-api; pkill -f &apos;cloudflared tunnel&apos;</code>
+            </p>
+          </div>
+
+          {/* Embedded terminal */}
+          {terminalStatus === 'up' && (
+            <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between px-4 py-3 border-b" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span className="text-sm font-bold text-white">Terminal</span>
+                </div>
+                <a href="https://terminal.worker-bee.app" target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs border px-2.5 py-1.5 rounded-lg transition-colors hover:border-white/20"
+                  style={{ borderColor: 'var(--border)', color: 'var(--muted-light)' }}>
+                  <ExternalLink size={11} />Open full screen
+                </a>
               </div>
-              <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                {group.commands.map(({ cmd, desc }) => (
-                  <div key={cmd} className="flex items-start gap-4 px-4 py-2.5 hover:bg-white/[0.03] transition-colors group">
-                    <code
-                      className="text-xs font-mono font-bold shrink-0 mt-0.5 px-1.5 py-0.5 rounded"
-                      style={{ background: 'var(--surface2)', color: group.color, minWidth: 160 }}
-                    >
-                      {cmd}
-                    </code>
-                    <span className="text-sm leading-relaxed" style={{ color: 'var(--muted-light)' }}>{desc}</span>
-                    <button
-                      onClick={() => copy(cmd.split(' ')[0], `cmd-${cmd}`)}
-                      className="ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Copy command"
-                    >
-                      <Copy size={11} style={{ color: 'var(--muted)' }} />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <iframe
+                src="https://terminal.worker-bee.app"
+                style={{ width: '100%', height: 400, border: 'none', background: '#0d1117' }}
+                title="Worker Bee Terminal"
+              />
             </div>
-          ))}
+          )}
+        </div>
+      )}
+
+      {/* ── Slash Commands + Terminal ── */}
+      {mode === 'commands' && (
+        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+          {/* Commands list */}
+          <div className="space-y-5" style={{ flex: 1, minWidth: 0 }}>
+            <p className="text-sm" style={{ color: 'var(--muted-light)' }}>
+              Every slash command available across built-in Claude Code, plugins, and GStack skills.
+            </p>
+            {COMMAND_GROUPS.map(group => (
+              <div key={group.label} className="rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="flex items-center gap-2.5 px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: group.color }} />
+                  <span className="text-sm font-bold text-white">{group.label}</span>
+                  <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--surface2)', color: 'var(--muted)' }}>
+                    {group.commands.length} commands
+                  </span>
+                </div>
+                <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+                  {group.commands.map(({ cmd, desc }) => (
+                    <div key={cmd} className="flex items-start gap-4 px-4 py-2.5 hover:bg-white/[0.03] transition-colors group">
+                      <code
+                        className="text-xs font-mono font-bold shrink-0 mt-0.5 px-1.5 py-0.5 rounded"
+                        style={{ background: 'var(--surface2)', color: group.color, minWidth: 160 }}
+                      >
+                        {cmd}
+                      </code>
+                      <span className="text-sm leading-relaxed" style={{ color: 'var(--muted-light)' }}>{desc}</span>
+                      <button
+                        onClick={() => copy(cmd.split(' ')[0], `cmd-${cmd}`)}
+                        className="ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Copy command"
+                      >
+                        <Copy size={11} style={{ color: 'var(--muted)' }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Sticky terminal panel */}
+          <div style={{ width: 420, flexShrink: 0, position: 'sticky', top: 24 }}>
+            <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between px-4 py-3 border-b" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="flex items-center gap-2">
+                  {terminalStatus === 'up'
+                    ? <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                    : terminalStatus === 'checking'
+                      ? <div className="w-2 h-2 rounded-full bg-slate-500 animate-pulse" />
+                      : <div className="w-2 h-2 rounded-full bg-red-500" />
+                  }
+                  <span className="text-sm font-bold text-white">Terminal</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={checkServices} title="Refresh status">
+                    <RotateCcw size={12} style={{ color: 'var(--muted)' }} />
+                  </button>
+                  <a href="https://terminal.worker-bee.app" target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-colors hover:border-white/20"
+                    style={{ borderColor: 'var(--border)', color: 'var(--muted-light)' }}>
+                    <ExternalLink size={10} />Full screen
+                  </a>
+                </div>
+              </div>
+              {terminalStatus === 'up' ? (
+                <iframe
+                  src="https://terminal.worker-bee.app"
+                  style={{ width: '100%', height: 500, border: 'none', background: '#0d1117' }}
+                  title="Worker Bee Terminal"
+                />
+              ) : (
+                <div style={{ height: 500, background: '#0d1117', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                  {terminalStatus === 'checking'
+                    ? <p className="text-sm" style={{ color: 'var(--muted)' }}>Checking…</p>
+                    : <>
+                        <WifiOff size={28} style={{ color: '#475569' }} />
+                        <p className="text-sm font-semibold" style={{ color: 'var(--muted-light)' }}>Terminal offline</p>
+                        <code className="text-xs px-3 py-1.5 rounded-lg" style={{ background: 'var(--surface)', color: 'var(--muted)' }}>
+                          bash ~/worker-bee-dev/start.sh
+                        </code>
+                      </>
+                  }
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -786,6 +948,54 @@ export default function ConfiguratorPage() {
         .label-xs{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px}
         .divide-y > * + * { border-top: 1px solid var(--border); }
       `}</style>
+    </div>
+  )
+}
+
+function ServiceCard({ name, url, description, status, openable }: {
+  name: string; url: string; description: string
+  status: ServiceStatus; openable?: boolean
+}) {
+  const isUp = status === 'up'
+  const isChecking = status === 'checking'
+  return (
+    <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            {isChecking
+              ? <div className="w-2 h-2 rounded-full bg-slate-500 animate-pulse" />
+              : isUp
+                ? <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                : <div className="w-2 h-2 rounded-full bg-red-500" />
+            }
+            <span className="text-sm font-bold text-white">{name}</span>
+          </div>
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>{description}</p>
+        </div>
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+          isChecking ? 'bg-slate-800 text-slate-400'
+          : isUp ? 'bg-emerald-900/50 text-emerald-400'
+          : 'bg-red-900/50 text-red-400'
+        }`}>
+          {isChecking ? 'checking…' : isUp ? 'online' : 'offline'}
+        </span>
+      </div>
+      <code className="text-xs block mb-3 px-2 py-1 rounded" style={{ background: 'var(--surface2)', color: 'var(--muted-light)' }}>
+        {url}
+      </code>
+      {openable && isUp && (
+        <a href={url} target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg transition-colors font-semibold">
+          <ExternalLink size={11} />Open Terminal
+        </a>
+      )}
+      {!isUp && !isChecking && (
+        <p className="text-xs" style={{ color: 'var(--muted)' }}>Run <code className="px-1 rounded" style={{ background: 'var(--surface2)' }}>bash ~/worker-bee-dev/start.sh</code> on your Mac</p>
+      )}
+    </div>
+  )
+}
     </div>
   )
 }
