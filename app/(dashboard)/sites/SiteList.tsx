@@ -52,7 +52,7 @@ export function SiteList({ sites }: { sites: Site[] }) {
                   </span>
                 </div>
                 <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--muted)' }}>
-                  <a href={s.url} target="_blank" rel="noopener noreferrer"
+                  <a href={s.url.startsWith('http') ? s.url : `https://${s.url}`} target="_blank" rel="noopener noreferrer"
                     onClick={e => e.stopPropagation()}
                     className="hover:text-indigo-400 flex items-center gap-1 transition-colors">
                     <ExternalLink size={11} />{s.url.replace(/^https?:\/\//, '')}
