@@ -29,6 +29,7 @@ interface Config {
   supabaseProject: string; siteType: string
   referenceUrls: string; subjectName: string
   enhancements: Enhancements
+  buildMode: 'new' | 'iteration'
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -713,9 +714,21 @@ Save to \`/tmp/research-brief-${slug}.json\`:
 
 ---
 
-## Phase 1 — Provision
+## Phase 1 — ${config.buildMode === 'iteration' ? 'Setup' : 'Provision'}
+
+${config.buildMode === 'iteration' ? `**This is an iteration build.** The repo already exists at \`${localPath}\`. Do NOT scaffold a new project, do NOT run create-next-app, do NOT git init.
 
 \`\`\`bash
+# Work in the existing repo
+cd ${localPath}
+
+# Install any new enhancement packages
+${npmInstall}
+
+# Make sure next.config.ts includes images.unsplash.com in remotePatterns
+\`\`\`
+
+Update \`CLAUDE.md\` to reflect the new build goals:` : `\`\`\`bash
 # 1a. GitHub repo
 gh repo create ${githubRepo} --private --description "${site.name} — Worker-Bee client site"
 
@@ -741,7 +754,7 @@ vercel env add SUPABASE_SERVICE_ROLE_KEY
 
 Whitelist all image domains found in the research brief in \`next.config.ts\` remotePatterns. Always include images.unsplash.com as fallback.
 
-Drop \`CLAUDE.md\`:
+Drop \`CLAUDE.md\`:`}
 \`\`\`
 ${claudeMd}
 \`\`\`
@@ -749,9 +762,9 @@ ${config.supabaseProject ? '\nCreate Supabase tables based on any data cards in 
 
 ---
 
-## Phase 2 — Build Blueprint Cards
+## Phase 2 — ${config.buildMode === 'iteration' ? 'Rewrite / Enhance' : 'Build'} Blueprint Cards
 
-Each card gets its own git commit. Apply Design Standards and Motion Requirements to every component.
+${config.buildMode === 'iteration' ? `**Iteration mode:** Rewrite or replace existing components to match each blueprint card's spec exactly. If the file already exists, replace its content — do not patch around it. The goal is a complete visual and content refresh, not incremental edits. Each card gets its own git commit.` : 'Each card gets its own git commit.'} Apply Design Standards and Motion Requirements to every component.
 
 ${orderedNodes.map((node, i) => {
   const d = node.data
@@ -869,6 +882,7 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
     referenceUrls: '',
     subjectName: site.name,
     enhancements: DEFAULT_ENHANCEMENTS.general,
+    buildMode: 'new',
   })
   const [copied, setCopied] = useState('')
   const [showSpec, setShowSpec] = useState(false)
@@ -991,6 +1005,27 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
               <span className="text-base">🎯</span>
               <h3 className="text-sm font-bold text-white">Step 1 — What kind of site?</h3>
             </div>
+            <div className="flex gap-2 mb-1">
+              {(['new', 'iteration'] as const).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => setConfig(c => ({ ...c, buildMode: mode }))}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                  style={{
+                    background: config.buildMode === mode ? (mode === 'iteration' ? 'rgba(234,179,8,0.15)' : 'rgba(99,102,241,0.2)') : 'var(--surface2)',
+                    border: `1px solid ${config.buildMode === mode ? (mode === 'iteration' ? 'rgba(234,179,8,0.4)' : 'rgba(99,102,241,0.5)') : 'transparent'}`,
+                    color: config.buildMode === mode ? (mode === 'iteration' ? '#fbbf24' : '#a5b4fc') : 'var(--muted)',
+                  }}
+                >
+                  {mode === 'new' ? '🆕 New Build' : '🔁 Iteration'}
+                </button>
+              ))}
+              {config.buildMode === 'iteration' && (
+                <span className="text-[10px] self-center" style={{ color: '#fbbf24' }}>
+                  Rewrites existing repo — no scaffold
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-3 gap-2">
               {SITE_TYPES.map(t => (
                 <button
@@ -1013,7 +1048,7 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
               </ConfigField>
               <ConfigField icon={<Globe size={13} />} label="Sites that look like what you want">
                 <input value={config.referenceUrls} onChange={e => setConfig(c => ({ ...c, referenceUrls: e.target.value }))} placeholder="e.g. drsmith.com, exampleclinic.com" style={inputStyle} className={inputClass} />
-                <p className="text-[10px] mt-1" style={{ color: 'var(--muted)' }}>Claude will open these and study the design. More = better results.</p>
+                <p className="text-[10px] mt-1" style={{ color: 'var(--muted)' }}>We will open these and study the design. More = better results.</p>
               </ConfigField>
             </div>
           </div>
@@ -1214,7 +1249,7 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
             {nodesWithoutPrompt.length > 0 && (
               <div className="mt-3 flex items-start gap-2 text-xs p-2.5 rounded-lg" style={{ background: 'rgba(245,158,11,0.08)', color: '#f59e0b' }}>
                 <AlertCircle size={12} className="shrink-0 mt-0.5" />
-                {nodesWithoutPrompt.length} card{nodesWithoutPrompt.length > 1 ? 's' : ''} missing instructions — Claude will infer.
+                {nodesWithoutPrompt.length} card{nodesWithoutPrompt.length > 1 ? 's' : ''} missing instructions — we will infer.
               </div>
             )}
           </div>
