@@ -22,6 +22,7 @@ interface Enhancements {
   framerMotion: boolean; lenis: boolean; gsap: boolean
   spline: boolean; r3f: boolean; videoHero: boolean
   customCursor: boolean; parallax: boolean; comfyImages: boolean
+  pwa: boolean; sentry: boolean
 }
 
 interface Config {
@@ -58,15 +59,15 @@ const SITE_TYPES = [
 
 // Smart defaults per site type — prevents wrong choices being left on/off
 const DEFAULT_ENHANCEMENTS: Record<string, Enhancements> = {
-  medical:       { framerMotion: true,  lenis: true,  gsap: false, spline: false, r3f: false, videoHero: false, customCursor: false, parallax: true,  comfyImages: false },
-  legal:         { framerMotion: true,  lenis: true,  gsap: false, spline: false, r3f: false, videoHero: false, customCursor: false, parallax: false, comfyImages: false },
-  'local-service': { framerMotion: true, lenis: true, gsap: false, spline: false, r3f: false, videoHero: false, customCursor: false, parallax: false, comfyImages: false },
-  restaurant:    { framerMotion: true,  lenis: true,  gsap: false, spline: false, r3f: false, videoHero: true,  customCursor: false, parallax: true,  comfyImages: true  },
-  saas:          { framerMotion: true,  lenis: true,  gsap: true,  spline: true,  r3f: false, videoHero: false, customCursor: true,  parallax: false, comfyImages: true  },
-  ecommerce:     { framerMotion: true,  lenis: true,  gsap: false, spline: false, r3f: false, videoHero: false, customCursor: false, parallax: false, comfyImages: true  },
-  agency:        { framerMotion: true,  lenis: true,  gsap: true,  spline: true,  r3f: false, videoHero: true,  customCursor: true,  parallax: true,  comfyImages: true  },
-  'real-estate': { framerMotion: true,  lenis: true,  gsap: false, spline: false, r3f: false, videoHero: true,  customCursor: false, parallax: true,  comfyImages: false },
-  general:       { framerMotion: true,  lenis: true,  gsap: false, spline: false, r3f: false, videoHero: false, customCursor: false, parallax: false, comfyImages: false },
+  medical:         { framerMotion: true,  lenis: true,  gsap: false, spline: false, r3f: false, videoHero: false, customCursor: false, parallax: true,  comfyImages: true,  pwa: true,  sentry: true  },
+  legal:           { framerMotion: true,  lenis: true,  gsap: false, spline: false, r3f: false, videoHero: false, customCursor: false, parallax: false, comfyImages: false, pwa: true,  sentry: true  },
+  'local-service': { framerMotion: true,  lenis: true,  gsap: false, spline: false, r3f: false, videoHero: false, customCursor: false, parallax: false, comfyImages: false, pwa: true,  sentry: true  },
+  restaurant:      { framerMotion: true,  lenis: true,  gsap: false, spline: false, r3f: false, videoHero: true,  customCursor: false, parallax: true,  comfyImages: true,  pwa: true,  sentry: true  },
+  saas:            { framerMotion: true,  lenis: true,  gsap: true,  spline: true,  r3f: false, videoHero: false, customCursor: true,  parallax: false, comfyImages: true,  pwa: true,  sentry: true  },
+  ecommerce:       { framerMotion: true,  lenis: true,  gsap: false, spline: false, r3f: false, videoHero: false, customCursor: false, parallax: false, comfyImages: true,  pwa: true,  sentry: true  },
+  agency:          { framerMotion: true,  lenis: true,  gsap: true,  spline: true,  r3f: false, videoHero: true,  customCursor: true,  parallax: true,  comfyImages: true,  pwa: false, sentry: true  },
+  'real-estate':   { framerMotion: true,  lenis: true,  gsap: false, spline: false, r3f: false, videoHero: true,  customCursor: false, parallax: true,  comfyImages: false, pwa: true,  sentry: true  },
+  general:         { framerMotion: true,  lenis: true,  gsap: false, spline: false, r3f: false, videoHero: false, customCursor: false, parallax: false, comfyImages: false, pwa: false, sentry: true  },
 }
 
 const ENHANCEMENT_META: { key: keyof Enhancements; icon: string; label: string; detail: string; group: string; packages: string[] }[] = [
@@ -78,7 +79,9 @@ const ENHANCEMENT_META: { key: keyof Enhancements; icon: string; label: string; 
   { key: 'r3f',          icon: '🔮', label: 'React Three Fiber',    detail: 'Full WebGL — particles, shaders, audio-reactive visuals',           group: '3D',             packages: ['three', '@react-three/fiber', '@react-three/drei'] },
   { key: 'videoHero',    icon: '🎥', label: 'Video Background',     detail: 'Full-bleed video hero with static mobile fallback',                 group: 'Media & Polish', packages: [] },
   { key: 'customCursor', icon: '🖱️', label: 'Custom Cursor',        detail: 'Branded trailing cursor — signals premium craft instantly',         group: 'Media & Polish', packages: [] },
-  { key: 'comfyImages',  icon: '🎨', label: 'ComfyUI Images',       detail: 'AI-generated hero & section backgrounds via local ComfyUI — no stock photos', group: 'AI Images', packages: [] },
+  { key: 'comfyImages',  icon: '🎨', label: 'ComfyUI Images',       detail: 'AI-generated hero & section backgrounds via local ComfyUI — no stock photos', group: 'AI Images',  packages: [] },
+  { key: 'pwa',          icon: '📱', label: 'PWA + Mobile App',      detail: 'Installable home screen app for owner portal — push notifications for new bookings', group: 'Mobile',    packages: ['@ducanh2912/next-pwa'] },
+  { key: 'sentry',       icon: '🔍', label: 'Sentry Error Tracking', detail: 'Automatic error capture — know when client sites break before clients do',          group: 'Monitoring', packages: ['@sentry/nextjs'] },
 ]
 
 const RESEARCH_SOURCES: Record<string, string> = {
@@ -99,7 +102,14 @@ const DESIGN_STANDARDS: Record<string, string> = {
 **Typography:** Display serif (Playfair Display, Fraunces, DM Serif). Hero h1 ≥ text-7xl. Section headings ≥ text-5xl. Never Inter/system-ui as display.
 **Color:** Deep navy (#0b1f3a) + teal/sky accent. White and navy alternating sections. Gold for credential accents.
 **Photography:** Hero = full-bleed real surgical/clinical photo (next/image fill + directional overlay). Doctor portrait = researchBrief.photoUrl only — never stock person. Specialty cards = photo-first (image top 45%).
-**Layout:** Credential stat strip pinned to hero bottom. Section padding py-24 to py-32. Cards rounded-3xl, hover:shadow-xl, image hover:scale-105 duration-700.`,
+**Layout:** Credential stat strip pinned to hero bottom. Section padding py-24 to py-32. Cards rounded-3xl, hover:shadow-xl, image hover:scale-105 duration-700.
+
+**If site notes mention neurofeedback, brain training, qEEG, neurotherapy, or mental wellness — override to Neurofeedback sub-type:**
+- Typography: Sora or DM Sans 800+ weight (science-meets-wellness, not clinical serif)
+- Color: Dark navy (#0a0f1e) + electric cyan (#00e5ff). Cyan = CTAs and accents ONLY, never as background.
+- Hero image: verified brain/neural Unsplash photo (see neurofeedback fallbacks list) OR ComfyUI "abstract neural network synaptic connections glowing cyan on deep navy, no text, no faces". NEVER use circuit board / electronics photos.
+- Condition/service cards: min-h-[220px] p-8, cyan top-border on hover, icon + bold title + 2-sentence description. Grid 2-col mobile → 4-col desktop. All 8 conditions must be visible.
+- Results strip: Large numbers (text-5xl font-black text-cyan-400) — e.g. "500+ Clients", "qEEG Certified", "Twin Falls, ID".`,
 
   legal: `### Legal / Attorney — Production Floor
 
@@ -201,7 +211,14 @@ Verified medical fallbacks (confirmed correct subjects):
 - X-ray / imaging: \`photo-1530026186672-2cd00ffc50fe\` ← this is a HEART model, do NOT use for orthopedics
 - Shoulder/joint surgery: \`photo-1559757175-5700dde675bc\`
 
-**Rule: Navigate to every image URL in Playwright and screenshot it before committing.**
+Verified neurofeedback / neuroscience fallbacks:
+- Brain MRI scan close-up: \`photo-1559757148-5c350d0d3c56\` ← VERIFY — may be generic medical
+- Person in therapy / calm consultation: \`photo-1573496359142-b8d87734a5a2\`
+- Person meditating in calm setting: \`photo-1545389336-cf090694435e\`
+- Abstract glowing blue neural/tech: \`photo-1635070041078-e363dbe005cb\`
+- ⚠️ photo-1518770660439-4636190af475 = GREEN CIRCUIT BOARD electronics — DO NOT use for brain/neuro sites
+
+**Rule: Navigate to EVERY image URL in Playwright, take a screenshot, and visually confirm the subject matches the intended use BEFORE committing. If in doubt, search unsplash.com/s/photos/neurofeedback and pick a confirmed URL.**
 
 ---
 
@@ -236,12 +253,12 @@ A \`<Image fill />\` requires its parent to have \`position: relative\` and an e
 <motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}>
 \`\`\`
 
-✅ CORRECT — always include \`viewport={{ once: true, amount: 0.1 }}\` and the CSS fallback:
+✅ CORRECT — always include \`viewport={{ once: true, amount: 0 }}\` and the CSS fallback:
 \`\`\`tsx
 <motion.div
   initial={{ opacity: 0, y: 24 }}
   whileInView={{ opacity: 1, y: 0 }}
-  viewport={{ once: true, amount: 0.1 }}
+  viewport={{ once: true, amount: 0 }}
   transition={{ duration: 0.5, ease: 'easeOut' as const }}
 >
 \`\`\`
@@ -255,7 +272,7 @@ And in globals.css inside \`@layer base\`:
 }
 \`\`\`
 
-**Rule: Never use \`whileInView\` without \`viewport={{ once: true, amount: 0.1 }}\`. Add CSS fallback to every globals.css.**
+**Rule: Never use \`whileInView\` without \`viewport={{ once: true, amount: 0 }}\`. Use amount:0 (not 0.1) — any pixel in the document triggers the animation, ensuring content is visible during Playwright QA. Add CSS fallback to every globals.css.**
 
 ---
 
@@ -284,13 +301,13 @@ Every section must be visible (not dark/empty) in its scrolled screenshot.
 // Per-enhancement code patterns injected into the spec
 const ENHANCEMENT_SPEC: Record<keyof Enhancements, string> = {
   framerMotion: `**Framer Motion (installed: npm install framer-motion)**
-Apply to EVERY section and card. ALWAYS include \`viewport={{ once: true, amount: 0.1 }}\` — omitting it leaves content invisible below the fold.
+Apply to EVERY section and card. ALWAYS include \`viewport={{ once: true, amount: 0 }}\` — omitting it (or using 0.1) leaves content invisible in Playwright QA and to bots/crawlers.
 \`\`\`tsx
 import { motion } from 'framer-motion'
 // Section entrance:
-<motion.section initial={{ opacity:0, y:32 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true, amount:0.1 }} transition={{ duration:0.6, ease:'easeOut' as const }}>
+<motion.section initial={{ opacity:0, y:32 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true, amount:0 }} transition={{ duration:0.6, ease:'easeOut' as const }}>
 // Staggered cards (add index as delay):
-<motion.div initial={{ opacity:0, y:24 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true, amount:0.1 }} transition={{ duration:0.5, delay: index * 0.1 }}>
+<motion.div initial={{ opacity:0, y:24 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true, amount:0 }} transition={{ duration:0.5, delay: index * 0.1 }}>
 // Hover lift on cards:
 <motion.div whileHover={{ y:-4, boxShadow:'0 20px 40px rgba(0,0,0,0.15)' }} transition={{ duration:0.2 }}>
 \`\`\``,
@@ -404,9 +421,19 @@ export function Cursor() {
 \`\`\`
 Add \`cursor-none\` to the \`<html>\` element in layout.tsx. Add \`<Cursor />\` to root layout (desktop only — hide on touch devices with a media query wrapper).`,
 
-  comfyImages: `**ComfyUI Image Generation (requires ComfyUI running on localhost:8188 + comfy plugin)**
+  comfyImages: `**ComfyUI Image Generation — use the Worker-Bee image-gen API, NOT localhost:8188 directly**
 
 Generate all images BEFORE writing any component code. Save every output to \`public/images/\` so components can import them immediately.
+
+\`\`\`bash
+# Generate an image — returns { image: "data:image/png;base64,..." }
+curl -s -X POST http://localhost:3000/api/image-gen \\
+  -H "content-type: application/json" \\
+  -d '{"prompt": "PROMPT_HERE", "negative_prompt": "NEGATIVE_HERE", "width": 1216, "height": 832}' \\
+  | node -e "const d=require('fs');process.stdin.resume();let b='';process.stdin.on('data',c=>b+=c);process.stdin.on('end',()=>{const j=JSON.parse(b);const img=j.image.replace('data:image/png;base64,','');d.writeFileSync('public/images/hero.png',Buffer.from(img,'base64'));})"
+\`\`\`
+
+Or use the \`browser_evaluate\` Playwright tool to POST from within a running browser session if curl isn't available.
 
 ---
 
@@ -561,6 +588,110 @@ export function ParallaxSection({ children, src }: { children: React.ReactNode; 
 }
 \`\`\`
 Apply to any section that has a full-bleed background image.`,
+
+  pwa: `**PWA — Installable Portal App (npm install @ducanh2912/next-pwa)**
+Makes the site installable on iPhone/Android home screen. Admin and portal users get a native app feel + push notifications for new bookings/submissions.
+
+**1. next.config.ts:**
+\`\`\`ts
+import withPWA from '@ducanh2912/next-pwa'
+export default withPWA({
+  dest: 'public',
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
+  disable: process.env.NODE_ENV === 'development',
+})(nextConfig)
+\`\`\`
+
+**2. public/manifest.json** (use site brand colors):
+\`\`\`json
+{
+  "name": "<Site Name>",
+  "short_name": "<Short Name>",
+  "description": "<Tagline>",
+  "start_url": "/portal",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#YOUR_PRIMARY_COLOR",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
+\`\`\`
+Generate icons: use ComfyUI or a simple canvas script to create 192×192 and 512×512 PNGs from the site logo/brand color.
+
+**3. In root layout.tsx metadata:**
+\`\`\`ts
+export const metadata: Metadata = {
+  manifest: '/manifest.json',
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: '<Site Name>' },
+  formatDetection: { telephone: false },
+}
+export const viewport: Viewport = {
+  themeColor: '#YOUR_PRIMARY_COLOR',
+}
+\`\`\`
+
+**4. Mobile-optimized portal nav** — bottom tab bar for the portal/admin on mobile:
+\`\`\`tsx
+// components/MobileNav.tsx — shown only on portal/admin routes on mobile
+<nav className="fixed bottom-0 left-0 right-0 z-50 flex bg-white border-t md:hidden">
+  {tabs.map(tab => (
+    <Link key={tab.href} href={tab.href} className="flex-1 flex flex-col items-center py-3 text-xs gap-1">
+      <tab.icon size={22} />
+      <span>{tab.label}</span>
+    </Link>
+  ))}
+</nav>
+\`\`\`
+
+start_url should point to the primary operator action — /portal or /admin. The PWA is the owner's command center on their phone.`,
+
+  sentry: `**Sentry Error Tracking (npm install @sentry/nextjs)**
+Captures all unhandled errors on the client and server — you'll know when a client site breaks before they do.
+
+**Setup:**
+\`\`\`bash
+npx @sentry/wizard@latest -i nextjs --silent
+\`\`\`
+This creates \`sentry.client.config.ts\`, \`sentry.server.config.ts\`, and \`sentry.edge.config.ts\`.
+
+If the wizard isn't available, create manually:
+
+**sentry.client.config.ts:**
+\`\`\`ts
+import * as Sentry from '@sentry/nextjs'
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  tracesSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1.0,
+  environment: process.env.NODE_ENV,
+})
+\`\`\`
+
+**sentry.server.config.ts:**
+\`\`\`ts
+import * as Sentry from '@sentry/nextjs'
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  tracesSampleRate: 0.1,
+})
+\`\`\`
+
+**Add to next.config.ts:**
+\`\`\`ts
+import { withSentryConfig } from '@sentry/nextjs'
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  org: 'worker-bee',
+  project: '<site-slug>',
+})
+\`\`\`
+
+**Env var to add:** \`NEXT_PUBLIC_SENTRY_DSN\` — get from manage.worker-bee.app vault after Sentry project is created.
+For now use placeholder: \`NEXT_PUBLIC_SENTRY_DSN=\` (empty — Sentry silently no-ops with no DSN).`,
 }
 
 // ─── Credentials ─────────────────────────────────────────────────────────────
@@ -583,15 +714,17 @@ const ADMIN_VAR: EnvVarDef =
   { key: 'ADMIN_SECRET',               label: 'Admin Secret',            hint: 'random 32-char string', secret: true }
 const ANTHROPIC_VAR: EnvVarDef =
   { key: 'ANTHROPIC_API_KEY',          label: 'Anthropic API Key (chatbot)', hint: 'sk-ant-...',   secret: true }
+const SENTRY_VAR: EnvVarDef =
+  { key: 'NEXT_PUBLIC_SENTRY_DSN',     label: 'Sentry DSN',                  hint: 'https://xxx@sentry.io/...', secret: false }
 
 const ENV_VARS_BY_TYPE: Record<string, EnvVarDef[]> = {
-  medical:          [...SUPABASE_VARS, ...STRIPE_VARS, EMAIL_VAR, ADMIN_VAR],
-  legal:            [...SUPABASE_VARS, ...STRIPE_VARS, EMAIL_VAR, ADMIN_VAR],
-  'local-service':  [...SUPABASE_VARS, ...STRIPE_VARS, ADMIN_VAR, ANTHROPIC_VAR],
-  restaurant:       [...SUPABASE_VARS, { key: 'STRIPE_SECRET_KEY', label: 'Stripe Secret Key', hint: 'sk_live_...', secret: true }, EMAIL_VAR],
-  saas:             [...SUPABASE_VARS, ...STRIPE_VARS, ADMIN_VAR, ANTHROPIC_VAR],
-  ecommerce:        [...SUPABASE_VARS, ...STRIPE_VARS, EMAIL_VAR],
-  'real-estate':    [...SUPABASE_VARS, EMAIL_VAR, ADMIN_VAR],
+  medical:          [...SUPABASE_VARS, ...STRIPE_VARS, EMAIL_VAR, ADMIN_VAR, SENTRY_VAR],
+  legal:            [...SUPABASE_VARS, ...STRIPE_VARS, EMAIL_VAR, ADMIN_VAR, SENTRY_VAR],
+  'local-service':  [...SUPABASE_VARS, ...STRIPE_VARS, ADMIN_VAR, ANTHROPIC_VAR, SENTRY_VAR],
+  restaurant:       [...SUPABASE_VARS, { key: 'STRIPE_SECRET_KEY', label: 'Stripe Secret Key', hint: 'sk_live_...', secret: true }, EMAIL_VAR, SENTRY_VAR],
+  saas:             [...SUPABASE_VARS, ...STRIPE_VARS, ADMIN_VAR, ANTHROPIC_VAR, SENTRY_VAR],
+  ecommerce:        [...SUPABASE_VARS, ...STRIPE_VARS, EMAIL_VAR, SENTRY_VAR],
+  'real-estate':    [...SUPABASE_VARS, EMAIL_VAR, ADMIN_VAR, SENTRY_VAR],
   agency:           [...SUPABASE_VARS, EMAIL_VAR, ADMIN_VAR],
   general:          [...SUPABASE_VARS, ADMIN_VAR],
 }
@@ -651,23 +784,43 @@ function topologicalOrder(nodes: BlueprintNode[], edges: BlueprintEdge[]): Bluep
 }
 
 function generateClaudeMd(site: Site): string {
-  return `# CLAUDE.md\n\n## Project: ${site.name}\n${site.notes ? `\n${site.notes}\n` : ''}
-### Commands
+  return `# CLAUDE.md — ${site.name}
+${site.notes ? `\n${site.notes}\n` : ''}
+## Commands
 \`\`\`bash
 npm run dev      # dev server on localhost:3000
-npm run build    # production build
+npm run build    # production build — must pass with zero TS errors
 npm run lint     # ESLint
 \`\`\`
 
-### Stack
+## Stack
 - ${STACK_LABEL[site.stack] ?? site.stack}
-- Supabase (if applicable — see lib/supabase/ for client patterns)
-- Tailwind CSS · TypeScript
+- Supabase — use \`lib/supabase/server.ts\` in Server Components, \`lib/supabase/client.ts\` in Client Components, never mix
+- Tailwind CSS v4 · TypeScript · Framer Motion · Lenis
 
-### Key Rules
-- Never import server-only Supabase client in client components
-- All pages must be mobile-responsive
-- Follow existing patterns from the blueprint
+## AI Image Generation (ComfyUI — local SDXL)
+Generate custom hero and section images via the Worker-Bee build machine:
+\`\`\`bash
+# POST to the image-gen API — returns base64 PNG
+curl -s -X POST http://localhost:3000/api/image-gen \\
+  -H "content-type: application/json" \\
+  -d '{"prompt": "your detailed prompt here", "width": 1216, "height": 832}' | jq -r '.image' | base64 -d > public/images/hero.png
+\`\`\`
+- Best sizes: 1024×1024 (square), 1216×832 (landscape hero), 832×1216 (portrait)
+- Never generate images with text — add \`"negative_prompt": "text, watermark, words, letters, blurry"\`
+- Generate hero image first, then extract the palette from it for color decisions
+- Save all generated images to \`public/images/\` and reference them with \`next/image\`
+
+## Critical Rules — Production Killers
+1. **Tailwind v4 cascade**: Never write CSS outside \`@layer base\` or \`@layer utilities\`. Unlayered rules beat all Tailwind utilities regardless of specificity.
+2. **Image verification**: Every Unsplash ID must be confirmed in Playwright before use. Wrong image = broken trust.
+3. **Mobile first**: Every section must be tested at 375px. Tap targets minimum 44px. Phone number must be tappable in hero.
+4. **Server/client Supabase**: Never import \`lib/supabase/server.ts\` in a \`'use client'\` component — it crashes at runtime.
+5. **Type safety**: \`npm run build\` must pass with zero TypeScript errors before any deploy.
+6. **Framer Motion visibility**: Every \`whileInView\` MUST include \`viewport={{ once: true, amount: 0 }}\`. Without this, ALL section content appears invisible in screenshots and to bots/crawlers. Use \`amount: 0\` (not 0.1). Before any QA screenshot, scroll to page bottom first: \`await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))\` then verify zero elements have \`style="opacity:0"\`.
+7. **Mobile-first**: Every section must render correctly at 375px. No horizontal scroll. All tap targets ≥ 44px. Phone numbers must be \`<a href="tel:...">\`. Test at 375px before every deploy.
+8. **PWA manifest**: \`public/manifest.json\` must exist with correct \`theme_color\`, \`start_url: "/portal"\`, and valid 192×192 + 512×512 icons. The portal/admin is the installable app for owner/operators.
+9. **Sentry**: \`NEXT_PUBLIC_SENTRY_DSN\` env var — leave empty if not yet provisioned, Sentry no-ops silently. Never remove the Sentry init calls.
 `
 }
 
@@ -865,31 +1018,86 @@ Design Standards set the floor. This phase goes above it.
 /frontend-design Elevate ${site.name} above the production floor. Site type: ${config.siteType}. Bigger type, richer photography treatment, more considered spacing and motion. Every section should make a client say yes on the spot.${referenceUrls.length > 0 ? ` Reference sites: ${referenceUrls.join(', ')}.` : ''} Context: ${site.notes || site.name}.
 \`\`\`
 
-Apply all recommendations. Commit.
+Apply all recommendations. Commit: \`git add . && git commit -m "feat: design elevation pass"\`
 
 ---
 
-## Phase 4 — Final QA Gate (three-pass review before deploy)
+## Phase 4 — Final QA Gate (four-pass review before deploy)
 
-Run all three passes in order. Fix every issue raised. Commit after each pass.
+Run all four passes in order. Fix every issue raised. Commit after each pass. Do NOT skip any pass.
 
 ### Pass 1 — Code Quality
 \`\`\`
 /review
 \`\`\`
-Fix all high-confidence issues. Commit: \`git add . && git commit -m "fix: code review pass"\`
+Fix all high-confidence issues (TypeScript errors, unused imports, missing error handling on fetch calls, console.log statements). Commit: \`git add . && git commit -m "fix: code review pass"\`
 
-### Pass 2 — CEO Lens (conversion + trust)
+### Pass 2 — Functional QA
 \`\`\`
-/plan-ceo-review Review this physician website for conversion effectiveness and patient trust signals. Does the hero establish credibility in 3 seconds? Is the CTA path obvious? Are credentials prominent? Does every section earn its place?
+/qa
 \`\`\`
-Implement all recommendations that would make a skeptical patient say yes faster. Commit: \`git add . && git commit -m "fix: ceo review pass"\`
+Runs standard-tier QA testing on the dev server (forms submit correctly, portal login works, nav links work, no broken images, no JS console errors). Fix all critical and high-severity bugs found. Commit: \`git add . && git commit -m "fix: functional qa pass"\`
 
-### Pass 3 — Strategy + Messaging
+### Pass 3 — Visual Design QA
 \`\`\`
-/ultrathink Review the site's messaging consistency end-to-end. Does the tone stay professional and warm throughout? Is the value prop stated clearly in the hero and repeated in the CTA banner? Are there any messaging gaps, repetitions, or trust-killers?
+/design-review
 \`\`\`
-Apply all messaging fixes. Commit: \`git add . && git commit -m "fix: messaging pass"\`
+This skill takes before/after screenshots and iteratively fixes visual issues: spacing inconsistencies, wrong image subjects, flush-left layout, poor mobile layout, AI slop patterns (too many gradients, generic card grids). Fix every issue it raises. Commit: \`git add . && git commit -m "fix: design review pass"\`
+
+### Pass 3.5 — Mobile QA (375px)
+Resize Playwright to iPhone SE viewport and verify every section:
+\`\`\`js
+await page.setViewportSize({ width: 375, height: 812 })
+await page.goto('http://localhost:3000')
+// Check: no horizontal overflow
+const hasOverflow = await page.evaluate(() => document.body.scrollWidth > 375)
+if (hasOverflow) throw new Error('Horizontal scroll on mobile — find the overflowing element')
+// Check all tap targets are ≥ 44px
+const smallTargets = await page.evaluate(() => {
+  const interactive = document.querySelectorAll('a, button, [role="button"]')
+  return Array.from(interactive).filter(el => {
+    const r = el.getBoundingClientRect()
+    return r.height > 0 && (r.height < 44 || r.width < 44)
+  }).map(el => el.textContent?.trim().slice(0,30))
+})
+if (smallTargets.length > 0) console.warn('Small tap targets:', smallTargets)
+\`\`\`
+Required on mobile (375px):
+- Phone number in hero is a tappable \`<a href="tel:...">\` link ≥ 44px tall
+- Primary CTA button visible without scrolling
+- Nav hamburger works and all links accessible
+- Text ≥ 16px (no zoom required to read)
+- No horizontal scroll at any section
+- PWA "Add to Home Screen" banner appears on portal/admin pages (if PWA enabled)
+- Bottom tab nav shows on portal/admin mobile view
+
+Fix every mobile issue found. Commit: \`git add . && git commit -m "fix: mobile qa pass"\`
+
+### Pass 4 — Conversion + Trust Audit
+First, scroll through the full page in Playwright and verify no invisible content:
+\`\`\`js
+await page.goto('http://localhost:3000')
+// Scroll to bottom to trigger all whileInView animations
+await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+await page.waitForTimeout(800)
+await page.evaluate(() => window.scrollTo(0, 0))
+await page.waitForTimeout(400)
+// MUST be 0 — if > 0, Framer Motion viewport props are wrong
+const hidden = await page.evaluate(() =>
+  document.querySelectorAll('[style*="opacity:0"],[style*="opacity: 0"]').length
+)
+if (hidden > 0) throw new Error(\`\${hidden} elements invisible after scroll — fix whileInView viewport={{ once:true, amount:0 }}\`)
+\`\`\`
+
+Then review the live dev server (http://localhost:3000). For each section, answer:
+- Hero: Does it state the value prop in under 5 words? Is the primary CTA visible without scrolling?
+- Phone: Is the phone number visible in the nav AND hero on both desktop AND mobile?
+- CTA: Is there one clear primary action per section, or are there competing buttons?
+- Trust signals: Are credentials, reviews, years-in-business, and social proof present above the fold?
+- Mobile: On 375px, can a customer tap the phone number and book appointment without pinching?
+- Schema: Is LocalBusiness / MedicalBusiness / Organization JSON-LD present in layout.tsx?
+
+Fix every gap found. Commit: \`git add . && git commit -m "fix: conversion audit pass"\`
 
 ---
 
@@ -897,9 +1105,47 @@ Apply all messaging fixes. Commit: \`git add . && git commit -m "fix: messaging 
 
 \`\`\`bash
 cd ${localPath}
-vercel --prod
-vercel alias set <deployment-url> ${domain}
+vercel --prod --scope adobetoby-5572s-projects
+vercel alias set <deployment-url> ${domain} --scope adobetoby-5572s-projects
 \`\`\`
+
+Confirm the alias succeeded and the live URL returns HTTP 200 before reporting back.
+
+---
+
+## Phase 5.5 — Seed Master Operator Account
+
+After deploy, seed the Worker-Bee master account so the site can be tested end-to-end.
+
+**For Supabase Auth (portals, patient login, client login):**
+\`\`\`bash
+# Replace SUPABASE_URL and SERVICE_ROLE_KEY with the project's real values
+curl -s -X POST "\${SUPABASE_URL}/auth/v1/admin/users" \\
+  -H "apikey: \${SERVICE_ROLE_KEY}" \\
+  -H "Authorization: Bearer \${SERVICE_ROLE_KEY}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "email": "adobetoby@gmail.com",
+    "password": "workerbee.26",
+    "email_confirm": true,
+    "user_metadata": {"name": "Worker-Bee Master", "role": "master"}
+  }'
+\`\`\`
+
+**For admin cookie auth (if the site uses \`data/admins.json\`):**
+Add this entry to \`data/admins.json\` — generate the hash using the project's \`hashPassword\` function from \`lib/adminAuth.ts\`:
+\`\`\`json
+{
+  "id": "wb-master-001",
+  "email": "adobetoby@gmail.com",
+  "name": "Worker-Bee Master",
+  "role": "super_admin",
+  "passwordHash": "<run: node -e \\"require('./lib/adminAuth').hashPassword('workerbee.26').then(console.log)\\">"
+}
+\`\`\`
+
+Master credentials: **adobetoby@gmail.com / workerbee.26**
+These are used by Worker-Bee to audit every client site backend. Always seed both auth systems if the site has both.
 
 ---
 
@@ -908,11 +1154,16 @@ vercel alias set <deployment-url> ${domain}
 \`\`\`bash
 curl -s -X POST https://manage.worker-bee.app/api/blueprints/update \\
   -H "x-api-key: 9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747" \\
-  -H "content-content: application/json" \\
+  -H "content-type: application/json" \\
   -d '{"siteId":"${site.id}","summary":"Build complete. ${orderedNodes.length} cards implemented and deployed to ${domain}.","nodes":[],"edges":[]}'
 \`\`\`
 
-Output: production URL · one-line card summary · research assets found vs Unsplash fallbacks · any deviations.
+Final report must include:
+- Production URL (confirmed HTTP 200)
+- Research assets found vs Unsplash fallbacks used (list each)
+- Any Phase 4 issues that required fixes
+- Any deviations from the blueprint cards
+- Lighthouse score if obtainable via Playwright (\`browser_evaluate\` → \`window.performance\`)
 `
 }
 
@@ -1025,7 +1276,7 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
       const res = await fetch('https://build-api.worker-bee.app/run', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-api-key': 'wb-build-local-9f4a2c' },
-        body: JSON.stringify({ spec, siteName: site.name }),
+        body: JSON.stringify({ spec, siteName: site.github_repo?.split('/')[1] ?? site.name }),
       })
       if (!res.ok || !res.body) {
         const d = await res.json().catch(() => ({}))
