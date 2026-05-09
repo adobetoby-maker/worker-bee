@@ -863,7 +863,7 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
   const [config, setConfig] = useState<Config>({
     githubRepo: site.github_repo ?? `adobetoby-maker/${toSlug(site.name)}`,
     domain: site.url?.replace(/^https?:\/\//, '') || `${toSlug(site.name)}.worker-bee.app`,
-    localPath: `/Users/drive/${toSlug(site.name)}`,
+    localPath: `/Users/drive/${site.github_repo ? site.github_repo.split('/')[1] : toSlug(site.name)}`,
     supabaseProject: '',
     siteType: 'general',
     referenceUrls: '',
@@ -875,6 +875,7 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showTerminal, setShowTerminal] = useState(false)
   const [building, setBuilding] = useState(false)
+  const [buildDone, setBuildDone] = useState(false)
   const [buildLog, setBuildLog] = useState(() => {
     if (typeof window === 'undefined') return ''
     return localStorage.getItem(`build-log-${site.id}`) ?? ''
@@ -927,6 +928,7 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
     setBuilding(true)
     setBuildLog('')
     setBuildError('')
+    setBuildDone(false)
     try {
       const res = await fetch('https://build-api.worker-bee.app/run', {
         method: 'POST',
@@ -941,11 +943,15 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
       setShowTerminal(true)
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
+      let fullLog = ''
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        setBuildLog(prev => prev + decoder.decode(value))
+        const chunk = decoder.decode(value)
+        fullLog += chunk
+        setBuildLog(prev => prev + chunk)
       }
+      if (fullLog.includes('exit code: 0')) setBuildDone(true)
     } catch (err) {
       setBuildError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -1005,8 +1011,9 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
               <ConfigField icon={<Search size={13} />} label="Subject / Person Name">
                 <input value={config.subjectName} onChange={e => setConfig(c => ({ ...c, subjectName: e.target.value }))} placeholder="e.g. Dr. Toby Anderton" style={inputStyle} className={inputClass} />
               </ConfigField>
-              <ConfigField icon={<Globe size={13} />} label="Reference Sites">
-                <input value={config.referenceUrls} onChange={e => setConfig(c => ({ ...c, referenceUrls: e.target.value }))} placeholder="site1.com, site2.com" style={inputStyle} className={inputClass} />
+              <ConfigField icon={<Globe size={13} />} label="Sites that look like what you want">
+                <input value={config.referenceUrls} onChange={e => setConfig(c => ({ ...c, referenceUrls: e.target.value }))} placeholder="e.g. drsmith.com, exampleclinic.com" style={inputStyle} className={inputClass} />
+                <p className="text-[10px] mt-1" style={{ color: 'var(--muted)' }}>Claude will open these and study the design. More = better results.</p>
               </ConfigField>
             </div>
           </div>
@@ -1067,28 +1074,47 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
           {/* Step 3 — Launch */}
           <div className="rounded-xl border p-5" style={{ background: 'rgba(99,102,241,0.07)', borderColor: 'rgba(99,102,241,0.3)' }}>
             <div className="flex items-center gap-2 mb-1">
-              <Wand2 size={15} className="text-indigo-400" />
-              <h3 className="text-sm font-bold text-white">Step 3 — Launch</h3>
+              <Zap size={15} className="text-indigo-400" />
+              <h3 className="text-sm font-bold text-white">Step 3 — Send to Worker Bee</h3>
             </div>
             <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>
-              One-click fires the build directly on your Mac Studio. Or download the spec and run it yourself.
+              Fires Claude on your Mac Studio with the full build spec. Streams output live below. Deploys automatically when done.
             </p>
 
-            {/* One-click build */}
+            {/* Success banner */}
+            {buildDone && (
+              <div className="flex items-center gap-3 rounded-xl px-4 py-3 mb-3" style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)' }}>
+                <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+                <div>
+                  <div className="text-sm font-bold text-emerald-300">Build complete!</div>
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                    {config.domain
+                      ? <a href={`https://${config.domain}`} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 underline">{config.domain} ↗</a>
+                      : 'Check the build log for the deployment URL.'
+                    }
+                    <span className="ml-2">Deployment protection disabled — live for clients.</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Send to Worker Bee button */}
             <button
               onClick={fireLocalBuild}
               disabled={building}
               className="flex items-center justify-center gap-2 w-full px-4 py-4 rounded-xl text-sm font-bold transition-all mb-3"
               style={{
-                background: building ? 'rgba(16,185,129,0.2)' : 'linear-gradient(135deg, #10b981, #059669)',
-                color: building ? '#34d399' : 'white',
-                border: building ? '1px solid rgba(16,185,129,0.4)' : 'none',
+                background: building ? 'rgba(16,185,129,0.2)' : buildDone ? 'rgba(16,185,129,0.15)' : 'linear-gradient(135deg, #10b981, #059669)',
+                color: building ? '#34d399' : buildDone ? '#6ee7b7' : 'white',
+                border: (building || buildDone) ? '1px solid rgba(16,185,129,0.4)' : 'none',
                 cursor: building ? 'default' : 'pointer',
               }}
             >
               {building
                 ? <><Loader2 size={15} className="animate-spin" /> Building on Mac Studio…</>
-                : <><Zap size={15} /> One-Click Build on Mac Studio</>
+                : buildDone
+                  ? <><CheckCircle2 size={15} /> Done — Run Again</>
+                  : <><Zap size={15} /> Send to Worker Bee</>
               }
             </button>
 

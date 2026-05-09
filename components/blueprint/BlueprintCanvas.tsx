@@ -89,6 +89,13 @@ export function BlueprintCanvas({
   const [wizardError, setWizardError] = useState('')
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [tourStep, setTourStep] = useState<1|2|3>(() => {
+    if (typeof window === 'undefined') return initialNodes.length > 0 ? 2 : 1
+    const saved = localStorage.getItem(`wb-tour-${siteId}`)
+    if (saved === 'done') return 3
+    return initialNodes.length > 0 ? 2 : 1
+  })
+  const [tourDismissed, setTourDismissed] = useState(false)
 
   // ── Persistence ──────────────────────────────────────────────────
   const persistFull = useCallback(async (updatedBranchData: Record<string, BranchRecord>, activeBranch: string) => {
@@ -121,6 +128,11 @@ export function BlueprintCanvas({
 
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current) }, [])
 
+  function advanceTour(step: 1|2|3) {
+    setTourStep(step)
+    localStorage.setItem(`wb-tour-${siteId}`, step === 3 ? 'done' : String(step))
+  }
+
   // ── Canvas ops ───────────────────────────────────────────────────
   const onConnect = useCallback((params: Connection) => {
     setEdges(eds => {
@@ -143,6 +155,7 @@ export function BlueprintCanvas({
     const center = { x: 300 + Math.random() * 200, y: 200 + Math.random() * 150 }
     const card = makeCard(type, center)
     setNodes(ns => { const next = [...ns, card]; triggerSave(next, edges); return next })
+    if (tourStep === 1) advanceTour(2)
     setAddMenuOpen(false)
   }
 
@@ -193,6 +206,7 @@ export function BlueprintCanvas({
       setBranchData(updated)
       persistFull(updated, currentBranch)
       setModal(null)
+      advanceTour(2)
     } catch (e) {
       setWizardError(String(e))
     } finally {
@@ -364,14 +378,32 @@ export function BlueprintCanvas({
             )}
           </div>
 
-          {/* Build it */}
-          <Link href={`/sites/${siteId}/build`} style={{
+          {/* Step indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginRight: 2 }}>
+            {([1,2,3] as const).map(s => (
+              <div key={s} style={{
+                width: 20, height: 20, borderRadius: '50%', fontSize: 10, fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: s < tourStep ? '#10b981' : s === tourStep ? '#6366f1' : 'rgba(255,255,255,0.07)',
+                color: s <= tourStep ? 'white' : '#334155',
+                transition: 'background 0.3s',
+              }}>
+                {s < tourStep ? '✓' : s}
+              </div>
+            ))}
+          </div>
+
+          {/* Send to Worker Bee */}
+          <Link href={`/sites/${siteId}/build`} onClick={() => advanceTour(3)} style={{
             display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 7,
             background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-            border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            border: tourStep === 2 ? '1px solid rgba(129,140,248,0.6)' : 'none',
+            color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer',
             textDecoration: 'none', letterSpacing: '0.03em',
+            boxShadow: tourStep === 2 ? '0 0 18px rgba(99,102,241,0.55)' : 'none',
+            transition: 'box-shadow 0.3s',
           }}>
-            <Hammer size={12} /> Build It
+            <Hammer size={12} /> Send to Worker Bee
           </Link>
 
           {/* AI Generate */}
@@ -432,6 +464,39 @@ export function BlueprintCanvas({
         </div>
       </div>
 
+      {/* ── Step 2 guide banner ────────────────────────────────── */}
+      {tourStep === 2 && !tourDismissed && (
+        <div style={{
+          background: 'rgba(99,102,241,0.09)', borderBottom: '1px solid rgba(99,102,241,0.22)',
+          padding: '7px 16px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, zIndex: 40,
+        }}>
+          <div style={{
+            width: 18, height: 18, borderRadius: '50%', background: '#6366f1',
+            color: 'white', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>2</div>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>
+            Review your cards — click any card to edit details, drag to rearrange, draw lines to show page flow.
+          </span>
+          <span style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600, whiteSpace: 'nowrap' }}>
+            When ready →
+          </span>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 6,
+            background: 'rgba(99,102,241,0.25)', border: '1px solid rgba(129,140,248,0.4)',
+            fontSize: 11, fontWeight: 700, color: '#a5b4fc', whiteSpace: 'nowrap', flexShrink: 0,
+          }}>
+            <Hammer size={11} /> Send to Worker Bee
+          </div>
+          <button
+            onClick={() => setTourDismissed(true)}
+            title="Dismiss"
+            style={{ marginLeft: 'auto', padding: '2px 6px', background: 'none', border: 'none', color: '#334155', fontSize: 13, cursor: 'pointer', flexShrink: 0, lineHeight: 1 }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#64748b' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#334155' }}
+          >✕</button>
+        </div>
+      )}
+
       {/* ── Canvas ─────────────────────────────────────────────── */}
       <div ref={reactFlowWrapper} style={{ flex: 1, position: 'relative' }}>
         <ReactFlow
@@ -458,11 +523,11 @@ export function BlueprintCanvas({
         </ReactFlow>
 
         {nodes.length === 0 && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, pointerEvents: 'none' }}>
-            <div style={{ fontSize: 28, opacity: 0.12 }}>◈</div>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, pointerEvents: 'none' }}>
+            <div style={{ fontSize: 28, opacity: 0.1 }}>◈</div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 15, color: '#e2e8f0', fontWeight: 600, marginBottom: 6 }}>Start planning your site</div>
-              <div style={{ fontSize: 12, color: '#334155' }}>Add cards to map out pages, sections, and features</div>
+              <div style={{ fontSize: 16, color: '#e2e8f0', fontWeight: 700, marginBottom: 6 }}>Plan your site in 3 steps</div>
+              <div style={{ fontSize: 12, color: '#334155' }}>Describe it, review the plan, then send it to Worker Bee to build</div>
             </div>
             <div style={{ display: 'flex', gap: 10, pointerEvents: 'all' }}>
               <button
@@ -486,6 +551,29 @@ export function BlueprintCanvas({
                 }}>
                 + Add Card
               </button>
+            </div>
+            {/* How it works */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginTop: 4 }}>
+              {[
+                { n: 1, label: 'Describe the site', sub: 'AI Wizard' },
+                { n: 2, label: 'Review cards', sub: 'Edit & connect' },
+                { n: 3, label: 'Send to Worker Bee', sub: 'One-click build' },
+              ].map((s, i) => (
+                <div key={s.n} style={{ display: 'flex', alignItems: 'center' }}>
+                  <div style={{ textAlign: 'center', width: 120 }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: '50%', margin: '0 auto 6px',
+                      background: i === 0 ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.05)',
+                      border: `1px solid ${i === 0 ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 11, fontWeight: 800, color: i === 0 ? '#818cf8' : '#334155',
+                    }}>{s.n}</div>
+                    <div style={{ fontSize: 11, color: i === 0 ? '#94a3b8' : '#334155', fontWeight: 600, lineHeight: 1.3 }}>{s.label}</div>
+                    <div style={{ fontSize: 10, color: '#1e293b', marginTop: 2 }}>{s.sub}</div>
+                  </div>
+                  {i < 2 && <div style={{ width: 32, height: 1, background: 'rgba(255,255,255,0.06)', flexShrink: 0, marginBottom: 20 }} />}
+                </div>
+              ))}
             </div>
           </div>
         )}
