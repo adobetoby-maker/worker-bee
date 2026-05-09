@@ -4,7 +4,7 @@ import Link from 'next/link'
 import {
   ArrowLeft, Copy, Download, Hammer, GitBranch, Globe, Database,
   ChevronRight, ChevronDown, AlertCircle, CheckCircle2, Wand2, Search,
-  Terminal, Zap, Loader2,
+  Terminal, Zap, Loader2, KeyRound, Eye, EyeOff, ShieldCheck,
 } from 'lucide-react'
 
 interface Site {
@@ -563,6 +563,55 @@ export function ParallaxSection({ children, src }: { children: React.ReactNode; 
 Apply to any section that has a full-bleed background image.`,
 }
 
+// ─── Credentials ─────────────────────────────────────────────────────────────
+
+type EnvVarDef = { key: string; label: string; hint: string; secret: boolean }
+
+const SUPABASE_VARS: EnvVarDef[] = [
+  { key: 'NEXT_PUBLIC_SUPABASE_URL',   label: 'Supabase URL',          hint: 'https://xxx.supabase.co', secret: false },
+  { key: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', label: 'Supabase Anon Key',  hint: 'eyJ...',  secret: true },
+  { key: 'SUPABASE_SERVICE_ROLE_KEY',  label: 'Supabase Service Role', hint: 'eyJ...',  secret: true },
+]
+const STRIPE_VARS: EnvVarDef[] = [
+  { key: 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', label: 'Stripe Publishable Key', hint: 'pk_live_...', secret: false },
+  { key: 'STRIPE_SECRET_KEY',          label: 'Stripe Secret Key',       hint: 'sk_live_...', secret: true },
+  { key: 'STRIPE_WEBHOOK_SECRET',      label: 'Stripe Webhook Secret',   hint: 'whsec_...',   secret: true },
+]
+const EMAIL_VAR: EnvVarDef =
+  { key: 'RESEND_API_KEY',             label: 'Resend API Key (email)',  hint: 're_...',      secret: true }
+const ADMIN_VAR: EnvVarDef =
+  { key: 'ADMIN_SECRET',               label: 'Admin Secret',            hint: 'random 32-char string', secret: true }
+const ANTHROPIC_VAR: EnvVarDef =
+  { key: 'ANTHROPIC_API_KEY',          label: 'Anthropic API Key (chatbot)', hint: 'sk-ant-...',   secret: true }
+
+const ENV_VARS_BY_TYPE: Record<string, EnvVarDef[]> = {
+  medical:          [...SUPABASE_VARS, ...STRIPE_VARS, EMAIL_VAR, ADMIN_VAR],
+  legal:            [...SUPABASE_VARS, ...STRIPE_VARS, EMAIL_VAR, ADMIN_VAR],
+  'local-service':  [...SUPABASE_VARS, ...STRIPE_VARS, ADMIN_VAR, ANTHROPIC_VAR],
+  restaurant:       [...SUPABASE_VARS, { key: 'STRIPE_SECRET_KEY', label: 'Stripe Secret Key', hint: 'sk_live_...', secret: true }, EMAIL_VAR],
+  saas:             [...SUPABASE_VARS, ...STRIPE_VARS, ADMIN_VAR, ANTHROPIC_VAR],
+  ecommerce:        [...SUPABASE_VARS, ...STRIPE_VARS, EMAIL_VAR],
+  'real-estate':    [...SUPABASE_VARS, EMAIL_VAR, ADMIN_VAR],
+  agency:           [...SUPABASE_VARS, EMAIL_VAR, ADMIN_VAR],
+  general:          [...SUPABASE_VARS, ADMIN_VAR],
+}
+
+function generateEnvSection(creds: Record<string, string>, envVars: EnvVarDef[]): string {
+  if (envVars.length === 0) return '# No credentials needed\n'
+  const lines: string[] = ['# 1e. Vercel env vars — injected from Worker Bee Vault']
+  for (const v of envVars) {
+    const val = creds[v.key]?.trim()
+    if (val) {
+      for (const env of ['production', 'preview', 'development']) {
+        lines.push(`printf '%s\\n' ${JSON.stringify(val)} | vercel env add ${v.key} ${env}`)
+      }
+    } else {
+      lines.push(`vercel env add ${v.key}  # ← ${v.label} — fill in manually`)
+    }
+  }
+  return lines.join('\n')
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function toSlug(name: string) {
@@ -624,7 +673,7 @@ npm run lint     # ESLint
 `
 }
 
-function generateBuildSpec(site: Site, nodes: BlueprintNode[], edges: BlueprintEdge[], config: Config): string {
+function generateBuildSpec(site: Site, nodes: BlueprintNode[], edges: BlueprintEdge[], config: Config, creds: Record<string, string> = {}): string {
   const slug = toSlug(site.name)
   const localPath = config.localPath || `/Users/drive/${slug}`
   const githubRepo = config.githubRepo || `adobetoby-maker/${slug}`
@@ -643,6 +692,8 @@ function generateBuildSpec(site: Site, nodes: BlueprintNode[], edges: BlueprintE
   const allPackages = [...new Set(enabledEnhancements.flatMap(e => e.packages))]
   const npmInstall = allPackages.length > 0 ? `npm install ${allPackages.join(' ')}` : '# No extra packages needed'
   const enhancementSpecs = enabledEnhancements.map(e => ENHANCEMENT_SPEC[e.key]).join('\n\n')
+  const envVarDefs = ENV_VARS_BY_TYPE[config.siteType] ?? ENV_VARS_BY_TYPE.general
+  const envSection = generateEnvSection(creds, envVarDefs)
 
   return `# Build Workflow: ${site.name}
 
@@ -745,11 +796,8 @@ git remote add origin git@github.com:${githubRepo}.git
 git add . && git commit -m "Initial ${site.stack} scaffold"
 git push -u origin main
 
-# 1e. Vercel
 vercel link
-vercel env add NEXT_PUBLIC_SUPABASE_URL
-vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
-vercel env add SUPABASE_SERVICE_ROLE_KEY
+${envSection}
 \`\`\`
 
 Whitelist all image domains found in the research brief in \`next.config.ts\` remotePatterns. Always include images.unsplash.com as fallback.
@@ -888,6 +936,9 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
   const [showSpec, setShowSpec] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showTerminal, setShowTerminal] = useState(false)
+  const [creds, setCreds] = useState<Record<string, string>>({})
+  const [showCreds, setShowCreds] = useState<Record<string, boolean>>({})
+  const [vaultImporting, setVaultImporting] = useState(false)
   const [building, setBuilding] = useState(false)
   const [buildDone, setBuildDone] = useState(false)
   const [buildLog, setBuildLog] = useState(() => {
@@ -917,7 +968,7 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
   const typedEdges = edges as BlueprintEdge[]
   const orderedNodes = useMemo(() => topologicalOrder(typedNodes, typedEdges), [typedNodes, typedEdges])
   const nodesWithoutPrompt = orderedNodes.filter(n => !n.data.claudePrompt?.trim())
-  const spec = useMemo(() => generateBuildSpec(site, typedNodes, typedEdges, config), [site, typedNodes, typedEdges, config])
+  const spec = useMemo(() => generateBuildSpec(site, typedNodes, typedEdges, config, creds), [site, typedNodes, typedEdges, config, creds])
 
   const enabledCount = Object.values(config.enhancements).filter(Boolean).length
 
@@ -936,6 +987,35 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
     a.href = URL.createObjectURL(new Blob([spec], { type: 'text/markdown' }))
     a.download = `build-${toSlug(site.name)}.md`
     a.click()
+  }
+
+  async function importFromVault() {
+    setVaultImporting(true)
+    try {
+      const r = await fetch('/api/credentials?q=' + encodeURIComponent(site.name))
+      if (!r.ok) { alert('Vault is locked — unlock it in the Vault tab first.'); return }
+      const { credentials } = await r.json() as { credentials: { title: string; apiKey?: string; password?: string }[] }
+      const matched: Record<string, string> = {}
+      const envVarDefs = ENV_VARS_BY_TYPE[config.siteType] ?? ENV_VARS_BY_TYPE.general
+      for (const def of envVarDefs) {
+        const hit = credentials.find(c => {
+          const t = c.title.toLowerCase()
+          const k = def.key.toLowerCase().replace(/_/g, ' ')
+          return t.includes(k.split(' ')[0]) || k.split(' ').some(word => word.length > 4 && t.includes(word))
+        })
+        if (hit?.apiKey) matched[def.key] = hit.apiKey
+        else if (hit?.password) matched[def.key] = hit.password
+      }
+      if (Object.keys(matched).length === 0) {
+        alert('No matching credentials found in vault for this site. Add them in the Vault tab first.')
+      } else {
+        setCreds(prev => ({ ...prev, ...matched }))
+      }
+    } catch {
+      alert('Vault import failed — check your network connection.')
+    } finally {
+      setVaultImporting(false)
+    }
   }
 
   async function fireLocalBuild() {
@@ -1106,6 +1186,77 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
             </div>
           </div>
 
+          {/* Step 2.5 — Credentials */}
+          {(() => {
+            const envVarDefs = ENV_VARS_BY_TYPE[config.siteType] ?? ENV_VARS_BY_TYPE.general
+            const filledCount = envVarDefs.filter(v => creds[v.key]?.trim()).length
+            return (
+              <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)', background: 'rgba(16,185,129,0.05)' }}>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <KeyRound size={14} className="text-emerald-400" />
+                      <h3 className="text-sm font-bold text-white">Step 2.5 — Credentials</h3>
+                    </div>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                      Inject Stripe, Supabase, and email keys so the build wires them automatically.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: filledCount > 0 ? 'rgba(16,185,129,0.2)' : 'var(--surface2)', color: filledCount > 0 ? '#34d399' : 'var(--muted)' }}>
+                      {filledCount}/{envVarDefs.length} filled
+                    </span>
+                    <button
+                      onClick={importFromVault}
+                      disabled={vaultImporting}
+                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors"
+                      style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', cursor: vaultImporting ? 'default' : 'pointer' }}
+                    >
+                      <ShieldCheck size={11} />
+                      {vaultImporting ? 'Importing…' : 'Import from Vault'}
+                    </button>
+                  </div>
+                </div>
+                <div className="p-4 grid grid-cols-1 gap-2.5">
+                  {envVarDefs.map(v => (
+                    <div key={v.key} className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <label className="text-[10px] font-bold uppercase tracking-wide block mb-1" style={{ color: 'var(--muted)' }}>{v.label}</label>
+                        <div className="relative">
+                          <input
+                            type={v.secret && !showCreds[v.key] ? 'password' : 'text'}
+                            value={creds[v.key] ?? ''}
+                            onChange={e => setCreds(prev => ({ ...prev, [v.key]: e.target.value }))}
+                            placeholder={v.hint}
+                            className={inputClass}
+                            style={{ ...inputStyle, paddingRight: v.secret ? '36px' : undefined, fontFamily: v.secret && !showCreds[v.key] && creds[v.key] ? 'monospace' : 'inherit' }}
+                          />
+                          {v.secret && (
+                            <button
+                              onClick={() => setShowCreds(p => ({ ...p, [v.key]: !p[v.key] }))}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
+                            >
+                              {showCreds[v.key] ? <EyeOff size={13} /> : <Eye size={13} />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {creds[v.key]?.trim() && (
+                        <CheckCircle2 size={14} className="text-emerald-400 shrink-0 mt-5" />
+                      )}
+                    </div>
+                  ))}
+                  {filledCount === 0 && (
+                    <p className="text-xs pt-1" style={{ color: 'var(--muted)' }}>
+                      Fields left blank will show as interactive prompts in the build. Fill them now to make the build fully automated.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
+
           {/* Step 3 — Launch */}
           <div className="rounded-xl border p-5" style={{ background: 'rgba(99,102,241,0.07)', borderColor: 'rgba(99,102,241,0.3)' }}>
             <div className="flex items-center gap-2 mb-1">
@@ -1113,7 +1264,7 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
               <h3 className="text-sm font-bold text-white">Step 3 — Send to Worker Bee</h3>
             </div>
             <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>
-              Fires Claude on your Mac Studio with the full build spec. Streams output live below. Deploys automatically when done.
+              Fires the build on your Mac Studio with the full spec. Streams output live. Deploys automatically when done.
             </p>
 
             {/* Success banner */}
