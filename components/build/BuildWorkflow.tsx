@@ -157,16 +157,139 @@ const DESIGN_STANDARDS: Record<string, string> = {
 **Layout:** Section padding py-24 minimum. Stat strip after hero. Cards: rounded-2xl, hover:shadow-lg, image hover:scale-105.`,
 }
 
+// Tech guardrails — injected into every spec to prevent known build bugs
+const TECH_GUARDRAILS = `## TECH GUARDRAILS — READ BEFORE WRITING ANY CODE
+
+These are the most common build bugs. Each one has caused a broken production deploy. Do not skip.
+
+### 1. Tailwind v4 CSS Cascade Layer Rule (CRITICAL — kills all layout if violated)
+
+Tailwind v4 registers utilities inside \`@layer utilities\`. In CSS, **unlayered rules always beat layered rules** regardless of specificity. A \`* { margin: 0 }\` outside any layer overrides every \`.mx-auto\`, \`.px-4\`, \`.py-24\` on the page — your containers will be flush-left with no spacing.
+
+❌ WRONG — this breaks mx-auto and all padding utilities:
+\`\`\`css
+@import "tailwindcss";
+* { box-sizing: border-box; margin: 0; padding: 0; }  /* unlayered — beats @layer utilities */
+\`\`\`
+
+✅ CORRECT — Tailwind v4's preflight already resets margin/padding:
+\`\`\`css
+@import "tailwindcss";
+/* Do not add a * reset. Tailwind preflight handles it.       */
+/* If you need custom base styles, use @layer base { ... }    */
+\`\`\`
+
+**Rule: Never write CSS outside \`@layer base\` or \`@layer utilities\` in a Tailwind v4 project.**
+
+---
+
+### 2. Image Verification Rule
+
+Never use an Unsplash photo ID you have not confirmed visually. The ID \`photo-1559757148-5c350d0d3c56\` could be anything.
+
+For every Unsplash image:
+1. Navigate to the URL in Playwright and take a screenshot
+2. Confirm the photo matches the use case (e.g. "knee surgery" ≠ brain model)
+3. If wrong, search \`https://unsplash.com/s/photos/<topic>\` and pick a confirmed URL
+
+Verified medical fallbacks (confirmed correct subjects):
+- Operating room: \`photo-1551076805-e1869033e561\`
+- Doctor at desk: \`photo-1612349317150-e413f6a5b16d\`
+- Physical therapy / knee: \`photo-1571019613454-1cb2f99b2d8b\`
+- Hospital corridor: \`photo-1519494026892-80bbd2d6fd0d\`
+- X-ray / imaging: \`photo-1530026186672-2cd00ffc50fe\` ← this is a HEART model, do NOT use for orthopedics
+- Shoulder/joint surgery: \`photo-1559757175-5700dde675bc\`
+
+**Rule: Navigate to every image URL in Playwright and screenshot it before committing.**
+
+---
+
+### 3. Export Consistency
+
+Decide once: named export or default export. Be consistent across all files.
+- \`export default function X\` → import as \`import X from './X'\`
+- \`export function X\` → import as \`import { X } from './X'\`
+Mixing these causes TypeScript build errors.
+
+---
+
+### 4. next/image with \`fill\`
+
+A \`<Image fill />\` requires its parent to have \`position: relative\` and an explicit height. Without it, the image renders at 0px height or overflows.
+
+\`\`\`tsx
+// ✅ correct
+<div className="relative h-64 w-full">
+  <Image src={url} alt="" fill className="object-cover" />
+</div>
+\`\`\`
+
+---
+
+### 5. Framer Motion whileInView — Content Visibility Rule (CRITICAL)
+
+\`initial={{ opacity: 0 }}\` makes content **permanently invisible** until the scroll animation fires. On a static screenshot, slow connection, or JS failure, ALL sections below the fold appear as black/empty.
+
+❌ WRONG — sections below fold are invisible on screenshot and JS-slow load:
+\`\`\`tsx
+<motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }}>
+\`\`\`
+
+✅ CORRECT — always include \`viewport={{ once: true, amount: 0.1 }}\` and the CSS fallback:
+\`\`\`tsx
+<motion.div
+  initial={{ opacity: 0, y: 24 }}
+  whileInView={{ opacity: 1, y: 0 }}
+  viewport={{ once: true, amount: 0.1 }}
+  transition={{ duration: 0.5, ease: 'easeOut' as const }}
+>
+\`\`\`
+
+And in globals.css inside \`@layer base\`:
+\`\`\`css
+@layer base {
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+}
+\`\`\`
+
+**Rule: Never use \`whileInView\` without \`viewport={{ once: true, amount: 0.1 }}\`. Add CSS fallback to every globals.css.**
+
+---
+
+### 6. Visual QA — Scroll Through the Full Page
+
+A static full-page screenshot does NOT trigger scroll animations. Phase 2.5 verification MUST scroll:
+
+\`\`\`js
+// In Playwright visual verification:
+await page.goto('http://localhost:3000')
+await page.screenshot({ path: 'above-fold.png' })
+// Scroll and screenshot each section:
+await page.evaluate(() => window.scrollTo(0, 600))
+await page.waitForTimeout(800)
+await page.screenshot({ path: 'section-2.png' })
+await page.evaluate(() => window.scrollTo(0, 1400))
+await page.waitForTimeout(800)
+await page.screenshot({ path: 'section-3.png' })
+// Continue for every section
+\`\`\`
+
+Every section must be visible (not dark/empty) in its scrolled screenshot.
+
+---`
+
 // Per-enhancement code patterns injected into the spec
 const ENHANCEMENT_SPEC: Record<keyof Enhancements, string> = {
   framerMotion: `**Framer Motion (installed: npm install framer-motion)**
-Apply to EVERY section and card. Minimum patterns:
+Apply to EVERY section and card. ALWAYS include \`viewport={{ once: true, amount: 0.1 }}\` — omitting it leaves content invisible below the fold.
 \`\`\`tsx
 import { motion } from 'framer-motion'
 // Section entrance:
-<motion.section initial={{ opacity:0, y:32 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true }} transition={{ duration:0.6, ease:'easeOut' }}>
+<motion.section initial={{ opacity:0, y:32 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true, amount:0.1 }} transition={{ duration:0.6, ease:'easeOut' as const }}>
 // Staggered cards (add index as delay):
-<motion.div initial={{ opacity:0, y:24 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true }} transition={{ duration:0.5, delay: index * 0.1 }}>
+<motion.div initial={{ opacity:0, y:24 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true, amount:0.1 }} transition={{ duration:0.5, delay: index * 0.1 }}>
 // Hover lift on cards:
 <motion.div whileHover={{ y:-4, boxShadow:'0 20px 40px rgba(0,0,0,0.15)' }} transition={{ duration:0.2 }}>
 \`\`\``,
@@ -550,6 +673,10 @@ Note their typography scale, color palette, card patterns, and hero treatment. M
 
 ---
 
+${TECH_GUARDRAILS}
+
+---
+
 ## MOTION & ENHANCEMENT REQUIREMENTS
 
 The following enhancements are enabled for this build. Each must be implemented:
@@ -642,6 +769,35 @@ git add . && git commit -m "feat: ${d.title}"
 
 ---
 
+## Phase 2.5 — Visual Verification (REQUIRED before Phase 3)
+
+Do not skip. This phase catches layout bugs before they go to production.
+
+1. Run \`npm run build\` — must pass with **zero TypeScript errors**. Fix all errors before continuing.
+
+2. Start the dev server: \`npm run dev &\`
+
+3. Open http://localhost:3000 in Playwright and screenshot the full page:
+\`\`\`
+browser_navigate http://localhost:3000
+browser_take_screenshot (fullPage: true)
+\`\`\`
+
+4. Check each item — if any fail, fix before Phase 3:
+   - [ ] Content is centered with proper side margins (not flush-left)
+   - [ ] All images load and show the correct subject matter
+   - [ ] Navbar is visible, properly spaced, and links work
+   - [ ] No horizontal scrollbar / overflow-x at desktop width
+   - [ ] Resize to 375px mobile: \`browser_resize 375 812\` — screenshot again, verify mobile layout
+
+5. If the layout is flush-left: check \`globals.css\` for any CSS outside \`@layer base\` — see TECH GUARDRAILS #1.
+
+6. If any image shows wrong content: navigate to the Unsplash URL, screenshot it, swap for a verified URL.
+
+7. Commit all fixes: \`git add . && git commit -m "fix: visual verification pass"\`
+
+---
+
 ## Phase 3 — Design Elevation
 
 Design Standards set the floor. This phase goes above it.
@@ -654,13 +810,27 @@ Apply all recommendations. Commit.
 
 ---
 
-## Phase 4 — Code Review
+## Phase 4 — Final QA Gate (three-pass review before deploy)
 
+Run all three passes in order. Fix every issue raised. Commit after each pass.
+
+### Pass 1 — Code Quality
 \`\`\`
 /review
 \`\`\`
+Fix all high-confidence issues. Commit: \`git add . && git commit -m "fix: code review pass"\`
 
-Fix all high-confidence issues. Commit.
+### Pass 2 — CEO Lens (conversion + trust)
+\`\`\`
+/plan-ceo-review Review this physician website for conversion effectiveness and patient trust signals. Does the hero establish credibility in 3 seconds? Is the CTA path obvious? Are credentials prominent? Does every section earn its place?
+\`\`\`
+Implement all recommendations that would make a skeptical patient say yes faster. Commit: \`git add . && git commit -m "fix: ceo review pass"\`
+
+### Pass 3 — Strategy + Messaging
+\`\`\`
+/ultrathink Review the site's messaging consistency end-to-end. Does the tone stay professional and warm throughout? Is the value prop stated clearly in the hero and repeated in the CTA banner? Are there any messaging gaps, repetitions, or trust-killers?
+\`\`\`
+Apply all messaging fixes. Commit: \`git add . && git commit -m "fix: messaging pass"\`
 
 ---
 

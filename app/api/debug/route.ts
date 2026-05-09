@@ -14,9 +14,12 @@ export async function GET() {
   } catch (e: unknown) {
     supaResult = `throw: ${e instanceof Error ? e.message : String(e)}`;
   }
+  const anthropicKey = process.env.ANTHROPIC_API_KEY ?? 'MISSING'
   return NextResponse.json({
     url_prefix: url.slice(0, 30),
     key_prefix: key.slice(0, 20),
     supabase_test: supaResult,
+    anthropic_key_prefix: anthropicKey.slice(0, 15),
+    anthropic_key_length: anthropicKey.length,
   });
 }

@@ -8,10 +8,12 @@ const SYSTEM: Record<string, string> = {
 
   prompt: `You are a senior web developer writing build instructions for an AI. Fix all spelling and grammar, then enrich the text into a detailed, implementation-ready instruction.
 Include: visual design (colors, typography, spacing, theme), exact content (headlines, CTAs, copy tone), functionality (interactions, forms, animations, validation), technical notes (API calls, state, DB tables if relevant), mobile behavior, and SEO if it is a page.
+Also include relevant tech guardrails: if Tailwind v4 is involved, note that all custom CSS resets must be inside @layer base (never unlayered — it overrides all utilities). For images, describe the visual subject needed rather than a specific Unsplash ID.
 Minimum 80 words. Be specific — the developer needs zero clarification. Return ONLY the improved prompt text, no preamble or explanation.`,
 
   generate: `You are a senior web developer writing build instructions for an AI. Given a card title, type, and description, generate a detailed, implementation-ready prompt for that website section.
 Include: visual design (colors, typography, spacing, theme), exact content (headlines, CTAs, copy tone), functionality (interactions, forms, animations, validation), technical notes, mobile behavior, SEO if it is a page.
+For images: describe the visual subject needed (e.g. "knee surgery operating room"), not a hardcoded URL. For CSS: if Tailwind v4, all resets go in @layer base.
 Return ONLY the prompt text, no preamble.`,
 }
 
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
       : cardType ? `Card type: ${cardType}\n\n${value}` : value
 
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-sonnet-4-6',
       max_tokens: 800,
       system: SYSTEM[field],
       messages: [{ role: 'user', content: userMessage }],

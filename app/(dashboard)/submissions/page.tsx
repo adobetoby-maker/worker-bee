@@ -15,18 +15,23 @@ interface Submission {
   status: string
 }
 
-async function listSubmissions(): Promise<Submission[]> {
+async function listSubmissions(): Promise<{ submissions: Submission[]; error?: string }> {
   const { data, error } = await supabaseAdmin.storage
     .from('blueprints')
     .list('submissions', { sortBy: { column: 'created_at', order: 'desc' } })
 
-  if (error || !data) return []
+  if (error) {
+    console.error('[submissions] list error:', error)
+    return { submissions: [], error: error.message }
+  }
+  if (!data || data.length === 0) return { submissions: [] }
 
   const submissions = await Promise.all(
     data.map(async (file) => {
-      const { data: blob } = await supabaseAdmin.storage
+      const { data: blob, error: dlErr } = await supabaseAdmin.storage
         .from('blueprints')
         .download(`submissions/${file.name}`)
+      if (dlErr) console.error('[submissions] download error:', file.name, dlErr)
       if (!blob) return null
       try {
         return JSON.parse(await blob.text()) as Submission
@@ -34,11 +39,11 @@ async function listSubmissions(): Promise<Submission[]> {
     })
   )
 
-  return submissions.filter(Boolean) as Submission[]
+  return { submissions: submissions.filter(Boolean) as Submission[] }
 }
 
 export default async function SubmissionsPage() {
-  const submissions = await listSubmissions()
+  const { submissions, error: fetchError } = await listSubmissions()
 
   return (
     <div className="max-w-4xl">
@@ -50,6 +55,12 @@ export default async function SubmissionsPage() {
           </p>
         </div>
       </div>
+
+      {fetchError && (
+        <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          Storage error: {fetchError}
+        </div>
+      )}
 
       {submissions.length === 0 ? (
         <div className="rounded-2xl border flex flex-col items-center justify-center py-20 text-center"

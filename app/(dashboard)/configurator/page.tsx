@@ -32,6 +32,15 @@ ${d.typescript ? '- TypeScript\n' : ''}\
 - Never import server-only code (supabaseAdmin) in client components
 - All admin routes require auth via requireAdmin()
 - Use \`force-dynamic\` on pages that query the database
+
+### Image Generation
+ComfyUI runs locally at \`127.0.0.1:8000\` with SDXL Base 1.0. Use the \`comfy\` MCP plugin to generate images directly:
+1. \`create_workflow\` (template: "txt2img") with a descriptive photorealistic prompt
+2. \`enqueue_workflow\` — returns \`prompt_id\` immediately
+3. Run background monitor, then \`list_output_images\` to get the result
+4. Save to \`public/images/\` and reference in code
+
+Use for hero images, section backgrounds, and any site photography. Always include \`negative_prompt: "text, watermark, letters, words, blurry"\`. SDXL works best at 1024×1024 or 1216×832.
 `,
     settings: { model: 'claude-sonnet-4-6', permissions: { defaultMode: 'auto' } },
   },
@@ -55,6 +64,9 @@ ${d.description ? `\n${d.description}\n` : ''}
 - Always test on staging before prod
 - Use child themes for customizations
 - Back up database before migrations
+
+### Image Generation
+ComfyUI runs locally at \`127.0.0.1:8000\` with SDXL Base 1.0. Use the \`comfy\` MCP plugin: \`create_workflow\` (txt2img) → \`enqueue_workflow\` → monitor → save result to the theme's images folder. Use for hero images, banners, and any site photography.
 `,
     settings: { model: 'claude-sonnet-4-6', permissions: { defaultMode: 'auto' } },
   },
@@ -72,6 +84,9 @@ ${d.buildCommand || '# add your build command here'}
 
 ### Key Rules
 - ${d.rules || 'Add your project-specific rules here'}
+
+### Image Generation
+ComfyUI runs locally at \`127.0.0.1:8000\` with SDXL Base 1.0. Use the \`comfy\` MCP plugin: \`create_workflow\` (txt2img) → \`enqueue_workflow\` → monitor → save result to the project's images folder. Use for hero images, section backgrounds, and any site photography.
 `,
     settings: { model: 'claude-sonnet-4-6', permissions: { defaultMode: 'auto' } },
   },

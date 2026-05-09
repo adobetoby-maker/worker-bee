@@ -7,7 +7,7 @@ import {
   BackgroundVariant,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Plus, FileText, Layout, Box, Cpu, Database, Save, GitBranch, Merge, RotateCcw, ChevronDown, X, Check, Hammer } from 'lucide-react'
+import { Plus, FileText, Layout, Box, Cpu, Database, Save, GitBranch, Merge, RotateCcw, ChevronDown, X, Check, Hammer, Wand2, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { IndexCardNode } from './IndexCardNode'
 import { StringEdge } from './StringEdge'
@@ -54,6 +54,7 @@ interface BranchRecord {
 interface Props {
   siteId: string
   siteName: string
+  siteNotes?: string
   initialNodes?: Node[]
   initialEdges?: Edge[]
   initialBranch?: string
@@ -61,10 +62,10 @@ interface Props {
   allBranchData?: Record<string, BranchRecord>
 }
 
-type Modal = null | 'start-over' | 'new-branch' | 'merge'
+type Modal = null | 'start-over' | 'new-branch' | 'merge' | 'ai-wizard'
 
 export function BlueprintCanvas({
-  siteId, siteName,
+  siteId, siteName, siteNotes = '',
   initialNodes = [], initialEdges = [],
   initialBranch = 'main',
   allBranches: initBranches = ['main'],
@@ -81,6 +82,11 @@ export function BlueprintCanvas({
   const [branchData, setBranchData] = useState<Record<string, BranchRecord>>(initBranchData)
   const [modal, setModal] = useState<Modal>(null)
   const [newBranchName, setNewBranchName] = useState('')
+  const [wizardBusiness, setWizardBusiness] = useState(siteNotes || siteName)
+  const [wizardGoal, setWizardGoal] = useState('Convert visitors into consultation bookings')
+  const [wizardExtra, setWizardExtra] = useState('')
+  const [wizardLoading, setWizardLoading] = useState(false)
+  const [wizardError, setWizardError] = useState('')
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -159,6 +165,39 @@ export function BlueprintCanvas({
       })
       return next
     })
+  }
+
+  // ── AI Wizard ────────────────────────────────────────────────────
+  async function generateFromAI() {
+    setWizardLoading(true)
+    setWizardError('')
+    try {
+      const res = await fetch('/api/blueprint-wizard', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'generate',
+          business: wizardBusiness,
+          goal: wizardGoal,
+          features: ['hero', 'about', 'services', 'testimonials', 'contact'],
+          extra: wizardExtra,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.error) { setWizardError(data.error ?? 'Generation failed'); return }
+      const newNodes = (data.nodes as Node[]).map(n => ({ ...n, type: 'card' }))
+      const newEdges = (data.edges as Edge[]).map(e => ({ ...e, type: 'string' }))
+      setNodes(newNodes)
+      setEdges(newEdges)
+      const updated = { ...branchData, [currentBranch]: { nodes: newNodes as object[], edges: newEdges as object[], updatedAt: new Date().toISOString() } }
+      setBranchData(updated)
+      persistFull(updated, currentBranch)
+      setModal(null)
+    } catch (e) {
+      setWizardError(String(e))
+    } finally {
+      setWizardLoading(false)
+    }
   }
 
   // ── Start Over ───────────────────────────────────────────────────
@@ -335,6 +374,18 @@ export function BlueprintCanvas({
             <Hammer size={12} /> Build It
           </Link>
 
+          {/* AI Generate */}
+          <button onClick={() => { setWizardError(''); setModal('ai-wizard') }} style={{
+            display: 'flex', alignItems: 'center', gap: 5, padding: '6px 11px', borderRadius: 7,
+            background: 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.15))',
+            border: '1px solid rgba(16,185,129,0.35)', color: '#10b981', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+          }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(135deg, rgba(16,185,129,0.25), rgba(5,150,105,0.25))' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.15))' }}
+          >
+            <Wand2 size={12} /> AI Generate
+          </button>
+
           {/* Start over */}
           <button onClick={() => setModal('start-over')} title="Start over" style={{
             padding: '6px 8px', borderRadius: 7, border: '1px solid rgba(255,255,255,0.08)',
@@ -407,9 +458,35 @@ export function BlueprintCanvas({
         </ReactFlow>
 
         {nodes.length === 0 && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-            <div style={{ fontSize: 13, color: '#334155', fontWeight: 500 }}>No cards on {currentBranch}</div>
-            <div style={{ fontSize: 11, color: '#1e293b', marginTop: 4 }}>Use Add Card to start planning</div>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, pointerEvents: 'none' }}>
+            <div style={{ fontSize: 28, opacity: 0.12 }}>◈</div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 15, color: '#e2e8f0', fontWeight: 600, marginBottom: 6 }}>Start planning your site</div>
+              <div style={{ fontSize: 12, color: '#334155' }}>Add cards to map out pages, sections, and features</div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, pointerEvents: 'all' }}>
+              <button
+                onClick={() => { setWizardError(''); setModal('ai-wizard') }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '10px 20px', borderRadius: 10,
+                  background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                  border: 'none', color: '#fff', fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer', boxShadow: '0 0 24px rgba(99,102,241,0.4)',
+                }}>
+                <Sparkles size={14} /> AI Blueprint Wizard
+              </button>
+              <button
+                onClick={() => addCard('page')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '10px 16px', borderRadius: 10,
+                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                  color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                }}>
+                + Add Card
+              </button>
+            </div>
           </div>
         )}
 
@@ -434,7 +511,7 @@ export function BlueprintCanvas({
       <CardEditor node={selectedNode} onClose={() => setSelectedNode(null)} onUpdate={updateCard} onDelete={deleteCard} />
 
       {/* ── Modals ─────────────────────────────────────────────── */}
-      {modal && (
+      {modal && modal !== 'ai-wizard' && (
         <div onClick={() => setModal(null)} style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500,
@@ -502,6 +579,95 @@ export function BlueprintCanvas({
               </div>
             </>}
 
+          </div>
+        </div>
+      )}
+
+      {/* ── AI Wizard Modal ────────────────────────────────────────── */}
+      {modal === 'ai-wizard' && (
+        <div onClick={() => !wizardLoading && setModal(null)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600,
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#0a0f18', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 16,
+            padding: 28, width: 480, maxWidth: '90vw', boxShadow: '0 24px 80px rgba(0,0,0,0.9)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <Wand2 size={18} style={{ color: '#10b981' }} />
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>AI Blueprint Generator</div>
+              <div style={{ marginLeft: 'auto', fontSize: 11, color: '#334155' }}>{siteName}</div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>Business / Doctor Identity</label>
+                <textarea
+                  value={wizardBusiness}
+                  onChange={e => setWizardBusiness(e.target.value)}
+                  rows={4}
+                  placeholder="Describe the business, doctor, specialty, credentials, unique identity..."
+                  style={{
+                    width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 8, color: '#e2e8f0', fontSize: 12, padding: '10px 12px', resize: 'vertical',
+                    outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.5,
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>Primary Goal</label>
+                <input
+                  value={wizardGoal}
+                  onChange={e => setWizardGoal(e.target.value)}
+                  placeholder="e.g. Convert visitors into consultation bookings"
+                  style={{
+                    width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 8, color: '#e2e8f0', fontSize: 12, padding: '10px 12px',
+                    outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>Design Identity / Extra Notes</label>
+                <textarea
+                  value={wizardExtra}
+                  onChange={e => setWizardExtra(e.target.value)}
+                  rows={3}
+                  placeholder="Palette, typography, tone, unique angles to emphasize..."
+                  style={{
+                    width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 8, color: '#e2e8f0', fontSize: 12, padding: '10px 12px', resize: 'vertical',
+                    outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.5,
+                  }}
+                />
+              </div>
+            </div>
+
+            {wizardError && (
+              <div style={{ marginTop: 12, padding: '10px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, fontSize: 12, color: '#fca5a5' }}>
+                {wizardError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+              <button onClick={() => setModal(null)} disabled={wizardLoading} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'none', color: '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button
+                onClick={generateFromAI}
+                disabled={wizardLoading || !wizardBusiness.trim()}
+                style={{
+                  flex: 2, padding: '10px 0', borderRadius: 8, border: 'none',
+                  background: wizardLoading || !wizardBusiness.trim() ? '#1e293b' : 'linear-gradient(135deg, #059669, #10b981)',
+                  color: wizardLoading || !wizardBusiness.trim() ? '#475569' : '#fff',
+                  fontSize: 12, fontWeight: 700, cursor: wizardLoading || !wizardBusiness.trim() ? 'default' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                }}
+              >
+                {wizardLoading
+                  ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Generating blueprint…</>
+                  : <><Wand2 size={13} /> Generate Blueprint</>
+                }
+              </button>
+            </div>
           </div>
         </div>
       )}
