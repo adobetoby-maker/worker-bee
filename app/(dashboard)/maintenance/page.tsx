@@ -1,0 +1,15 @@
+import { supabaseAdmin } from '@/lib/supabase'
+import { MaintenanceDispatch } from '@/components/maintenance/MaintenanceDispatch'
+
+export const dynamic = 'force-dynamic'
+
+export default async function MaintenancePage() {
+  const { data: sites } = await supabaseAdmin
+    .from('sites')
+    .select('id, name, url, github_repo, notes')
+    .eq('status', 'active')
+    .not('github_repo', 'is', null)
+    .order('name')
+
+  return <MaintenanceDispatch sites={sites ?? []} />
+}
