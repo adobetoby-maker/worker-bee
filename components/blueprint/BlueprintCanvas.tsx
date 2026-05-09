@@ -95,7 +95,12 @@ export function BlueprintCanvas({
     if (saved === 'done') return 3
     return initialNodes.length > 0 ? 2 : 1
   })
-  const [tourDismissed, setTourDismissed] = useState(false)
+  // Auto-dismiss on a new browser if the canvas already has content — returning user, not first-time
+  const [tourDismissed, setTourDismissed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const saved = localStorage.getItem(`wb-tour-${siteId}`)
+    return !saved && initialNodes.length > 0
+  })
 
   // ── Persistence ──────────────────────────────────────────────────
   const persistFull = useCallback(async (updatedBranchData: Record<string, BranchRecord>, activeBranch: string) => {

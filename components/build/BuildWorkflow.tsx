@@ -1190,6 +1190,7 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
   const [vaultImporting, setVaultImporting] = useState(false)
   const [building, setBuilding] = useState(false)
   const [buildDone, setBuildDone] = useState(false)
+  const [buildMachineOnline, setBuildMachineOnline] = useState<boolean | null>(null)
   const [buildLog, setBuildLog] = useState(() => {
     if (typeof window === 'undefined') return ''
     return localStorage.getItem(`build-log-${site.id}`) ?? ''
@@ -1212,6 +1213,20 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
     if (buildError) localStorage.setItem(`build-error-${site.id}`, buildError)
     else localStorage.removeItem(`build-error-${site.id}`)
   }, [buildError, site.id])
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const r = await fetch('https://build-api.worker-bee.app/health', { signal: AbortSignal.timeout(4000) })
+        setBuildMachineOnline(r.ok)
+      } catch {
+        setBuildMachineOnline(false)
+      }
+    }
+    check()
+    const interval = setInterval(check, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   const typedNodes = nodes as BlueprintNode[]
   const typedEdges = edges as BlueprintEdge[]
@@ -1594,16 +1609,29 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
               </div>
             )}
 
+            {/* Build machine status */}
+            <div className="flex items-center gap-2 mb-2">
+              <div style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: buildMachineOnline === null ? '#475569' : buildMachineOnline ? '#10b981' : '#ef4444',
+                boxShadow: buildMachineOnline ? '0 0 6px #10b981' : 'none',
+                flexShrink: 0,
+              }} />
+              <span className="text-xs" style={{ color: 'var(--muted)' }}>
+                {buildMachineOnline === null ? 'Checking build machine…' : buildMachineOnline ? 'Build machine online' : 'Build machine offline — start worker-bee-dev/start.sh'}
+              </span>
+            </div>
+
             {/* Send to Worker Bee button */}
             <button
               onClick={fireLocalBuild}
-              disabled={building}
+              disabled={building || buildMachineOnline === false}
               className="flex items-center justify-center gap-2 w-full px-4 py-4 rounded-xl text-sm font-bold transition-all mb-3"
               style={{
-                background: building ? 'rgba(16,185,129,0.2)' : buildDone ? 'rgba(16,185,129,0.15)' : 'linear-gradient(135deg, #10b981, #059669)',
-                color: building ? '#34d399' : buildDone ? '#6ee7b7' : 'white',
-                border: (building || buildDone) ? '1px solid rgba(16,185,129,0.4)' : 'none',
-                cursor: building ? 'default' : 'pointer',
+                background: building ? 'rgba(16,185,129,0.2)' : buildMachineOnline === false ? 'rgba(100,116,139,0.2)' : buildDone ? 'rgba(16,185,129,0.15)' : 'linear-gradient(135deg, #10b981, #059669)',
+                color: building ? '#34d399' : buildMachineOnline === false ? '#475569' : buildDone ? '#6ee7b7' : 'white',
+                border: (building || buildDone || buildMachineOnline === false) ? '1px solid rgba(16,185,129,0.4)' : 'none',
+                cursor: (building || buildMachineOnline === false) ? 'not-allowed' : 'pointer',
               }}
             >
               {building
@@ -1616,8 +1644,8 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
 
             {buildError && (
               <div className="text-xs text-red-400 bg-red-950/30 border border-red-900/40 rounded-lg px-3 py-2 mb-3">
-                {buildError.includes('fetch') || buildError.includes('Failed')
-                  ? 'Mac Studio offline — start worker-bee-dev/start.sh first'
+                {buildError.includes('fetch') || buildError.includes('Failed') || buildError.includes('NetworkError')
+                  ? 'Build machine unreachable — check that worker-bee-dev/start.sh is running on Mac Studio'
                   : buildError}
               </div>
             )}
