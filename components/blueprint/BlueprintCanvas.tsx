@@ -7,7 +7,7 @@ import {
   BackgroundVariant,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Plus, FileText, Layout, Box, Cpu, Database, Save, GitBranch, Merge, RotateCcw, ChevronDown, X, Check, Hammer, Wand2, Loader2 } from 'lucide-react'
+import { Plus, FileText, Layout, Box, Cpu, Database, Save, GitBranch, Merge, RotateCcw, ChevronDown, X, Check, Hammer, Wand2, Loader2, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { IndexCardNode } from './IndexCardNode'
 import { StringEdge } from './StringEdge'
