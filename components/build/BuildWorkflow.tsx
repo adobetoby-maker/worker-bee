@@ -596,19 +596,17 @@ const ENV_VARS_BY_TYPE: Record<string, EnvVarDef[]> = {
   general:          [...SUPABASE_VARS, ADMIN_VAR],
 }
 
-function generateEnvSection(creds: Record<string, string>, envVars: EnvVarDef[]): string {
-  if (envVars.length === 0) return '# No credentials needed\n'
-  const lines: string[] = ['# 1e. Vercel env vars — injected from Worker Bee Vault']
-  for (const v of envVars) {
-    const val = creds[v.key]?.trim()
-    if (val) {
-      for (const env of ['production', 'preview', 'development']) {
-        lines.push(`printf '%s\\n' ${JSON.stringify(val)} | vercel env add ${v.key} ${env}`)
-      }
-    } else {
-      lines.push(`vercel env add ${v.key}  # ← ${v.label} — fill in manually`)
-    }
-  }
+function generateEnvSection(envVars: EnvVarDef[]): string {
+  if (envVars.length === 0) return '# No credentials needed for this site type\n'
+  const lines = [
+    '# 1e. Vercel — link project (credentials wired separately from Worker Bee after build)',
+    'vercel link',
+    '#',
+    '# Required env vars — add via Worker Bee dashboard after build completes:',
+    ...envVars.map(v => `#   ${v.key}  (${v.label})`),
+    '#',
+    '# Worker Bee will inject these via the Vercel API and trigger a redeploy.',
+  ]
   return lines.join('\n')
 }
 
@@ -673,7 +671,7 @@ npm run lint     # ESLint
 `
 }
 
-function generateBuildSpec(site: Site, nodes: BlueprintNode[], edges: BlueprintEdge[], config: Config, creds: Record<string, string> = {}): string {
+function generateBuildSpec(site: Site, nodes: BlueprintNode[], edges: BlueprintEdge[], config: Config): string {
   const slug = toSlug(site.name)
   const localPath = config.localPath || `/Users/drive/${slug}`
   const githubRepo = config.githubRepo || `adobetoby-maker/${slug}`
@@ -693,7 +691,7 @@ function generateBuildSpec(site: Site, nodes: BlueprintNode[], edges: BlueprintE
   const npmInstall = allPackages.length > 0 ? `npm install ${allPackages.join(' ')}` : '# No extra packages needed'
   const enhancementSpecs = enabledEnhancements.map(e => ENHANCEMENT_SPEC[e.key]).join('\n\n')
   const envVarDefs = ENV_VARS_BY_TYPE[config.siteType] ?? ENV_VARS_BY_TYPE.general
-  const envSection = generateEnvSection(creds, envVarDefs)
+  const envSection = generateEnvSection(envVarDefs)
 
   return `# Build Workflow: ${site.name}
 
@@ -968,7 +966,7 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
   const typedEdges = edges as BlueprintEdge[]
   const orderedNodes = useMemo(() => topologicalOrder(typedNodes, typedEdges), [typedNodes, typedEdges])
   const nodesWithoutPrompt = orderedNodes.filter(n => !n.data.claudePrompt?.trim())
-  const spec = useMemo(() => generateBuildSpec(site, typedNodes, typedEdges, config, creds), [site, typedNodes, typedEdges, config, creds])
+  const spec = useMemo(() => generateBuildSpec(site, typedNodes, typedEdges, config), [site, typedNodes, typedEdges, config])
 
   const enabledCount = Object.values(config.enhancements).filter(Boolean).length
 
@@ -1187,29 +1185,57 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
           </div>
 
           {/* Step 2.5 — Credentials */}
+          {/* Step 2.5 — Wire Credentials (post-build) */}
           {(() => {
             const envVarDefs = ENV_VARS_BY_TYPE[config.siteType] ?? ENV_VARS_BY_TYPE.general
             const filledCount = envVarDefs.filter(v => creds[v.key]?.trim()).length
+            const [wiring, setWiring] = useState(false)
+            const [wireResult, setWireResult] = useState<{ ok: boolean; message: string; redeployUrl?: string } | null>(null)
+
+            async function wireToVercel() {
+              setWiring(true)
+              setWireResult(null)
+              const filled = Object.fromEntries(
+                envVarDefs.filter(v => creds[v.key]?.trim()).map(v => [v.key, creds[v.key]])
+              )
+              try {
+                const r = await fetch('/api/vercel-wire', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({ projectName: toSlug(site.name), envVars: filled }),
+                })
+                const data = await r.json()
+                setWireResult({ ok: data.ok, message: data.message ?? data.error, redeployUrl: data.redeployUrl })
+              } catch (e) {
+                setWireResult({ ok: false, message: String(e) })
+              } finally {
+                setWiring(false)
+              }
+            }
+
             return (
               <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
                 <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)', background: 'rgba(16,185,129,0.05)' }}>
                   <div>
                     <div className="flex items-center gap-2">
                       <KeyRound size={14} className="text-emerald-400" />
-                      <h3 className="text-sm font-bold text-white">Step 2.5 — Credentials</h3>
+                      <h3 className="text-sm font-bold text-white">Step 2.5 — Wire Credentials</h3>
                     </div>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
-                      Inject Stripe, Supabase, and email keys so the build wires them automatically.
+                      Fill in after build. Site deploys first — credentials get pushed to Vercel and trigger a redeploy.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: filledCount > 0 ? 'rgba(16,185,129,0.2)' : 'var(--surface2)', color: filledCount > 0 ? '#34d399' : 'var(--muted)' }}>
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{
+                      background: filledCount > 0 ? 'rgba(16,185,129,0.2)' : 'var(--surface2)',
+                      color: filledCount > 0 ? '#34d399' : 'var(--muted)',
+                    }}>
                       {filledCount}/{envVarDefs.length} filled
                     </span>
                     <button
                       onClick={importFromVault}
                       disabled={vaultImporting}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors"
+                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold"
                       style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', cursor: vaultImporting ? 'default' : 'pointer' }}
                     >
                       <ShieldCheck size={11} />
@@ -1217,6 +1243,7 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
                     </button>
                   </div>
                 </div>
+
                 <div className="p-4 grid grid-cols-1 gap-2.5">
                   {envVarDefs.map(v => (
                     <div key={v.key} className="flex items-center gap-2">
@@ -1229,7 +1256,7 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
                             onChange={e => setCreds(prev => ({ ...prev, [v.key]: e.target.value }))}
                             placeholder={v.hint}
                             className={inputClass}
-                            style={{ ...inputStyle, paddingRight: v.secret ? '36px' : undefined, fontFamily: v.secret && !showCreds[v.key] && creds[v.key] ? 'monospace' : 'inherit' }}
+                            style={{ ...inputStyle, paddingRight: v.secret ? '36px' : undefined }}
                           />
                           {v.secret && (
                             <button
@@ -1242,14 +1269,46 @@ export function BuildWorkflow({ site, nodes, edges }: { site: Site; nodes: objec
                           )}
                         </div>
                       </div>
-                      {creds[v.key]?.trim() && (
-                        <CheckCircle2 size={14} className="text-emerald-400 shrink-0 mt-5" />
-                      )}
+                      {creds[v.key]?.trim() && <CheckCircle2 size={14} className="text-emerald-400 shrink-0 mt-5" />}
                     </div>
                   ))}
-                  {filledCount === 0 && (
-                    <p className="text-xs pt-1" style={{ color: 'var(--muted)' }}>
-                      Fields left blank will show as interactive prompts in the build. Fill them now to make the build fully automated.
+
+                  {/* Wire button */}
+                  <button
+                    onClick={wireToVercel}
+                    disabled={wiring || filledCount === 0}
+                    className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl text-sm font-bold transition-all mt-1"
+                    style={{
+                      background: filledCount === 0 ? 'var(--surface2)' : wiring ? 'rgba(16,185,129,0.2)' : 'linear-gradient(135deg, #059669, #10b981)',
+                      color: filledCount === 0 ? 'var(--muted)' : wiring ? '#34d399' : 'white',
+                      border: filledCount === 0 ? '1px solid var(--border)' : 'none',
+                      cursor: filledCount === 0 || wiring ? 'default' : 'pointer',
+                    }}
+                  >
+                    {wiring
+                      ? <><Loader2 size={14} className="animate-spin" /> Wiring to Vercel…</>
+                      : <><ShieldCheck size={14} /> Wire {filledCount > 0 ? filledCount : ''} Credential{filledCount !== 1 ? 's' : ''} to Vercel</>
+                    }
+                  </button>
+
+                  {wireResult && (
+                    <div className={`flex items-start gap-2 text-xs p-3 rounded-lg ${wireResult.ok ? 'text-emerald-300' : 'text-red-400'}`}
+                      style={{ background: wireResult.ok ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${wireResult.ok ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
+                      {wireResult.ok ? <CheckCircle2 size={13} className="shrink-0 mt-0.5" /> : <AlertCircle size={13} className="shrink-0 mt-0.5" />}
+                      <div>
+                        {wireResult.message}
+                        {wireResult.redeployUrl && (
+                          <a href={wireResult.redeployUrl} target="_blank" rel="noopener noreferrer" className="block mt-1 underline text-emerald-400">
+                            Redeploy in progress ↗
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {filledCount === 0 && !wireResult && (
+                    <p className="text-[11px]" style={{ color: 'var(--muted)' }}>
+                      Build runs without credentials. Fill these in after the site is up, then wire them with one click.
                     </p>
                   )}
                 </div>
