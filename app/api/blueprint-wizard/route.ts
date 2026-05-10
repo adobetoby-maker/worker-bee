@@ -115,14 +115,23 @@ Generate a complete site blueprint as JSON.`
     const tryGenerate = async (extraInstruction = '') => {
       const message = await client.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
+        max_tokens: 4096,
         system: SYSTEM,
-        messages: [{ role: 'user', content: userMessage + extraInstruction }],
+        messages: [
+          { role: 'user', content: userMessage + extraInstruction },
+          { role: 'assistant', content: '{' },
+        ],
       })
-      const raw = message.content[0].type === 'text' ? message.content[0].text : ''
-      const s = raw.indexOf('{'), e = raw.lastIndexOf('}')
-      if (s === -1 || e === -1) return null
-      try { return safeParseJson(raw.slice(s, e + 1)) as { nodes?: unknown; edges?: unknown } } catch { return null }
+      const raw = '{' + (message.content[0].type === 'text' ? message.content[0].text : '')
+      const e = raw.lastIndexOf('}')
+      if (e === -1) {
+        console.error('blueprint-wizard: no closing } in response, length=', raw.length)
+        return null
+      }
+      try { return safeParseJson(raw.slice(0, e + 1)) as { nodes?: unknown; edges?: unknown } } catch (err) {
+        console.error('blueprint-wizard: JSON parse failed:', String(err).slice(0, 200))
+        return null
+      }
     }
 
     let parsed = await tryGenerate()
