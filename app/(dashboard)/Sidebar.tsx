@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Globe, KeyRound, Settings, LayoutDashboard, LogOut, Cpu, Inbox, GitBranch, Wrench, Layers } from 'lucide-react'
+import { Globe, KeyRound, Settings, LayoutDashboard, LogOut, Cpu, Inbox, GitBranch, Wrench, Layers, Sparkles } from 'lucide-react'
 
 const NAV = [
   { href: '/',              label: 'Dashboard',    icon: LayoutDashboard },
@@ -10,6 +10,7 @@ const NAV = [
   { href: '/iterations',    label: 'Iterations',    icon: GitBranch },
   { href: '/maintenance',   label: 'Maintain',      icon: Wrench },
   { href: '/batch',         label: 'Batch',         icon: Layers },
+  { href: '/mods',          label: 'Mods',          icon: Sparkles },
   { href: '/vault',         label: 'Vault',         icon: KeyRound },
   { href: '/configurator',  label: 'Config',        icon: Cpu },
 ]

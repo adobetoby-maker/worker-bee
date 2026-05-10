@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { AlertTriangle, Inbox, GitPullRequest, Wrench } from 'lucide-react'
+import { AlertTriangle, Inbox, GitPullRequest, Wrench, Sparkles } from 'lucide-react'
 import { SentryPanel } from './SentryPanel'
 import { RequestsPanel, useRequestCount } from './RequestsPanel'
 import { ReviewsPanel } from './ReviewsPanel'
 import { MaintenanceDispatch } from './MaintenanceDispatch'
+import { ModsPanel } from './ModsPanel'
 
 interface Site {
   id: string
@@ -15,7 +16,7 @@ interface Site {
   notes: string | null
 }
 
-type Tab = 'sentry' | 'requests' | 'reviews' | 'dispatch'
+type Tab = 'sentry' | 'requests' | 'reviews' | 'dispatch' | 'mods'
 
 interface Props {
   sites: Site[]
@@ -38,6 +39,7 @@ export function MaintenanceHub({ sites }: Props) {
     { key: 'requests', label: 'Requests',  icon: Inbox,          badge: requestCount },
     { key: 'reviews',  label: 'Reviews',   icon: GitPullRequest, badge: prCount },
     { key: 'dispatch', label: 'Dispatch',  icon: Wrench },
+    { key: 'mods',     label: 'Mods',      icon: Sparkles },
   ]
 
   return (
@@ -92,6 +94,7 @@ export function MaintenanceHub({ sites }: Props) {
       {tab === 'requests' && <RequestsPanel />}
       {tab === 'reviews'  && <ReviewsPanel />}
       {tab === 'dispatch' && <MaintenanceDispatch sites={sites} />}
+      {tab === 'mods'     && <ModsPanel sites={sites} />}
     </div>
   )
 }
