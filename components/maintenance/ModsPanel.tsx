@@ -42,7 +42,6 @@ export function ModsPanel({ sites }: Props) {
   const [stage, setStage] = useState<Stage>('idle')
   const [log, setLog] = useState('')
   const [error, setError] = useState('')
-  const [buildOnline, setBuildOnline] = useState<boolean | null>(null)
 
   function toggleLang(code: string) {
     setTargetLangs(prev => {
@@ -52,133 +51,23 @@ export function ModsPanel({ sites }: Props) {
     })
   }
 
-  function buildTranslateSpec(site: Site, langs: string[]): string {
-    const langList = langs.join(', ')
-    const prontoUrl = 'https://pronto-en.worker-bee.app/api/translate'
-
-    return `# Pronto Mod: Translate — ${site.name}
-
-This is a TRANSLATION MOD — not a fresh build and not a content change.
-
-**Repo:** ${site.github_repo}
-**Local path:** /Users/drive/${site.github_repo?.split('/')[1] ?? site.name}
-**Target languages:** ${langList}
-
-## Instructions
-
-1. cd to the local path above. The repo already exists.
-2. Read CLAUDE.md to understand the project architecture.
-3. Locate all user-facing copy/content files. Common patterns:
-   - \`src/lib/content.ts\` or \`lib/content.ts\` — TypeScript content dictionaries
-   - \`src/locales/\` or \`public/locales/\` — JSON translation files
-   - \`lib/copy.ts\`, \`lib/strings.ts\`, \`constants/copy.ts\`
-   - Any file exporting string dictionaries labeled with language keys (en, es, etc.)
-4. For each target language (${langList}), call Pronto's translate API:
-
-\`\`\`bash
-# Example: translate a flat strings object
-curl -s -X POST ${prontoUrl} \\
-  -H "Authorization: Bearer $PRONTO_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "strings": { "key": "English value", ... },
-    "targetLanguage": "es",
-    "config": {
-      "tone": "${tone === 'auto' ? 'auto' : tone}",
-      "source_language": "en"
-    }
-  }'
-\`\`\`
-
-   - If PRONTO_API_KEY is not in the environment, read it from the .env.local file.
-   - Send strings in batches of 50 key-value pairs max to stay within token limits.
-   - The API returns the same JSON structure with translated values.
-
-5. Write translated strings back into the appropriate files:
-   - If the site uses a \`content[lang]\` dictionary pattern, add/update the target language keys.
-   - If it uses separate locale files (e.g. \`locales/es.json\`), write the translated JSON there.
-   - Preserve all TypeScript types, \`as const\` assertions, and export statements.
-   - Do NOT translate code identifiers, CSS class names, or URL slugs.
-
-6. Run \`npm run build\` to verify TypeScript compiles cleanly.
-7. Run \`npm run lint\` if available.
-8. Commit: \`git checkout -b mods/translate-${langs.join('-')}-$(date +%Y%m%d)\`
-9. Commit each language separately with message: \`i18n: add ${langs[0]} translation via Pronto\`
-10. Push: \`git push origin HEAD\`
-11. Open PR: \`gh pr create --title "i18n: ${langList} translation" --body "Added via Pronto Mods dispatch"\`
-12. Report back:
-\`\`\`bash
-curl -s -X POST https://manage.worker-bee.app/api/blueprints/update \\
-  -H "x-api-key: 9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747" \\
-  -H "content-type: application/json" \\
-  -d '{"siteId":"${site.id}","summary":"Pronto mod complete: ${langList} translation added. PR opened."}'
-\`\`\`
-`
-  }
-
-  function buildSeoSpec(site: Site): string {
-    return `# Pronto Mod: SEO Boost — ${site.name}
-
-**Repo:** ${site.github_repo}
-**Local path:** /Users/drive/${site.github_repo?.split('/')[1] ?? site.name}
-
-## Instructions
-
-1. cd to the local path above. Read CLAUDE.md first.
-2. Audit every page's metadata export (\`metadata\` object in Next.js App Router pages).
-3. For each page:
-   - Ensure \`title\` is 50–60 characters, includes primary keyword + location if applicable
-   - Ensure \`description\` is 140–160 characters, includes a call to action
-   - Add \`openGraph\` with \`title\`, \`description\`, \`type\`, \`siteName\`, \`url\`
-   - Add \`twitter\` card metadata
-4. Add JSON-LD schema markup to the homepage:
-   - \`LocalBusiness\` or appropriate schema type
-   - Include \`name\`, \`url\`, \`telephone\`, \`address\`, \`openingHours\` from shopInfo or equivalent
-5. If a sitemap doesn't exist, add \`app/sitemap.ts\` generating all public routes.
-6. If robots.txt doesn't exist, add \`app/robots.ts\`.
-7. Run \`npm run build\` to verify no errors.
-8. Commit, push, open PR titled "seo: metadata + schema + sitemap for ${site.name}".
-9. Report back:
-\`\`\`bash
-curl -s -X POST https://manage.worker-bee.app/api/blueprints/update \\
-  -H "x-api-key: 9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747" \\
-  -H "content-type: application/json" \\
-  -d '{"siteId":"${site.id}","summary":"SEO mod complete: metadata, schema, sitemap added. PR opened."}'
-\`\`\`
-`
-  }
-
   async function dispatch() {
     if (!selectedSite) return
     setStage('generating')
     setError('')
     setLog('')
 
-    // Check build machine
-    const health = await fetch('https://build-api.worker-bee.app/health', {
-      signal: AbortSignal.timeout(4000),
-    }).catch(() => null)
-    setBuildOnline(health?.ok ?? false)
-
-    if (!health?.ok) {
-      setError('Build machine offline — start worker-bee-dev/start.sh')
-      setStage('error')
-      return
-    }
-
-    const spec = modType === 'translate'
-      ? buildTranslateSpec(selectedSite, Array.from(targetLangs))
-      : buildSeoSpec(selectedSite)
-
     setStage('firing')
 
     try {
-      const res = await fetch('https://build-api.worker-bee.app/run', {
+      const res = await fetch('/api/mods', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-api-key': 'wb-build-local-9f4a2c' },
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          spec,
-          siteName: selectedSite.github_repo?.split('/')[1] ?? selectedSite.name,
+          siteId: selectedSite.id,
+          modType,
+          targetLangs: Array.from(targetLangs),
+          tone,
         }),
       })
 
@@ -324,26 +213,13 @@ curl -s -X POST https://manage.worker-bee.app/api/blueprints/update \\
             cursor: isRunning || !canDispatch ? 'not-allowed' : 'pointer',
           }}
         >
-          {stage === 'generating' && <><Loader2 size={14} className="animate-spin" /> Checking build machine…</>}
-          {stage === 'firing' && <><Loader2 size={14} className="animate-spin" /> Dispatching mod…</>}
+          {(stage === 'generating' || stage === 'firing') && <><Loader2 size={14} className="animate-spin" /> Dispatching mod…</>}
           {stage === 'done' && <><CheckCircle2 size={14} /> Mod dispatched — PR incoming</>}
           {(stage === 'idle' || stage === 'error') && (
             <>{modType === 'translate' ? <Languages size={14} /> : <Sparkles size={14} />} Dispatch Mod</>
           )}
         </button>
 
-        {buildOnline !== null && (
-          <div className="flex items-center gap-2">
-            <div style={{
-              width: 7, height: 7, borderRadius: '50%',
-              background: buildOnline ? '#10b981' : '#ef4444',
-              boxShadow: buildOnline ? '0 0 6px #10b981' : 'none',
-            }} />
-            <span className="text-xs text-slate-500">
-              {buildOnline ? 'Build machine online' : 'Build machine offline'}
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Right: Output */}
