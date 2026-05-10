@@ -22,7 +22,7 @@ interface Props {
 }
 
 export function MaintenanceHub({ sites }: Props) {
-  const [tab, setTab] = useState<Tab>('sentry')
+  const [tab, setTab] = useState<Tab>('dispatch')
   const [prCount, setPrCount] = useState(0)
   const requestCount = useRequestCount()
 

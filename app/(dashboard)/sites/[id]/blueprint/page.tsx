@@ -27,6 +27,8 @@ export default async function BlueprintPage({ params }: { params: Promise<{ id: 
       initialBranch={currentBranch}
       allBranches={allBranches.length ? allBranches : ['main']}
       allBranchData={blueprint?.branches ?? {}}
+      initialWizardInput={blueprint?.wizardInput}
+      initialVideoUrl={blueprint?.videoUrl ?? ''}
     />
   )
 }

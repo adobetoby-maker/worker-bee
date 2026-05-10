@@ -9,6 +9,7 @@ interface Site {
   stack: string
   status: string
   github_repo: string | null
+  vercel_project_id: string | null  // repurposed: stores stable .vercel.app URL
 }
 
 const STACK_LABELS: Record<string, string> = {
@@ -51,16 +52,32 @@ export function SiteList({ sites }: { sites: Site[] }) {
                     {STACK_LABELS[s.stack] ?? s.stack}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--muted)' }}>
-                  <a href={s.url.startsWith('http') ? s.url : `https://${s.url}`} target="_blank" rel="noopener noreferrer"
-                    onClick={e => e.stopPropagation()}
-                    className="hover:text-indigo-400 flex items-center gap-1 transition-colors">
-                    <ExternalLink size={11} />{s.url.replace(/^https?:\/\//, '')}
-                  </a>
-                  {s.github_repo && (
-                    <span className="flex items-center gap-1">
-                      <GitBranch size={11} />{s.github_repo}
-                    </span>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--muted)' }}>
+                    {s.url ? (
+                      <a href={s.url.startsWith('http') ? s.url : `https://${s.url}`} target="_blank" rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="hover:text-indigo-400 flex items-center gap-1 transition-colors">
+                        <ExternalLink size={11} />{s.url.replace(/^https?:\/\//, '')}
+                      </a>
+                    ) : null}
+                    {s.github_repo && (
+                      <span className="flex items-center gap-1">
+                        <GitBranch size={11} />{s.github_repo}
+                      </span>
+                    )}
+                  </div>
+                  {s.vercel_project_id?.includes('.vercel.app') && (
+                    <a href={`https://${s.vercel_project_id}`} target="_blank" rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      className="text-[11px] flex items-center gap-1 transition-colors"
+                      style={{ color: 'var(--muted)' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#818cf8')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--muted)')}>
+                      <ExternalLink size={10} />
+                      <span>{s.vercel_project_id}</span>
+                      <span className="opacity-50 text-[10px]">backup</span>
+                    </a>
                   )}
                 </div>
               </div>

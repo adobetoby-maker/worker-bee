@@ -8,10 +8,19 @@ export interface BranchData {
   updatedAt: string
 }
 
+export interface WizardInput {
+  business: string
+  goal: string
+  extra: string
+  generatedAt: string
+}
+
 export interface BlueprintData {
   currentBranch: string
   branches: Record<string, BranchData>
   summary?: string
+  wizardInput?: WizardInput
+  videoUrl?: string
 }
 
 export async function getBlueprint(siteId: string): Promise<BlueprintData | null> {
