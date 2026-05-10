@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { MaintenanceDispatch } from '@/components/maintenance/MaintenanceDispatch'
+import { MaintenanceHub } from '@/components/maintenance/MaintenanceHub'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,5 +11,5 @@ export default async function MaintenancePage() {
     .not('github_repo', 'is', null)
     .order('name')
 
-  return <MaintenanceDispatch sites={sites ?? []} />
+  return <MaintenanceHub sites={sites ?? []} />
 }
