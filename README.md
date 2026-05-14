@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Worker-Bee Management Platform
 
-## Getting Started
+Internal agency dashboard at `manage.worker-bee.app` for managing client sites, blueprints, credentials, and AI-powered site builds.
 
-First, run the development server:
+## Running Locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev   # http://localhost:3000
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+No lint or test scripts.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## What's Inside
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Route | Purpose |
+|---|---|
+| `/(dashboard)/sites/` | Client site list + detail (blueprint canvas) |
+| `/(dashboard)/configurator/` | Generates `CLAUDE.md` + `settings.json` for new client projects |
+| `/(dashboard)/vault/` | AES-256-GCM encrypted credential manager |
+| `/(dashboard)/submissions/` | Incoming client blueprint submissions |
+| `/plan` | Public client blueprint submission form |
+| `/api/blueprints/*` | Blueprint CRUD |
+| `/api/credentials/*` | Credential CRUD |
+| `/api/blueprint-cleanup` | AI text normalization for blueprint card fields |
+| `/api/blueprint-wizard` | AI blueprint generation/refinement (Sonnet 4.6) |
+| `/api/image-gen` | ComfyUI image generation proxy |
 
-## Learn More
+## Architecture
 
-To learn more about Next.js, take a look at the following resources:
+**Auth:** Disabled — `proxy.ts` is a passthrough (internal tool only).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Supabase** (`lihnuqymfxwkjhkzusvj`) — service role client only (`lib/supabase.ts`), no SSR cookie variants.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Blueprints** (`lib/blueprintStore.ts`) — `{siteId}.json` in Supabase Storage (`blueprints` bucket). Data model: `{ currentBranch, branches: Record<name, {nodes, edges, updatedAt}>, summary }`. Handles legacy migration from flat `{nodes, edges}` format.
 
-## Deploy on Vercel
+**Vault** (`lib/vaultStore.ts`) — AES-256-GCM. Master password stored encrypted in `vault_session` cookie (signed with `ADMIN_SECRET`) so any server instance can reconstruct it without re-login.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Build Machine Pipeline
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Blueprint canvas → AI Generate (wizard) → 6 identity nodes saved to Supabase Storage
+2. Build page → select site type + mode (New Build / Iteration)
+3. One-Click Build → POST spec to `build-api.worker-bee.app/run` (`x-api-key: wb-build-local-9f4a2c`)
+4. Claude CLI runs: Phase 0 Research → Phase 1 Provision → Phase 2 Cards → Phase 2.5 Visual QA → Phase 3 /frontend-design → Phase 4 (3-pass review) → Phase 5 Deploy
+
+**Iteration mode** skips scaffold and tells Claude to replace (not patch) existing code.
+
+**`github_repo`** must be set on the site record — `localPath` is derived from `github_repo.split('/')[1]`.
+
+## Image Generation
+
+ComfyUI runs locally at `127.0.0.1:8000` with SDXL Base 1.0. Prefer the `comfy` MCP tools over the REST API (no polling overhead).
+
+```bash
+# Via REST (when running npm run dev):
+curl -X POST http://localhost:3000/api/image-gen \
+  -H "content-type: application/json" \
+  -d '{"prompt": "modern shop exterior, golden hour, photorealistic", "width": 1024, "height": 1024}'
+```
+
+SDXL works best at 1024×1024 or 1216×832. Avoid generating text in images (`negative_prompt: "text, watermark, letters, words"`).
+
+**Env vars:**
+```
+COMFY_URL         # default: http://127.0.0.1:8000
+COMFY_CHECKPOINT  # default: sd_xl_base_1.0.safetensors
+```
+
+## MCP Plugins (`.mcp.json`)
+
+| Server | Purpose |
+|---|---|
+| `supabase` | Database queries and schema management |
+| `comfy` | ComfyUI image generation (`create_workflow` → `enqueue_workflow` → `list_output_images`) |
+| `puppeteer` | Browser automation for QA and screenshots |
+
+## Agent Skills (`.agents/skills/`)
+
+| Skill | Source |
+|---|---|
+| `supabase` | `supabase/agent-skills` |
+| `supabase-postgres-best-practices` | `supabase/agent-skills` |
+
+## Deploy
+
+```bash
+vercel --prod --yes
+vercel alias set <deployment-url> manage.worker-bee.app
+```

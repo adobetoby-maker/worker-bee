@@ -61,3 +61,22 @@ Use the `comfy` MCP tools: `create_workflow` → `enqueue_workflow` → monitor 
 COMFY_URL         # default: http://127.0.0.1:8000
 COMFY_CHECKPOINT  # default: sd_xl_base_1.0.safetensors
 ```
+
+## MCP Plugins
+
+Configured in `.mcp.json`:
+
+| Server | Purpose |
+|---|---|
+| `supabase` | Database queries and schema management |
+| `comfy` | ComfyUI image generation (`create_workflow` → `enqueue_workflow` → `list_output_images`) |
+| `puppeteer` | Browser automation — screenshots, QA, visual regression |
+
+## Agent Skills
+
+Installed in `.agents/skills/` (via `npx skills add supabase/agent-skills`):
+
+| Skill | Purpose |
+|---|---|
+| `supabase` | Supabase development guidance |
+| `supabase-postgres-best-practices` | Postgres schema and query best practices |

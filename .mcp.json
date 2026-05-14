@@ -3,6 +3,19 @@
     "supabase": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?project_ref=lihnuqymfxwkjhkzusvj"
+    },
+    "comfy": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "comfyui-mcp-server"],
+      "env": {
+        "COMFY_URL": "http://127.0.0.1:8000"
+      }
+    },
+    "puppeteer": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/opt/homebrew/lib/node_modules/@modelcontextprotocol/server-puppeteer/dist/index.js"]
     }
   }
 }
