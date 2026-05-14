@@ -122,6 +122,7 @@ export async function POST(req: NextRequest) {
     modType: 'translate' | 'seo'
     targetLangs?: string[]
     tone?: string
+    prontoApiKey?: string
   } | null
 
   if (!body?.siteId || !body?.modType) {
@@ -141,9 +142,12 @@ export async function POST(req: NextRequest) {
   let spec: string
 
   if (body.modType === 'translate') {
-    const prontoKey = process.env.PRONTO_API_KEY
+    const prontoKey = body.prontoApiKey || process.env.PRONTO_API_KEY
     if (!prontoKey) {
-      return NextResponse.json({ error: 'PRONTO_API_KEY not configured — add it to Vercel env vars' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Pronto API key not set — enter it in the Mods panel (Pronto API Key field) or add PRONTO_API_KEY to Vercel env vars' },
+        { status: 500 }
+      )
     }
     const langs = body.targetLangs?.length ? body.targetLangs : ['es']
     const tone = body.tone ?? 'auto'
@@ -152,7 +156,6 @@ export async function POST(req: NextRequest) {
     spec = buildSeoSpec(site)
   }
 
-  // Stream the build machine response
   const buildRes = await fetch(BUILD_API_URL, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': BUILD_API_KEY },
@@ -167,7 +170,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: d.error ?? `Build machine error ${buildRes.status}` }, { status: 502 })
   }
 
-  // Pass stream through
   return new NextResponse(buildRes.body, {
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',

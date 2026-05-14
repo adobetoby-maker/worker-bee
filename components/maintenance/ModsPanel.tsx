@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Sparkles, Languages, Loader2, CheckCircle2, GitPullRequest, ChevronDown, AlertTriangle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Sparkles, Languages, Loader2, CheckCircle2, GitPullRequest, ChevronDown, AlertTriangle, Key, Eye, EyeOff } from 'lucide-react'
 
 interface Site {
   id: string
@@ -42,6 +42,17 @@ export function ModsPanel({ sites }: Props) {
   const [stage, setStage] = useState<Stage>('idle')
   const [log, setLog] = useState('')
   const [error, setError] = useState('')
+  const [prontoKey, setProntoKey] = useState('')
+  const [showKey, setShowKey] = useState(false)
+
+  useEffect(() => {
+    setProntoKey(localStorage.getItem('pronto_api_key') ?? '')
+  }, [])
+
+  function saveProntoKey(val: string) {
+    setProntoKey(val)
+    localStorage.setItem('pronto_api_key', val)
+  }
 
   function toggleLang(code: string) {
     setTargetLangs(prev => {
@@ -53,11 +64,9 @@ export function ModsPanel({ sites }: Props) {
 
   async function dispatch() {
     if (!selectedSite) return
-    setStage('generating')
+    setStage('firing')
     setError('')
     setLog('')
-
-    setStage('firing')
 
     try {
       const res = await fetch('/api/mods', {
@@ -68,6 +77,7 @@ export function ModsPanel({ sites }: Props) {
           modType,
           targetLangs: Array.from(targetLangs),
           tone,
+          prontoApiKey: modType === 'translate' ? prontoKey : undefined,
         }),
       })
 
@@ -91,8 +101,9 @@ export function ModsPanel({ sites }: Props) {
     }
   }
 
-  const canDispatch = !!selectedSite && (modType !== 'translate' || targetLangs.size > 0)
-  const isRunning = stage === 'generating' || stage === 'firing'
+  const canDispatch = !!selectedSite &&
+    (modType !== 'translate' || (targetLangs.size > 0 && !!prontoKey))
+  const isRunning = stage === 'firing'
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -154,6 +165,38 @@ export function ModsPanel({ sites }: Props) {
         {/* Translate options */}
         {modType === 'translate' && (
           <>
+            {/* Pronto API Key */}
+            <div>
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Key size={11} />
+                Pronto API Key
+              </label>
+              <div className="relative">
+                <input
+                  type={showKey ? 'text' : 'password'}
+                  value={prontoKey}
+                  onChange={e => saveProntoKey(e.target.value)}
+                  placeholder="pronto_live_…"
+                  disabled={isRunning}
+                  className="w-full rounded-xl px-4 py-3 pr-10 text-sm font-mono text-white placeholder-slate-600"
+                  style={{
+                    background: 'var(--surface)',
+                    border: `1px solid ${prontoKey ? 'rgba(16,185,129,0.35)' : 'var(--border)'}`,
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowKey(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-400"
+                >
+                  {showKey ? <EyeOff size={13} /> : <Eye size={13} />}
+                </button>
+              </div>
+              {prontoKey && (
+                <p className="text-xs text-emerald-500 mt-1">✓ Saved locally</p>
+              )}
+            </div>
+
             <div>
               <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">Target Languages</label>
               <div className="flex flex-wrap gap-2">
@@ -213,13 +256,12 @@ export function ModsPanel({ sites }: Props) {
             cursor: isRunning || !canDispatch ? 'not-allowed' : 'pointer',
           }}
         >
-          {(stage === 'generating' || stage === 'firing') && <><Loader2 size={14} className="animate-spin" /> Dispatching mod…</>}
+          {isRunning && <><Loader2 size={14} className="animate-spin" /> Dispatching mod…</>}
           {stage === 'done' && <><CheckCircle2 size={14} /> Mod dispatched — PR incoming</>}
           {(stage === 'idle' || stage === 'error') && (
             <>{modType === 'translate' ? <Languages size={14} /> : <Sparkles size={14} />} Dispatch Mod</>
           )}
         </button>
-
       </div>
 
       {/* Right: Output */}
@@ -252,19 +294,13 @@ export function ModsPanel({ sites }: Props) {
               : <Sparkles size={32} className="text-slate-700 mb-4" />
             }
             <p className="text-sm font-semibold text-slate-500">
-              {modType === 'translate' ? 'Pick site + languages, then dispatch' : 'Pick site, then dispatch'}
+              {modType === 'translate' ? 'Enter API key, pick site + languages, then dispatch' : 'Pick site, then dispatch'}
             </p>
             <p className="text-xs text-slate-600 mt-1">
               {modType === 'translate'
                 ? 'Build machine will call Pronto API to translate content and open a PR.'
                 : 'Build machine will audit and improve SEO metadata and schema.'}
             </p>
-            {modType === 'translate' && (
-              <p className="text-xs mt-3 px-3 py-1.5 rounded-lg"
-                style={{ background: 'rgba(99,102,241,0.08)', color: '#6366f1', border: '1px solid rgba(99,102,241,0.15)' }}>
-                Requires <code className="text-indigo-300">PRONTO_API_KEY</code> in site .env.local
-              </p>
-            )}
           </div>
         )}
       </div>
