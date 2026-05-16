@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Download, Copy, Cpu, ChevronDown, ChevronRight, RefreshCw, Terminal, Package, BookOpen, Hash, Wifi, WifiOff, ExternalLink, RotateCcw } from 'lucide-react'
+import { Download, Copy, Cpu, ChevronDown, ChevronRight, RefreshCw, Terminal, Package, BookOpen, Hash, Wifi, WifiOff, ExternalLink, RotateCcw, Layers } from 'lucide-react'
 import { useEffect, useCallback } from 'react'
 
 // ── Project Configurator data ─────────────────────────────────────────────────
@@ -12,35 +12,49 @@ const TEMPLATES = {
 
 ## Project: ${d.name}
 ${d.description ? `\n${d.description}\n` : ''}
-### Commands
+## Commands
 \`\`\`bash
 npm run dev      # dev server on localhost:3000
 npm run build    # production build
 npm run lint     # ESLint
 \`\`\`
 
-### Route Map
+## Stack
+- Next.js ${d.nextjsVersion || '16'} App Router (read \`node_modules/next/dist/docs/\` before writing Next.js code — breaking changes)
+${d.supabase ? '- Supabase — use \`lib/supabase/server.ts\` in Server Components, \`lib/supabase/client.ts\` in client components\n' : ''}\
+${d.tailwind ? '- Tailwind CSS v4 (CSS-first config in globals.css — no tailwind.config.js)\n' : ''}\
+${d.typescript ? '- TypeScript — strict mode\n' : ''}\
+
+## Route Map
 ${d.routes || '- `/` — home page'}
 
-### Stack
-- Next.js ${d.nextjsVersion || '16'} App Router
-${d.supabase ? '- Supabase (see lib/supabase/ for client patterns)\n' : ''}\
-${d.tailwind ? '- Tailwind CSS\n' : ''}\
-${d.typescript ? '- TypeScript\n' : ''}\
+## Key Rules
+- Never import server-only Supabase clients (service role) in client components
+- Use \`export const dynamic = "force-dynamic"\` on pages that query the DB
+- All admin routes require session validation before any data access
+- Prefer RSC for data fetching; use client components only for interactivity
 
-### Key Rules
-- Never import server-only code (supabaseAdmin) in client components
-- All admin routes require auth via requireAdmin()
-- Use \`force-dynamic\` on pages that query the database
+## Model Routing
+- **Haiku 4.5** — file ops, renames, installs, git commits, string replacements (~1/10 cost)
+- **Sonnet 4.6** — TypeScript, architecture, multi-file debugging, content writing (default)
+- **Opus 4.7** — high-stakes strategic decisions only (10× cost — use sparingly)
 
-### Image Generation
-ComfyUI runs locally at \`127.0.0.1:8000\` with SDXL Base 1.0. Use the \`comfy\` MCP plugin to generate images directly:
+Switch with: \`/model haiku\` | \`/model sonnet\` | \`/model opus\`
+
+## Site Build Pipeline
+
+Follow these phases in order. Invoke each skill with \`/skill-name\` in Claude Code.
+
+${generatePipelineClaude()}
+
+## Image Generation
+ComfyUI runs locally at \`127.0.0.1:8000\` with SDXL Base 1.0. Use the \`comfy\` MCP plugin:
 1. \`create_workflow\` (template: "txt2img") with a descriptive photorealistic prompt
 2. \`enqueue_workflow\` — returns \`prompt_id\` immediately
-3. Run background monitor, then \`list_output_images\` to get the result
+3. Monitor then \`list_output_images\` to get the result
 4. Save to \`public/images/\` and reference in code
 
-Use for hero images, section backgrounds, and any site photography. Always include \`negative_prompt: "text, watermark, letters, words, blurry"\`. SDXL works best at 1024×1024 or 1216×832.
+Always include \`negative_prompt: "text, watermark, letters, words, blurry"\`. Best at 1024×1024 or 1216×832.
 `,
     settings: { model: 'claude-sonnet-4-6', permissions: { defaultMode: 'auto' } },
   },
@@ -92,7 +106,7 @@ ComfyUI runs locally at \`127.0.0.1:8000\` with SDXL Base 1.0. Use the \`comfy\`
   },
 }
 
-type Mode = 'project' | 'restore' | 'commands' | 'tunnel'
+type Mode = 'project' | 'restore' | 'commands' | 'tunnel' | 'pipeline'
 type ServiceStatus = 'checking' | 'up' | 'down'
 type TemplateKey = keyof typeof TEMPLATES
 type FormData = {
@@ -218,6 +232,14 @@ const PLUGIN_GROUPS = [
 
 const COMMAND_GROUPS = [
   {
+    label: 'TAC — Session Bootstrap',
+    color: '#f59e0b',
+    commands: [
+      { cmd: '/tac', desc: 'Full session bootstrap: sync memory, show projects, model routing guide, skills menu, and ask what to work on' },
+      { cmd: '/tac <topic>', desc: 'Bootstrap and immediately focus on a topic — e.g. /tac worker-bee or /tac jrs-auto-repair' },
+    ],
+  },
+  {
     label: 'Built-in Claude Code',
     color: '#6366f1',
     commands: [
@@ -311,6 +333,81 @@ const COMMAND_GROUPS = [
   },
 ]
 
+const PIPELINE_PHASES = [
+  {
+    phase: 1,
+    label: 'Design',
+    color: '#f59e0b',
+    tagline: 'Before writing any code — pick a visual direction',
+    skills: [
+      { cmd: '/design-shotgun', source: 'GStack', desc: 'Generate 3 divergent UI directions — pick the strongest before building' },
+      { cmd: '/tailwind-design-system', source: 'Antigravity', desc: 'Define color palette, type scale, and spacing tokens for the whole site' },
+      { cmd: '/shadcn', source: 'Antigravity', desc: 'Scaffold shadcn/ui: radius, accent color, and base component set' },
+      { cmd: '/landing-page-generator', source: 'Antigravity', desc: 'Hero layout, CTA structure, social proof, conversion section patterns' },
+    ],
+  },
+  {
+    phase: 2,
+    label: 'Architecture',
+    color: '#6366f1',
+    tagline: 'Before writing routes or components — plan the build',
+    skills: [
+      { cmd: '/autoplan', source: 'GStack', desc: 'Auto-plan implementation approach before any coding begins' },
+      { cmd: '/nextjs-best-practices', source: 'Antigravity', desc: 'App Router rules, RSC vs client, data fetching, caching strategy' },
+      { cmd: '/nextjs-app-router-patterns', source: 'Antigravity', desc: 'Streaming, PPR, parallel routes, layout composition' },
+      { cmd: '/nextjs-supabase-auth', source: 'Antigravity', desc: 'Server-side auth, session management, protected routes' },
+      { cmd: '/react-best-practices', source: 'Antigravity', desc: 'React 19 patterns, memoization, transitions, concurrent features' },
+      { cmd: '/supabase-automation', source: 'Antigravity', desc: 'DB schema design, RLS policies, edge functions, storage buckets' },
+      { cmd: '/vercel-ai-sdk-expert', source: 'Antigravity', desc: 'AI SDK streaming, tool calls, embedding + retrieval patterns' },
+    ],
+  },
+  {
+    phase: 3,
+    label: 'Content & SEO',
+    color: '#06b6d4',
+    tagline: 'After routes exist — fill with high-ranking content',
+    skills: [
+      { cmd: '/content-strategy', source: 'Antigravity', desc: 'Topic clusters, pillar pages, content roadmap for 6–12 months' },
+      { cmd: '/seo-keyword-strategist', source: 'Antigravity', desc: 'Keyword targeting, density analysis, search intent mapping' },
+      { cmd: '/seo-technical', source: 'Antigravity', desc: 'Metadata, structured data, robots.txt, sitemap, Core Web Vitals' },
+      { cmd: '/seo-aeo-blog-writer', source: 'Antigravity', desc: 'Long-form SEO posts with AEO optimization for AI answer engines' },
+      { cmd: '/copywriting', source: 'Antigravity', desc: 'Conversion-focused hero copy, CTAs, benefit-led section content' },
+    ],
+  },
+  {
+    phase: 4,
+    label: 'Quality & Security',
+    color: '#10b981',
+    tagline: 'Before deployment — catch every issue',
+    skills: [
+      { cmd: '/production-code-audit', source: 'Antigravity', desc: 'Deep static analysis: security holes, perf bottlenecks, correctness' },
+      { cmd: '/review', source: 'GStack', desc: 'Staff engineer lens: architecture, patterns, maintainability' },
+      { cmd: '/qa', source: 'GStack', desc: 'Browser QA: golden path, edge cases, regression check' },
+      { cmd: '/cso', source: 'GStack', desc: 'Security audit: OWASP Top 10 + STRIDE threat model' },
+      { cmd: '/testing-patterns', source: 'Antigravity', desc: 'Jest + factory pattern test suite for critical code paths' },
+    ],
+  },
+  {
+    phase: 5,
+    label: 'Ship & Monetize',
+    color: '#a78bfa',
+    tagline: 'Deploy, measure, and optimize for revenue',
+    skills: [
+      { cmd: '/ship', source: 'GStack', desc: 'Pre-ship checklist: review → QA → commit → Vercel deploy' },
+      { cmd: '/vercel-deployment', source: 'Antigravity', desc: 'Vercel project config, env vars, domain, and preview URL setup' },
+      { cmd: '/office-hours', source: 'GStack', desc: 'CEO lens: business model, pricing, positioning, monetization hooks' },
+      { cmd: '/seo-audit', source: 'Antigravity', desc: 'Post-launch SEO crawl: index coverage, ranking signals, fixes' },
+    ],
+  },
+]
+
+function generatePipelineClaude(): string {
+  return PIPELINE_PHASES.map(p =>
+    `**Phase ${p.phase} — ${p.label}** _(${p.tagline})_\n` +
+    p.skills.map(s => `- \`${s.cmd}\` [${s.source}] — ${s.desc}`).join('\n')
+  ).join('\n\n')
+}
+
 const GSTACK_INSTALL = `# GStack (garrytan/gstack) — requires bun
 curl -fsSL https://bun.sh/install | bash
 git clone https://github.com/garrytan/gstack ~/.claude/skills/gstack
@@ -389,8 +486,41 @@ if [ ! -d ~/.claude/skills/gstack ]; then
 fi
 
 echo ""
+echo "── Step 6: TAC session skill ───────────────────────"
+mkdir -p ~/.claude/skills/tac
+SKILL_SRC="$HOME/.claude/projects/-Users-drive/memory/skills/tac/SKILL.md"
+if [ -f "$SKILL_SRC" ]; then
+  cp "$SKILL_SRC" ~/.claude/skills/tac/SKILL.md
+  echo "✅ TAC skill installed at ~/.claude/skills/tac/SKILL.md"
+else
+  echo "⚠️  TAC skill not found in memory repo — pulling latest and retrying..."
+  cd ~/.claude/projects/-Users-drive/memory && git pull origin main --quiet
+  cp "$SKILL_SRC" ~/.claude/skills/tac/SKILL.md 2>/dev/null && echo "✅ TAC skill installed" || echo "❌ TAC skill missing from memory repo"
+fi
+
+echo ""
+echo "── Step 7: Antigravity skills (1460+) ──────────────"
+npx antigravity-awesome-skills --claude
+echo ""
+echo "Cherry-picked skills now available (/skill-name to invoke):"
+echo "  Next.js:  /nextjs-best-practices  /nextjs-app-router-patterns  /nextjs-supabase-auth"
+echo "  React/UI: /react-best-practices  /shadcn  /tailwind-design-system  /tailwind-patterns"
+echo "  Platform: /supabase-automation  /cloudflare-workers-expert  /vercel-ai-sdk-expert"
+echo "  SEO:      /seo-aeo-blog-writer  /seo-audit  /seo-technical  /seo-keyword-strategist"
+echo "  Content:  /content-strategy  /copywriting  /landing-page-generator  /blog-writing-guide"
+echo "  Arch:     /multi-agent-patterns  /parallel-agents  /production-code-audit"
+echo "  Dev:      /prompt-engineering  /github-actions-templates  /testing-patterns"
+
+echo ""
 echo "── Done ────────────────────────────────────────────"
-echo "Restart Claude Code to activate everything."
+echo "Restart Claude Code and run /tac to start your session."
+echo ""
+echo "First session flow:"
+echo "  1. Open project: claude code ."
+echo "  2. Type: /tac  (or /tac <topic> to focus immediately)"
+echo "  3. TAC syncs memory → projects + model routing + skills menu"
+echo "  4. Skills menu shows 29 cherry-picked antigravity + GStack + Ruflo"
+echo "  5. Answer: 'What do you want to work on today?'"
 `
 }
 
@@ -513,6 +643,12 @@ export default function ConfiguratorPage() {
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${mode === 'tunnel' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
         >
           <Terminal size={14} />Dev Tunnel
+        </button>
+        <button
+          onClick={() => setMode('pipeline')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${mode === 'pipeline' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+        >
+          <Layers size={14} />Pipeline
         </button>
       </div>
 
@@ -726,6 +862,39 @@ export default function ConfiguratorPage() {
                 </>
               )}
             </div>
+          </div>
+
+          {/* TAC session bootstrap */}
+          <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: 'inset 3px 0 0 0 rgba(245,158,11,0.6)' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Terminal size={15} className="text-amber-400" />
+              <h3 className="text-sm font-bold text-white">TAC — Session Bootstrap</h3>
+              <span className="text-[10px] bg-amber-900/40 text-amber-400 border border-amber-800/50 px-1.5 py-0.5 rounded-full">auto-installed in restore script</span>
+            </div>
+            <p className="text-xs mb-3" style={{ color: 'var(--muted)' }}>
+              TAC is a local skill (<code className="px-1 rounded" style={{ background: 'var(--surface2)' }}>~/.claude/skills/tac/</code>) that runs on session start.
+              The restore script copies it from the memory repo automatically.
+            </p>
+            <div className="rounded-lg p-3 mb-3 space-y-2" style={{ background: 'var(--surface2)' }}>
+              <div className="flex items-start gap-2">
+                <span className="text-xs font-bold shrink-0" style={{ color: 'var(--muted-light)' }}>After setup:</span>
+                <code className="text-xs text-amber-300">claude code .</code>
+                <span className="text-xs" style={{ color: 'var(--muted)' }}>→ open project in Claude Code</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-xs font-bold shrink-0" style={{ color: 'var(--muted-light)' }}>Then type:</span>
+                <code className="text-xs text-amber-300">/tac</code>
+                <span className="text-xs" style={{ color: 'var(--muted)' }}>→ syncs memory, shows projects + model routing + skills</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-xs font-bold shrink-0" style={{ color: 'var(--muted-light)' }}>Or focus:</span>
+                <code className="text-xs text-amber-300">/tac worker-bee</code>
+                <span className="text-xs" style={{ color: 'var(--muted)' }}>→ bootstrap and immediately surface context on that topic</span>
+              </div>
+            </div>
+            <button onClick={() => copy('/tac', 'tac-cmd')} className="flex items-center gap-1.5 text-xs border px-2.5 py-1.5 rounded-lg transition-colors hover:border-white/20" style={{ borderColor: 'var(--border)', color: 'var(--muted-light)' }}>
+              <Copy size={11} />{copied === 'tac-cmd' ? 'Copied!' : 'Copy /tac command'}
+            </button>
           </div>
 
           {/* GStack */}
@@ -954,6 +1123,113 @@ export default function ConfiguratorPage() {
                   }
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Pipeline ── */}
+      {mode === 'pipeline' && (
+        <div className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm mb-1" style={{ color: 'var(--muted-light)' }}>
+                The optimal 5-phase skill sequence for building high-quality, high-SEO, high-monetization sites.
+              </p>
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                Use <code className="px-1 rounded" style={{ background: 'var(--surface2)' }}>/skill-name</code> in Claude Code to invoke any skill. The pipeline is baked into the Next.js CLAUDE.md template.
+              </p>
+            </div>
+            <button
+              onClick={() => copy(generatePipelineClaude(), 'pipeline-md')}
+              className="shrink-0 flex items-center gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Copy size={11} />{copied === 'pipeline-md' ? 'Copied!' : 'Copy as CLAUDE.md section'}
+            </button>
+          </div>
+
+          {/* Phase cards */}
+          <div className="space-y-4">
+            {PIPELINE_PHASES.map((phase, pi) => (
+              <div key={phase.phase} className="rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: `inset 3px 0 0 0 ${phase.color}99` }}>
+                {/* Phase header */}
+                <div className="flex items-center gap-3 px-5 py-3.5 border-b" style={{ borderColor: 'var(--border)' }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: `${phase.color}22`, color: phase.color }}>
+                    {phase.phase}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-bold text-white mr-2">{phase.label}</span>
+                    <span className="text-xs" style={{ color: 'var(--muted)' }}>{phase.tagline}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {pi < PIPELINE_PHASES.length - 1 && (
+                      <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--surface2)', color: 'var(--muted)' }}>
+                        → Phase {phase.phase + 1}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Skills */}
+                <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+                  {phase.skills.map(skill => (
+                    <div key={skill.cmd} className="flex items-start gap-4 px-5 py-3 hover:bg-white/[0.03] transition-colors group">
+                      <code
+                        className="text-xs font-mono font-bold shrink-0 mt-0.5 px-1.5 py-0.5 rounded"
+                        style={{ background: 'var(--surface2)', color: phase.color, minWidth: 200 }}
+                      >
+                        {skill.cmd}
+                      </code>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm leading-relaxed" style={{ color: 'var(--muted-light)' }}>{skill.desc}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full border" style={{
+                          color: skill.source === 'GStack' ? '#10b981' : skill.source === 'Ruflo' ? '#a78bfa' : '#6366f1',
+                          borderColor: skill.source === 'GStack' ? '#10b98133' : skill.source === 'Ruflo' ? '#a78bfa33' : '#6366f133',
+                          background: skill.source === 'GStack' ? '#10b98111' : skill.source === 'Ruflo' ? '#a78bfa11' : '#6366f111',
+                        }}>
+                          {skill.source}
+                        </span>
+                        <button
+                          onClick={() => copy(skill.cmd, `pipeline-${skill.cmd}`)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Copy command"
+                        >
+                          <Copy size={11} style={{ color: 'var(--muted)' }} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Model routing reminder */}
+          <div className="rounded-xl border p-5" style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: 'inset 3px 0 0 0 rgba(99,102,241,0.5)' }}>
+            <h3 className="text-sm font-bold text-white mb-3">Model Routing — Use the Right Tool</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { name: 'Haiku 4.5', cost: '~1/10 cost', color: '#34d399', cmd: '/model haiku', uses: 'File ops, renames, installs, git commits, string replacements' },
+                { name: 'Sonnet 4.6', cost: 'Default', color: '#6366f1', cmd: '/model sonnet', uses: 'TypeScript, architecture, debugging, content writing, agents' },
+                { name: 'Opus 4.7', cost: '10× cost', color: '#f59e0b', cmd: '/model opus', uses: 'High-stakes strategic decisions only — use sparingly' },
+              ].map(m => (
+                <div key={m.name} className="rounded-lg p-3" style={{ background: 'var(--surface2)' }}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm font-bold" style={{ color: m.color }}>{m.name}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface)', color: 'var(--muted)' }}>{m.cost}</span>
+                  </div>
+                  <p className="text-xs mb-2" style={{ color: 'var(--muted)' }}>{m.uses}</p>
+                  <button
+                    onClick={() => copy(m.cmd, `model-${m.name}`)}
+                    className="flex items-center gap-1 text-[10px] border px-1.5 py-1 rounded transition-colors hover:border-white/20"
+                    style={{ borderColor: 'var(--border)', color: 'var(--muted-light)' }}
+                  >
+                    <Copy size={9} />{copied === `model-${m.name}` ? 'Copied!' : m.cmd}
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
