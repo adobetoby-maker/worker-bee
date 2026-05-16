@@ -15,49 +15,64 @@ export default async function DashboardPage() {
   const stats = await getStats()
 
   const cards = [
-    { label: 'Total Sites', value: stats.totalSites, icon: Globe, href: '/sites', color: 'text-indigo-400' },
-    { label: 'Active Sites', value: stats.activeSites, icon: CheckCircle2, href: '/sites', color: 'text-emerald-400' },
-    { label: 'Vault Entries', value: '—', icon: KeyRound, href: '/vault', color: 'text-amber-400' },
-    { label: 'Alerts', value: 0, icon: AlertCircle, href: '/sites', color: 0 > 0 ? 'text-red-400' : 'text-slate-500' },
+    { label: 'Total Sites',   value: stats.totalSites,  icon: Globe,         href: '/sites', accent: 'indigo',  statClass: 'stat-indigo'  },
+    { label: 'Active Sites',  value: stats.activeSites, icon: CheckCircle2,  href: '/sites', accent: 'emerald', statClass: 'stat-emerald' },
+    { label: 'Vault Entries', value: '—',               icon: KeyRound,      href: '/vault', accent: 'amber',   statClass: 'stat-amber'   },
+    { label: 'Alerts',        value: 0,                 icon: AlertCircle,   href: '/sites', accent: 'slate',   statClass: 'stat-slate'   },
   ]
 
+  const ACCENT_TEXT: Record<string, string> = {
+    indigo: '#818cf8', emerald: '#34d399', amber: '#fbbf24', slate: '#64748b',
+  }
+
   const quickLinks = [
-    { href: '/sites/new', label: 'Add a site', desc: 'Register a new client site' },
-    { href: '/vault', label: 'Open Vault', desc: 'Manage credentials & API keys' },
-    { href: '/configurator', label: 'Claude Configurator', desc: 'Generate CLAUDE.md & settings' },
+    { href: '/sites/new',     label: 'Add a site',          desc: 'Register a new client site',        icon: Globe },
+    { href: '/vault',         label: 'Open Vault',           desc: 'Manage credentials & API keys',     icon: KeyRound },
+    { href: '/configurator',  label: 'Claude Configurator',  desc: 'Generate CLAUDE.md & settings',     icon: Cpu },
   ]
 
   return (
-    <div className="max-w-5xl">
-      <h1 className="text-2xl font-bold text-white mb-1">Dashboard</h1>
-      <p className="text-sm mb-8" style={{ color: 'var(--muted-light)' }}>Agency command center</p>
+    <div className="max-w-5xl animate-fade-in">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-white mb-1">Dashboard</h1>
+        <p className="text-sm" style={{ color: 'var(--muted-light)' }}>Agency command center</p>
+      </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-10">
         {cards.map(c => (
           <Link key={c.label} href={c.href} className="no-underline group">
-            <div className="rounded-xl border p-5 transition-colors group-hover:border-white/14"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <c.icon size={18} className={`mb-3 ${c.color}`} />
-              <div className={`text-3xl font-bold leading-none mb-1 ${c.color}`}>{c.value}</div>
+            <div className={`card card-glow ${c.statClass} rounded-xl p-5 h-full transition-all`}>
+              <c.icon size={16} className="mb-4 shrink-0" style={{ color: ACCENT_TEXT[c.accent] }} />
+              <div className="text-3xl font-bold leading-none mb-1.5 tabular-nums"
+                style={{ color: ACCENT_TEXT[c.accent] }}>{c.value}</div>
               <div className="text-xs" style={{ color: 'var(--muted-light)' }}>{c.label}</div>
             </div>
           </Link>
         ))}
       </div>
 
-      {/* Quick links */}
-      <h2 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--muted)' }}>Quick actions</h2>
+      {/* Quick actions */}
+      <div className="flex items-center gap-2 mb-3">
+        <h2 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Quick actions</h2>
+        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {quickLinks.map(l => (
           <Link key={l.href} href={l.href}
-            className="no-underline group flex items-center justify-between rounded-xl border p-4 transition-colors hover:border-indigo-500/50"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <div>
-              <div className="text-sm font-semibold text-white mb-0.5">{l.label}</div>
-              <div className="text-xs" style={{ color: 'var(--muted)' }}>{l.desc}</div>
+            className="no-underline group card card-glow flex items-center justify-between rounded-xl p-4 transition-all hover:border-indigo-500/40">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: 'var(--surface2)' }}>
+                <l.icon size={14} className="text-indigo-400" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-white leading-tight mb-0.5 truncate">{l.label}</div>
+                <div className="text-xs truncate" style={{ color: 'var(--muted)' }}>{l.desc}</div>
+              </div>
             </div>
-            <ArrowRight size={15} className="text-slate-600 group-hover:text-indigo-400 transition-colors shrink-0" />
+            <ArrowRight size={14} className="ml-2 transition-transform group-hover:translate-x-0.5 shrink-0"
+              style={{ color: 'var(--muted)' }} />
           </Link>
         ))}
       </div>

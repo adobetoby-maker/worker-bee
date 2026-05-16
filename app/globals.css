@@ -1,16 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #0d0f1a;
-  --surface: #13162a;
-  --surface2: #1a1e35;
+  --bg: #0b0d18;
+  --surface: #111425;
+  --surface2: #181c33;
+  --surface3: #1f2440;
   --border: rgba(255,255,255,0.07);
-  --border-hover: rgba(255,255,255,0.14);
+  --border-hover: rgba(255,255,255,0.13);
   --accent: #6366f1;
   --accent-hover: #818cf8;
+  --accent-glow: rgba(99,102,241,0.18);
   --text: #f1f5f9;
   --muted: #64748b;
   --muted-light: #94a3b8;
+  --radius: 12px;
 }
 
 @theme inline {
@@ -24,14 +27,52 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+html { scroll-behavior: smooth; }
+
 body {
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
 
 ::selection { background: rgba(99,102,241,0.3); }
 
+/* ── Focus ring ── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── Shared card ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.card:hover {
+  border-color: var(--border-hover);
+}
+.card-glow:hover {
+  box-shadow: 0 0 0 1px var(--accent-glow), 0 4px 24px rgba(0,0,0,0.35);
+}
+
+/* ── Stat card accent tops ── */
+.stat-indigo  { box-shadow: inset 0 2px 0 0 rgba(99,102,241,0.6); }
+.stat-emerald { box-shadow: inset 0 2px 0 0 rgba(52,211,153,0.6); }
+.stat-amber   { box-shadow: inset 0 2px 0 0 rgba(251,191,36,0.6); }
+.stat-slate   { box-shadow: inset 0 2px 0 0 rgba(100,116,139,0.3); }
+
 @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+@keyframes fade-in { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+.animate-fade-in { animation: fade-in 0.25s ease both; }

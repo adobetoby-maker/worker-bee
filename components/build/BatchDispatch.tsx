@@ -75,12 +75,10 @@ export function BatchDispatch({ sites }: { sites: Site[] }) {
 
   async function fetchClaudeMd(site: Site): Promise<string> {
     if (!site.github_repo) return ''
-    const [owner, repo] = site.github_repo.split('/')
-    const res = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/contents/CLAUDE.md`,
-      { headers: { Accept: 'application/vnd.github.v3.raw' } }
-    ).catch(() => null)
-    return res?.ok ? res.text() : ''
+    const res = await fetch(`/api/github/claude-md?repo=${encodeURIComponent(site.github_repo)}`).catch(() => null)
+    if (!res?.ok) return ''
+    const { content } = await res.json() as { content: string | null }
+    return content ?? ''
   }
 
   async function genSpec(site: Site, claudeMd: string, request: string): Promise<string> {

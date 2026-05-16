@@ -79,12 +79,11 @@ export function MaintenanceDispatch({ sites }: Props) {
     setFetchingContext(true)
 
     try {
-      const [owner, repo] = site.github_repo.split('/')
-      const ghRes = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/contents/CLAUDE.md`,
-        { headers: { Accept: 'application/vnd.github.v3.raw' } }
-      )
-      if (ghRes.ok) setClaudeMd(await ghRes.text())
+      const ghRes = await fetch(`/api/github/claude-md?repo=${encodeURIComponent(site.github_repo)}`)
+      if (ghRes.ok) {
+        const { content } = await ghRes.json() as { content: string | null }
+        if (content) setClaudeMd(content)
+      }
 
       const health = await fetch('https://build-api.worker-bee.app/health', {
         signal: AbortSignal.timeout(4000),

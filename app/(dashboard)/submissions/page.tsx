@@ -1,10 +1,28 @@
 export const dynamic = 'force-dynamic'
 import { supabaseAdmin } from '@/lib/supabase'
-import { Mail, Calendar, Building2, FileText } from 'lucide-react'
+import { Calendar, Building2, FileText, Palette, Layout, Code } from 'lucide-react'
 import SubmissionActions from './SubmissionActions'
+
+interface WizardData {
+  businessName?: string
+  description?: string
+  audience?: string
+  cta?: string
+  pages?: string[]
+  style?: string
+  inspiration?: string
+}
+
+interface AnalysisOutput {
+  claudeMd?: string
+  settingsJson?: string
+  htmlStarter?: string
+  tailwindStarter?: string
+}
 
 interface Submission {
   id: string
+  // Legacy fields
   name: string
   email: string
   business: string
@@ -13,6 +31,12 @@ interface Submission {
   edges: object[]
   submittedAt: string
   status: string
+  // New wizard fields
+  wizard?: WizardData
+  cleaned?: Partial<WizardData>
+  style?: string
+  pages?: string[]
+  analysis?: AnalysisOutput
 }
 
 async function listSubmissions(): Promise<{ submissions: Submission[]; error?: string }> {
@@ -40,6 +64,43 @@ async function listSubmissions(): Promise<{ submissions: Submission[]; error?: s
   )
 
   return { submissions: submissions.filter(Boolean) as Submission[] }
+}
+
+function AnalysisSection({ analysis }: { analysis: AnalysisOutput }) {
+  const tabs = [
+    { key: 'claudeMd', label: 'CLAUDE.md', icon: <FileText size={11} /> },
+    { key: 'settingsJson', label: 'settings.json', icon: <Code size={11} /> },
+    { key: 'htmlStarter', label: 'HTML Starter', icon: <Layout size={11} /> },
+    { key: 'tailwindStarter', label: 'Tailwind Starter', icon: <Palette size={11} /> },
+  ] as const
+
+  return (
+    <div className="px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
+      <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>
+        Generated Outputs
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {tabs.map(tab => {
+          const content = analysis[tab.key]
+          if (!content) return null
+          return (
+            <div key={tab.key} className="rounded-xl border overflow-hidden"
+              style={{ borderColor: 'var(--border)', background: 'var(--surface2)' }}>
+              <div className="flex items-center gap-1.5 px-3 py-2 border-b"
+                style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
+                {tab.icon}
+                <span className="text-xs font-semibold">{tab.label}</span>
+              </div>
+              <pre className="text-xs p-3 overflow-auto max-h-36 leading-relaxed"
+                style={{ color: 'var(--muted-light)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {content}
+              </pre>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 export default async function SubmissionsPage() {
@@ -73,65 +134,147 @@ export default async function SubmissionsPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {submissions.map(sub => (
-            <div key={sub.id} className="rounded-2xl border overflow-hidden"
-              style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-              {/* Header */}
-              <div className="flex items-start justify-between gap-4 px-6 py-4 border-b"
-                style={{ borderColor: 'var(--border)' }}>
-                <div>
-                  <div className="flex items-center gap-3 mb-1">
-                    <h3 className="text-base font-bold text-white">{sub.name}</h3>
-                    {sub.business && (
-                      <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--muted)' }}>
-                        <Building2 size={11} /> {sub.business}
+          {submissions.map(sub => {
+            const isWizard = !!sub.wizard
+            const displayName = sub.wizard?.businessName || sub.business || sub.name
+            const displayDesc = sub.wizard?.description || sub.cleaned?.description || sub.vision
+            const displayStyle = sub.wizard?.style || sub.style
+            const displayPages = sub.wizard?.pages || sub.pages
+            const audience = sub.wizard?.audience
+            const cta = sub.wizard?.cta
+            const inspiration = sub.wizard?.inspiration
+
+            return (
+              <div key={sub.id} className="rounded-2xl border overflow-hidden"
+                style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+
+                {/* Header */}
+                <div className="flex items-start justify-between gap-4 px-6 py-4 border-b"
+                  style={{ borderColor: 'var(--border)' }}>
+                  <div>
+                    <div className="flex items-center gap-3 mb-1 flex-wrap">
+                      <h3 className="text-base font-bold text-white">{displayName}</h3>
+                      {isWizard && (
+                        <span className="text-xs px-2 py-0.5 rounded-full border"
+                          style={{ borderColor: 'rgba(99,102,241,0.3)', color: 'var(--accent)', background: 'rgba(99,102,241,0.08)' }}>
+                          wizard
+                        </span>
+                      )}
+                      <span className="text-xs px-2 py-0.5 rounded-full border"
+                        style={{
+                          borderColor: sub.status === 'pending' ? 'rgba(245,158,11,0.4)' : 'rgba(16,185,129,0.4)',
+                          color: sub.status === 'pending' ? '#f59e0b' : '#10b981',
+                          background: sub.status === 'pending' ? 'rgba(245,158,11,0.08)' : 'rgba(16,185,129,0.08)',
+                        }}>
+                        {sub.status}
                       </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs flex-wrap" style={{ color: 'var(--muted)' }}>
+                      {sub.email && (
+                        <span className="flex items-center gap-1">
+                          <Building2 size={11} /> {sub.email}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Calendar size={11} />
+                        {new Date(sub.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <span>{sub.nodes.length} card{sub.nodes.length !== 1 ? 's' : ''} planned</span>
+                      {displayStyle && (
+                        <span className="capitalize">{displayStyle} style</span>
+                      )}
+                    </div>
+                  </div>
+                  <SubmissionActions submission={sub} />
+                </div>
+
+                {/* Wizard details */}
+                {isWizard && (
+                  <div className="px-6 py-4 border-b grid grid-cols-1 md:grid-cols-2 gap-3"
+                    style={{ borderColor: 'var(--border)' }}>
+                    {displayDesc && (
+                      <div>
+                        <p className="text-xs font-semibold mb-1" style={{ color: 'var(--muted)' }}>Description</p>
+                        <p className="text-sm leading-relaxed" style={{ color: 'var(--muted-light)' }}>&ldquo;{displayDesc}&rdquo;</p>
+                      </div>
                     )}
-                    <span className="text-xs px-2 py-0.5 rounded-full border"
-                      style={{
-                        borderColor: sub.status === 'pending' ? 'rgba(245,158,11,0.4)' : 'rgba(16,185,129,0.4)',
-                        color: sub.status === 'pending' ? '#f59e0b' : '#10b981',
-                        background: sub.status === 'pending' ? 'rgba(245,158,11,0.08)' : 'rgba(16,185,129,0.08)',
-                      }}>
-                      {sub.status}
-                    </span>
+                    {audience && (
+                      <div>
+                        <p className="text-xs font-semibold mb-1" style={{ color: 'var(--muted)' }}>Audience</p>
+                        <p className="text-sm" style={{ color: 'var(--muted-light)' }}>{audience}</p>
+                      </div>
+                    )}
+                    {cta && (
+                      <div>
+                        <p className="text-xs font-semibold mb-1" style={{ color: 'var(--muted)' }}>CTA Goal</p>
+                        <p className="text-sm" style={{ color: 'var(--muted-light)' }}>{cta}</p>
+                      </div>
+                    )}
+                    {inspiration && (
+                      <div>
+                        <p className="text-xs font-semibold mb-1" style={{ color: 'var(--muted)' }}>Inspiration</p>
+                        <p className="text-sm" style={{ color: 'var(--muted-light)' }}>{inspiration}</p>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--muted)' }}>
-                    <span className="flex items-center gap-1"><Mail size={11} /> {sub.email}</span>
-                    <span className="flex items-center gap-1">
-                      <Calendar size={11} />
-                      {new Date(sub.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    <span>{sub.nodes.length} card{sub.nodes.length !== 1 ? 's' : ''} planned</span>
+                )}
+
+                {/* Legacy vision */}
+                {!isWizard && sub.vision && (
+                  <div className="px-6 py-3 border-b text-sm leading-relaxed"
+                    style={{ borderColor: 'var(--border)', color: 'var(--muted-light)' }}>
+                    &ldquo;{sub.vision}&rdquo;
                   </div>
-                </div>
-                <SubmissionActions submission={sub} />
+                )}
+
+                {/* Pages */}
+                {displayPages && displayPages.length > 0 && (
+                  <div className="px-6 py-3 border-b flex flex-wrap gap-2" style={{ borderColor: 'var(--border)' }}>
+                    {displayPages.map((page, i) => (
+                      <span key={i} className="text-xs px-2 py-0.5 rounded border"
+                        style={{ borderColor: 'rgba(99,102,241,0.25)', color: 'var(--accent)', background: 'rgba(99,102,241,0.06)' }}>
+                        {page}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Blueprint card summary */}
+                {sub.nodes.length > 0 && !isWizard && (
+                  <div className="px-6 py-3 flex flex-wrap gap-2">
+                    {(sub.nodes as Array<{ data?: { title?: string; type?: string } }>).slice(0, 8).map((n, i) => (
+                      <span key={i} className="text-xs px-2 py-0.5 rounded border"
+                        style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
+                        {n.data?.title || n.data?.type || 'Card'}
+                      </span>
+                    ))}
+                    {sub.nodes.length > 8 && (
+                      <span className="text-xs" style={{ color: 'var(--muted)' }}>+{sub.nodes.length - 8} more</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Blueprint card summary for wizard submissions */}
+                {sub.nodes.length > 0 && isWizard && (
+                  <div className="px-6 py-3 border-b flex flex-wrap gap-2" style={{ borderColor: 'var(--border)' }}>
+                    <span className="text-xs font-semibold mr-1" style={{ color: 'var(--muted)' }}>Blueprint:</span>
+                    {(sub.nodes as Array<{ data?: { title?: string; type?: string } }>).slice(0, 8).map((n, i) => (
+                      <span key={i} className="text-xs px-2 py-0.5 rounded border"
+                        style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
+                        {n.data?.title || n.data?.type || 'Card'}
+                      </span>
+                    ))}
+                    {sub.nodes.length > 8 && (
+                      <span className="text-xs" style={{ color: 'var(--muted)' }}>+{sub.nodes.length - 8} more</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Analysis outputs */}
+                {sub.analysis && <AnalysisSection analysis={sub.analysis} />}
               </div>
-
-              {/* Vision */}
-              {sub.vision && (
-                <div className="px-6 py-3 border-b text-sm leading-relaxed"
-                  style={{ borderColor: 'var(--border)', color: 'var(--muted-light)' }}>
-                  &ldquo;{sub.vision}&rdquo;
-                </div>
-              )}
-
-              {/* Card summary */}
-              {sub.nodes.length > 0 && (
-                <div className="px-6 py-3 flex flex-wrap gap-2">
-                  {(sub.nodes as Array<{ data?: { title?: string; type?: string } }>).slice(0, 8).map((n, i) => (
-                    <span key={i} className="text-xs px-2 py-0.5 rounded border"
-                      style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
-                      {n.data?.title || n.data?.type || 'Card'}
-                    </span>
-                  ))}
-                  {sub.nodes.length > 8 && (
-                    <span className="text-xs" style={{ color: 'var(--muted)' }}>+{sub.nodes.length - 8} more</span>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

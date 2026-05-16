@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getBlueprint } from '@/lib/blueprintStore'
-import { ArrowLeft, ExternalLink, GitBranch, Pencil, Map, Video, Wand2, ExternalLink as ExtLink } from 'lucide-react'
+import { ArrowLeft, ExternalLink, GitBranch, Pencil, Map, Video, Wand2, ExternalLink as ExtLink, BarChart2 } from 'lucide-react'
 import DeleteSiteButton from './DeleteSiteButton'
 
 const STACK_LABELS: Record<string, string> = {
@@ -66,6 +66,11 @@ export default async function SiteDetailPage({ params }: { params: Promise<{ id:
           </a>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <Link href={`/sites/${id}/build/progress`}
+            className="flex items-center gap-1.5 text-sm border px-3 py-2 rounded-lg hover:border-indigo-500/40 transition-colors"
+            style={{ borderColor: 'var(--border)', color: 'var(--muted-light)' }}>
+            <BarChart2 size={13} /> Build Progress
+          </Link>
           <Link href={`/sites/${id}/blueprint`}
             className="flex items-center gap-1.5 text-sm border px-3 py-2 rounded-lg hover:border-indigo-500/40 transition-colors"
             style={{ borderColor: 'var(--border)', color: 'var(--muted-light)' }}>

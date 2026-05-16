@@ -73,12 +73,13 @@ export function SentryPanel({ sites }: Props) {
     setFixingId(issue.id)
     try {
       // Fetch CLAUDE.md from repo
-      const [owner, repo] = site.github_repo.split('/')
       let claudeMd = ''
       try {
-        const ghRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/CLAUDE.md`,
-          { headers: { Accept: 'application/vnd.github.v3.raw' } })
-        if (ghRes.ok) claudeMd = await ghRes.text()
+        const ghRes = await fetch(`/api/github/claude-md?repo=${encodeURIComponent(site.github_repo)}`)
+        if (ghRes.ok) {
+          const { content } = await ghRes.json() as { content: string | null }
+          claudeMd = content ?? ''
+        }
       } catch {}
 
       const res = await fetch('/api/maintenance/sentry-fix', {

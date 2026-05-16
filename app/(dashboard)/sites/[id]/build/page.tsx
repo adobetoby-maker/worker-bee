@@ -1,8 +1,10 @@
 export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getBlueprint } from '@/lib/blueprintStore'
 import { BuildWorkflow } from '@/components/build/BuildWorkflow'
+import { BarChart2 } from 'lucide-react'
 
 export default async function BuildPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -22,10 +24,29 @@ export default async function BuildPage({ params }: { params: Promise<{ id: stri
   const edges = branchData?.edges ?? []
 
   return (
-    <BuildWorkflow
-      site={site}
-      nodes={nodes as object[]}
-      edges={edges as object[]}
-    />
+    <div className="flex flex-col gap-4">
+      {/* Tab bar */}
+      <div className="flex items-center gap-2">
+        <span
+          className="text-sm font-semibold px-3 py-1.5 rounded-lg"
+          style={{ background: 'var(--accent)', color: '#fff' }}
+        >
+          Configure
+        </span>
+        <Link
+          href={`/sites/${id}/build/progress`}
+          className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors hover:border-indigo-500/40"
+          style={{ color: 'var(--muted-light)', border: '1px solid var(--border)' }}
+        >
+          <BarChart2 size={13} /> Progress
+        </Link>
+      </div>
+
+      <BuildWorkflow
+        site={site}
+        nodes={nodes as object[]}
+        edges={edges as object[]}
+      />
+    </div>
   )
 }
