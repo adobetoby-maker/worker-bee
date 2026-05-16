@@ -1,12 +1,13 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Globe, KeyRound, LayoutDashboard, LogOut, Cpu, Inbox, GitBranch, Wrench, Layers, Sparkles } from 'lucide-react'
+import { Globe, KeyRound, LayoutDashboard, LogOut, Cpu, Inbox, GitBranch, Wrench, Layers, Sparkles, Search } from 'lucide-react'
 
 const NAV = [
   { href: '/',              label: 'Dashboard',   icon: LayoutDashboard },
   { href: '/sites',         label: 'Sites',        icon: Globe },
   { href: '/submissions',   label: 'Submissions',  icon: Inbox },
+  { href: '/audits',        label: 'Audits',       icon: Search },
   { href: '/iterations',    label: 'Iterations',   icon: GitBranch },
   { href: '/maintenance',   label: 'Maintain',     icon: Wrench },
   { href: '/batch',         label: 'Batch',        icon: Layers },

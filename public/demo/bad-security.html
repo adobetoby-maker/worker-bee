@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Insecure Demo Page</title>
+  <meta name="description" content="A demonstration page with intentional security issues for audit testing purposes.">
+
+  <!-- No Content-Security-Policy meta tag -->
+
+  <!-- External scripts from 3 different domains — cross-origin risk -->
+  <script src="https://cdn.jsdelivr.net/npm/some-library@1.0.0/dist/lib.min.js"></script>
+  <script src="https://unpkg.com/another-package@2.3.1/index.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</head>
+<body>
+
+  <h1>Welcome — Security Test Page</h1>
+
+  <!-- Inline event handlers — CSP violation risk -->
+  <button onclick="alert('clicked')">Click Me</button>
+  <a href="#" onmouseover="this.style.color='red'">Hover Me</a>
+  <input type="text" onfocus="console.log('focused')" placeholder="Enter text">
+
+  <div>
+    <p>This page demonstrates common security issues that an audit should flag:</p>
+    <ul>
+      <li>No Content-Security-Policy header or meta tag</li>
+      <li>Three external scripts from different CDN domains</li>
+      <li>Inline event handlers (onclick, onmouseover, onfocus)</li>
+      <li>Missing X-Frame-Options header</li>
+      <li>No Referrer-Policy header</li>
+    </ul>
+  </div>
+
+  <!-- API key visible in comment — exposure risk -->
+  <!-- API_KEY: sk-test-1234abcdefghijklmnopqrstuvwxyz -->
+  <!-- DB_PASSWORD: supersecret123 -->
+  <!-- STRIPE_SECRET_KEY: sk-live-9999fakekey -->
+
+  <!-- Link to .env file download — intentional exposure demonstration -->
+  <p>Download config: <a href="/.env">Environment Config</a></p>
+  <p>View source: <a href="/.git/config">Git Config</a></p>
+
+  <script>
+    // Inline script — another CSP violation
+    var apiKey = "sk-test-inline-1234";
+    console.log("Loaded with key:", apiKey);
+  </script>
+
+</body>
+</html>

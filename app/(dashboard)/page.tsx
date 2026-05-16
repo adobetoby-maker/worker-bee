@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase'
-import { Globe, KeyRound, Cpu, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Globe, KeyRound, Cpu, ArrowRight, CheckCircle2, AlertCircle, Search } from 'lucide-react'
 
 async function getStats() {
   const [{ count: totalSites }, { count: activeSites }] = await Promise.all([
@@ -29,6 +29,7 @@ export default async function DashboardPage() {
     { href: '/sites/new',     label: 'Add a site',          desc: 'Register a new client site',        icon: Globe },
     { href: '/vault',         label: 'Open Vault',           desc: 'Manage credentials & API keys',     icon: KeyRound },
     { href: '/configurator',  label: 'Claude Configurator',  desc: 'Generate CLAUDE.md & settings',     icon: Cpu },
+    { href: '/audits',        label: 'Evaluate a Site',      desc: 'Audit an existing site for SEO & security issues', icon: Search },
   ]
 
   return (
@@ -57,7 +58,7 @@ export default async function DashboardPage() {
         <h2 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Quick actions</h2>
         <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-10">
         {quickLinks.map(l => (
           <Link key={l.href} href={l.href}
             className="no-underline group card card-glow flex items-center justify-between rounded-xl p-4 transition-all hover:border-indigo-500/40">
@@ -75,6 +76,34 @@ export default async function DashboardPage() {
               style={{ color: 'var(--muted)' }} />
           </Link>
         ))}
+      </div>
+
+      {/* Client Links */}
+      <div className="flex items-center gap-2 mb-3">
+        <h2 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Client links</h2>
+        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Link href="/plan" className="no-underline group card card-glow rounded-xl p-5 transition-all hover:border-indigo-500/40">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+            style={{ background: 'rgba(99,102,241,0.15)' }}>
+            <Globe size={18} style={{ color: '#818cf8' }} />
+          </div>
+          <div className="text-base font-bold text-white mb-1">Plan a New Site →</div>
+          <div className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
+            Walk a client through the site planning wizard to generate a custom blueprint.
+          </div>
+        </Link>
+        <Link href="/evaluate" className="no-underline group card card-glow rounded-xl p-5 transition-all hover:border-cyan-500/40">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+            style={{ background: 'rgba(6,182,212,0.12)' }}>
+            <Search size={18} style={{ color: '#22d3ee' }} />
+          </div>
+          <div className="text-base font-bold text-white mb-1">Evaluate Existing Site →</div>
+          <div className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
+            Crawl an existing site for SEO, security, and performance issues — then build a fix plan.
+          </div>
+        </Link>
       </div>
     </div>
   )
