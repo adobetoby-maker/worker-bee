@@ -47,6 +47,19 @@ Follow these phases in order. Invoke each skill with \`/skill-name\` in Claude C
 
 ${generatePipelineClaude()}
 
+## Pre-Ship Checklist
+
+Before every deploy, verify:
+
+- [ ] \`app/sitemap.ts\` exists and lists all public routes
+- [ ] \`app/robots.ts\` exists and points to sitemap URL
+- [ ] Every page has \`export const metadata\` with title + description
+- [ ] Layout has \`metadataBase\`, OG tags, and Twitter card
+- [ ] JSON-LD structured data in layout (Organization) or per-page (Article/Product)
+- [ ] All \`<form>\` elements POST to a real \`/api/\` route — no fake timeouts
+- [ ] \`@vercel/analytics\` imported in root layout
+- [ ] CLAUDE.md reflects current Next.js version, env vars, and stack
+
 ## Image Generation
 ComfyUI runs locally at \`127.0.0.1:8000\` with SDXL Base 1.0. Use the \`comfy\` MCP plugin:
 1. \`create_workflow\` (template: "txt2img") with a descriptive photorealistic prompt
@@ -369,9 +382,12 @@ const PIPELINE_PHASES = [
     skills: [
       { cmd: '/content-strategy', source: 'Antigravity', desc: 'Topic clusters, pillar pages, content roadmap for 6–12 months' },
       { cmd: '/seo-keyword-strategist', source: 'Antigravity', desc: 'Keyword targeting, density analysis, search intent mapping' },
-      { cmd: '/seo-technical', source: 'Antigravity', desc: 'Metadata, structured data, robots.txt, sitemap, Core Web Vitals' },
+      { cmd: '/seo-technical', source: 'Antigravity', desc: 'Per-page metadata, OG/Twitter tags, canonical URLs, title template' },
       { cmd: '/seo-aeo-blog-writer', source: 'Antigravity', desc: 'Long-form SEO posts with AEO optimization for AI answer engines' },
       { cmd: '/copywriting', source: 'Antigravity', desc: 'Conversion-focused hero copy, CTAs, benefit-led section content' },
+      { cmd: 'app/sitemap.ts', source: 'Checklist', desc: 'Create Next.js sitemap route — all URLs with changeFrequency + priority' },
+      { cmd: 'app/robots.ts', source: 'Checklist', desc: 'Create robots route — allow all, point to sitemap URL' },
+      { cmd: 'JSON-LD script', source: 'Checklist', desc: 'Add Organization/Offer/Article structured data to layout or page' },
     ],
   },
   {
@@ -385,6 +401,9 @@ const PIPELINE_PHASES = [
       { cmd: '/qa', source: 'GStack', desc: 'Browser QA: golden path, edge cases, regression check' },
       { cmd: '/cso', source: 'GStack', desc: 'Security audit: OWASP Top 10 + STRIDE threat model' },
       { cmd: '/testing-patterns', source: 'Antigravity', desc: 'Jest + factory pattern test suite for critical code paths' },
+      { cmd: 'Forms wired?', source: 'Checklist', desc: 'Every form POSTs to a real /api/ route — no setTimeout fake submits' },
+      { cmd: 'Analytics added?', source: 'Checklist', desc: 'Add @vercel/analytics or Plausible before deploy — 1 import in layout' },
+      { cmd: 'CLAUDE.md current?', source: 'Checklist', desc: 'Update stack versions, env vars, and model routing before shipping' },
     ],
   },
   {
