@@ -1,11 +1,10 @@
 # CLAUDE.md — Salvorias
 
-Next.js 15 landing page for the CJA Web Services SAV token web-build offer.
+Six-page luxury marketing site for the CJA Web Services SAV token web-build offer.
 
 ## Commands
 
 ```bash
-npm install
 npm run dev      # localhost:3000
 npm run build
 npm run start
@@ -13,11 +12,22 @@ npm run start
 
 ## Stack
 
-- **Framework:** Next.js 15 (App Router)
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS v3
-- **Icons:** Emoji (no icon library needed)
-- **Deploy target:** `salvorias.worker-bee.app`
+- **Framework:** Next.js 16.2.6 (App Router — read `node_modules/next/dist/docs/` before writing any Next.js code)
+- **Language:** TypeScript (strict)
+- **Styling:** Tailwind CSS v3 (`tailwind.config.ts` — not CSS-first)
+- **3D:** React Three Fiber + @react-three/drei + postprocessing (ParticleField, SavCoin)
+- **Animation:** Framer Motion
+- **Analytics:** Vercel Analytics (`@vercel/analytics/next`)
+- **Deploy:** `salvorias.worker-bee.app`
+
+## Model Routing
+- **Haiku 4.5** — file edits, renames, git commits
+- **Sonnet 4.6** — component work, debugging (default)
+
+## Env Vars
+```
+APPLY_WEBHOOK_URL   # optional — Slack/Discord/Make.com webhook for form submissions
+```
 
 ## Design System
 
@@ -57,7 +67,7 @@ All in `components/`:
 
 - Navbar is `position: fixed` — add `pt-16` to main or Hero to offset
 - `#apply` anchor on ApplicationForm section, `#features` on Features section
-- Form submit: client-side 1.2s delay → `setSubmitted(true)` — wire real endpoint (Formspree / Supabase) when ready
+- Form submit: POSTs to `/api/apply` → forwards to `APPLY_WEBHOOK_URL` env var (Slack/Discord/Make.com). Set `APPLY_WEBHOOK_URL` in Vercel env vars to receive submissions.
 - All background glows use `pointer-events-none` absolute divs with large `blur-[]`
 - No external images — no img tags, no next/image needed
 - `overflow-x-hidden` on `<main>` to prevent ambient glow bleed

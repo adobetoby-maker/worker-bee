@@ -1,188 +1,272 @@
 "use client";
 
-import { useState } from "react";
+import { motion } from "framer-motion";
+import { useState, type FormEvent } from "react";
 
 const SITE_TYPES = [
-  "Blog / Content Site",
-  "Business / Services",
-  "E-commerce",
-  "Portfolio / Personal Brand",
-  "Community / Forum",
-  "Other",
+  "Editorial / Magazine",
+  "E-commerce / Shop",
+  "Brand / Portfolio",
+  "Service business",
+  "Community / Membership",
+  "Other (describe in goal)",
 ];
 
 export default function ApplicationForm() {
-  const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    // Wire up real submission (Formspree, Supabase, email API) here
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    setSubmitted(true);
+    setError('');
+    const data = Object.fromEntries(new FormData(e.currentTarget));
+    try {
+      const res = await fetch('/api/apply', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('submission failed');
+      setSubmitted(true);
+    } catch {
+      setError('Something went wrong. Please email us directly.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <section id="apply" className="py-24 px-4 sm:px-6 border-t border-white/5 bg-white/[0.015]">
-      <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-12">
-          <p className="text-amber-400 text-xs font-bold uppercase tracking-widest mb-3">APPLY NOW</p>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-            Let&apos;s Build Something Great
+    <section
+      id="apply"
+      className="relative py-28 border-t border-white/[0.05] bg-gradient-to-b from-ink-900 via-[#08090F] to-ink-900"
+    >
+      <div className="absolute inset-0 -z-10 pointer-events-none">
+        <div className="absolute top-0 inset-x-0 mx-auto w-[600px] h-px bg-gradient-to-r from-transparent via-bullion-400/40 to-transparent" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full bg-bullion-400/[0.06] blur-[140px]" />
+      </div>
+
+      <div className="container-vault">
+        <div className="max-w-2xl mx-auto text-center mb-14">
+          <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-bullion-300">
+            §&nbsp;&nbsp;Application
+          </p>
+          <h2 className="mt-4 font-display text-cream text-[clamp(2.25rem,5vw,3.75rem)] leading-[1.05] tracking-tight">
+            Reserve your <span className="italic text-bullion-gradient">seat.</span>
           </h2>
-          <p className="text-gray-500 text-lg">
-            Free to apply. No commitment until you love the draft.
+          <p className="mt-5 text-cream-muted leading-relaxed">
+            We review every application by hand. Expect a response within 48 hours, written
+            and signed by a member of the build team.
           </p>
         </div>
 
-        {submitted ? (
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-12 text-center glow-gold">
-            <div className="text-5xl mb-4">🎉</div>
-            <h3 className="text-2xl font-bold text-white mb-3">Application Received!</h3>
-            <p className="text-gray-400 mb-2">
-              We&apos;ll review your application and reach out within 48 hours.
-            </p>
-            <p className="text-gray-500 text-sm">
-              Questions?{" "}
-              <a
-                href="mailto:jay@cjawebservices.com"
-                className="text-amber-400 hover:text-amber-300 transition-colors"
-              >
-                jay@cjawebservices.com
-              </a>
-            </p>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.8 }}
+          className="relative max-w-3xl mx-auto"
+        >
+          <div className="relative rounded-3xl bg-gradient-to-b from-ink-700/80 to-ink-800/80 border border-white/[0.07] p-8 md:p-12 backdrop-blur">
+            {!submitted ? (
+              <form onSubmit={handleSubmit} className="space-y-7">
+                <div className="grid md:grid-cols-2 gap-7">
+                  <Field label="Name" required>
+                    <input
+                      name="name"
+                      type="text"
+                      required
+                      className="form-input"
+                      placeholder="Jane Holder"
+                    />
+                  </Field>
+                  <Field label="Business or project">
+                    <input
+                      name="business"
+                      type="text"
+                      className="form-input"
+                      placeholder="Optional"
+                    />
+                  </Field>
+                </div>
+
+                <Field label="Email" required>
+                  <input
+                    name="email"
+                    type="email"
+                    required
+                    className="form-input"
+                    placeholder="jane@example.com"
+                  />
+                </Field>
+
+                <Field label="SAV wallet address" required mono>
+                  <input
+                    name="wallet"
+                    type="text"
+                    required
+                    className="form-input font-mono text-sm"
+                    placeholder="0x…"
+                  />
+                </Field>
+
+                <div className="grid md:grid-cols-2 gap-7">
+                  <Field label="Telegram handle">
+                    <input
+                      name="telegram"
+                      type="text"
+                      className="form-input"
+                      placeholder="@username"
+                    />
+                  </Field>
+                  <Field label="Discord handle">
+                    <input
+                      name="discord"
+                      type="text"
+                      className="form-input"
+                      placeholder="username#1234"
+                    />
+                  </Field>
+                </div>
+
+                <Field label="Type of site">
+                  <select name="siteType" className="form-input" defaultValue="">
+                    <option value="" disabled>
+                      Select one
+                    </option>
+                    {SITE_TYPES.map((t) => (
+                      <option key={t} value={t} className="bg-ink-700">
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Three sites you love">
+                  <textarea
+                    name="references"
+                    rows={2}
+                    className="form-input resize-none"
+                    placeholder="Paste three URLs you'd like the design to feel adjacent to."
+                  />
+                </Field>
+
+                <Field label="Your number-one goal for this site">
+                  <textarea
+                    name="message"
+                    rows={4}
+                    className="form-input resize-none"
+                    placeholder="One sentence is enough. We want to know what success looks like for you."
+                  />
+                </Field>
+
+                {error && (
+                  <p className="text-sm text-red-400 text-center">{error}</p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="group relative inline-flex w-full items-center justify-center gap-2 rounded-2xl px-7 py-4 text-base font-medium text-ink-900 bg-gradient-to-b from-bullion-100 via-bullion-300 to-bullion-500 border border-bullion-500/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_8px_40px_-10px_rgba(212,167,82,0.5)] transition-all hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_12px_50px_-10px_rgba(212,167,82,0.7)] hover:scale-[1.005] active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-ink-900/30 border-t-ink-900 rounded-full spin-soft" />
+                      Submitting…
+                    </>
+                  ) : (
+                    <>
+                      Submit application
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-0.5">
+                        <path d="M5 12h14M13 5l7 7-7 7" />
+                      </svg>
+                    </>
+                  )}
+                </button>
+
+                <p className="text-center font-mono text-[10px] uppercase tracking-[0.22em] text-cream-dim">
+                  By submitting, you consent to a 48-hour review window
+                </p>
+              </form>
+            ) : (
+              <div className="text-center py-10">
+                <div className="w-16 h-16 mx-auto rounded-full bg-bullion-900/40 border border-bullion-400/40 flex items-center justify-center">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-bullion-300">
+                    <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <h3 className="mt-7 font-display text-cream text-4xl italic tracking-tight">
+                  Received.
+                </h3>
+                <p className="mt-4 text-cream-muted max-w-md mx-auto leading-relaxed">
+                  Your application is logged. A member of the build team will respond
+                  personally within 48 hours.
+                </p>
+                <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.22em] text-bullion-300">
+                  hello@cjawebservices.com
+                </p>
+              </div>
+            )}
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                Your Name <span className="text-amber-400">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="Jane Smith"
-                className="w-full bg-white/[0.04] border border-white/10 focus:border-amber-500/60 text-white rounded-xl px-4 py-3.5 outline-none transition-all placeholder-gray-600 hover:border-white/20"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                Business / Project
-              </label>
-              <input
-                type="text"
-                placeholder="My Awesome Project"
-                className="w-full bg-white/[0.04] border border-white/10 focus:border-amber-500/60 text-white rounded-xl px-4 py-3.5 outline-none transition-all placeholder-gray-600 hover:border-white/20"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                SAV Wallet Address <span className="text-amber-400">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="0x..."
-                className="w-full bg-white/[0.04] border border-white/10 focus:border-amber-500/60 text-white rounded-xl px-4 py-3.5 outline-none transition-all placeholder-gray-600 hover:border-white/20 font-mono text-sm"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  Telegram Handle
-                </label>
-                <input
-                  type="text"
-                  placeholder="@username"
-                  className="w-full bg-white/[0.04] border border-white/10 focus:border-amber-500/60 text-white rounded-xl px-4 py-3.5 outline-none transition-all placeholder-gray-600 hover:border-white/20"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  Discord Handle
-                </label>
-                <input
-                  type="text"
-                  placeholder="username#1234"
-                  className="w-full bg-white/[0.04] border border-white/10 focus:border-amber-500/60 text-white rounded-xl px-4 py-3.5 outline-none transition-all placeholder-gray-600 hover:border-white/20"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                Type of Site <span className="text-amber-400">*</span>
-              </label>
-              <select
-                required
-                defaultValue=""
-                className="w-full bg-[#0d1525] border border-white/10 focus:border-amber-500/60 text-white rounded-xl px-4 py-3.5 outline-none transition-all hover:border-white/20 cursor-pointer"
-              >
-                <option value="" disabled>
-                  Select site type...
-                </option>
-                {SITE_TYPES.map((t) => (
-                  <option key={t} value={t} className="bg-[#0d1525]">
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                3 Sites You Love (Design Inspiration)
-              </label>
-              <textarea
-                rows={3}
-                placeholder="e.g. stripe.com, linear.app, vercel.com"
-                className="w-full bg-white/[0.04] border border-white/10 focus:border-amber-500/60 text-white rounded-xl px-4 py-3.5 outline-none transition-all placeholder-gray-600 hover:border-white/20 resize-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                What&apos;s the #1 Goal for Your Site?
-              </label>
-              <textarea
-                rows={4}
-                placeholder="Tell us what success looks like — more leads, sales, community, subscribers..."
-                className="w-full bg-white/[0.04] border border-white/10 focus:border-amber-500/60 text-white rounded-xl px-4 py-3.5 outline-none transition-all placeholder-gray-600 hover:border-white/20 resize-none"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-8 py-4 rounded-xl text-lg transition-all hover:scale-[1.02] glow-gold disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                  Submitting...
-                </span>
-              ) : (
-                "Submit My Application →"
-              )}
-            </button>
-
-            <p className="text-center text-gray-600 text-sm">
-              Salvorias is a CJA Web Services community offer.{" "}
-              <a
-                href="mailto:jay@cjawebservices.com"
-                className="text-amber-400/70 hover:text-amber-400 transition-colors"
-              >
-                jay@cjawebservices.com
-              </a>
-            </p>
-          </form>
-        )}
+        </motion.div>
       </div>
+
+      <style jsx>{`
+        :global(.form-input) {
+          width: 100%;
+          background: rgba(255, 255, 255, 0.025);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 0.75rem;
+          padding: 0.85rem 1rem;
+          color: var(--cream);
+          font-size: 0.95rem;
+          transition: border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
+          appearance: none;
+          font-family: inherit;
+        }
+        :global(.form-input::placeholder) {
+          color: var(--cream-dim);
+        }
+        :global(.form-input:focus) {
+          outline: none;
+          border-color: rgba(212, 167, 82, 0.55);
+          box-shadow: 0 0 0 3px rgba(212, 167, 82, 0.12);
+          background: rgba(255, 255, 255, 0.04);
+        }
+        :global(select.form-input) {
+          background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23D4A752' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+          background-repeat: no-repeat;
+          background-position: right 1rem center;
+          padding-right: 2.5rem;
+        }
+      `}</style>
     </section>
+  );
+}
+
+function Field({
+  label,
+  required,
+  mono,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  mono?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span
+        className={`block mb-2 text-[11px] uppercase tracking-[0.22em] ${
+          mono ? "font-mono" : ""
+        } text-cream-muted`}
+      >
+        {label}
+        {required && <span className="text-bullion-300 ml-1.5">·</span>}
+      </span>
+      {children}
+    </label>
   );
 }

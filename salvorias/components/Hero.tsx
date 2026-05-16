@@ -1,70 +1,157 @@
+"use client";
+
+import dynamic from "next/dynamic";
+import { motion } from "framer-motion";
+import Image from "next/image";
+
+const SavCoin = dynamic(() => import("./SavCoin"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="w-32 h-32 rounded-full bg-gradient-to-br from-bullion-300 to-bullion-700 opacity-40 blur-2xl spin-soft" />
+    </div>
+  ),
+});
+
+const fadeUp = {
+  initial: { opacity: 0, y: 24 },
+  animate: { opacity: 1, y: 0 },
+};
+
 export default function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-      {/* Ambient background glows */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-amber-500/[0.06] rounded-full blur-[120px]" />
-        <div className="absolute top-2/3 left-1/4 w-80 h-80 bg-violet-600/[0.06] rounded-full blur-[80px]" />
-        <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-amber-400/[0.04] rounded-full blur-[60px]" />
-        <div
-          className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)",
-            backgroundSize: "60px 60px",
-          }}
+    <section className="relative pt-24 lg:pt-28 pb-20 lg:pb-32 overflow-hidden">
+      {/* Atmospheric backdrop — subtle, very low opacity */}
+      <div className="absolute inset-0 -z-10">
+        <Image
+          src="https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=1920&q=85"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover opacity-[0.07] mix-blend-screen"
         />
+        {/* Bullion radial glow */}
+        <div className="absolute top-[20%] left-[55%] -translate-x-1/2 w-[680px] h-[680px] rounded-full bg-bullion-400/[0.18] blur-[140px]" />
+        <div className="absolute bottom-[10%] left-[10%] w-[440px] h-[440px] rounded-full bg-bullion-700/30 blur-[120px]" />
+        {/* Vignette */}
+        <div className="absolute inset-0 bg-gradient-to-b from-ink-900/0 via-ink-900/40 to-ink-900" />
       </div>
 
-      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 text-center">
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/25 text-amber-400 text-sm font-medium px-4 py-2 rounded-full mb-10">
-          <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
-          ⚡ Only 25 Spots Available
-        </div>
+      <div className="container-vault relative">
+        <div className="grid lg:grid-cols-[1.15fr_1fr] gap-12 lg:gap-16 items-center min-h-[80vh]">
+          {/* Left: editorial copy */}
+          <div className="relative">
+            {/* Badge */}
+            <motion.div
+              {...fadeUp}
+              transition={{ duration: 0.7, delay: 0.05, ease: [0.2, 0.7, 0.2, 1] }}
+              className="inline-flex items-center gap-3 rounded-full border border-bullion-400/30 bg-bullion-900/30 backdrop-blur px-4 py-1.5 mb-8"
+            >
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-bullion-300 opacity-75 pulse-bullion" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-bullion-200" />
+              </span>
+              <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-bullion-200">
+                Twenty-five seats &nbsp;·&nbsp; cohort 01
+              </span>
+            </motion.div>
 
-        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white mb-6 leading-[1.05] tracking-tight">
-          Your Web Presence,
-          <br className="hidden sm:block" />
-          <span className="text-gradient-gold"> Paid in SAV.</span>
-        </h1>
+            {/* Editorial headline */}
+            <motion.h1
+              {...fadeUp}
+              transition={{ duration: 0.9, delay: 0.15, ease: [0.2, 0.7, 0.2, 1] }}
+              className="font-display text-cream tracking-tight text-[clamp(2.75rem,6vw,5.5rem)] leading-[0.95]"
+            >
+              A web presence,
+              <br />
+              <span className="italic text-bullion-gradient">settled in SAV.</span>
+            </motion.h1>
 
-        <p className="text-lg sm:text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-          CJA Web Services is opening{" "}
-          <span className="text-white font-semibold">25 spots</span> for SAV token holders. Get a
-          fully built, custom WordPress site —{" "}
-          <span className="text-white font-semibold">no USD required.</span>
-        </p>
+            {/* Subtitle */}
+            <motion.p
+              {...fadeUp}
+              transition={{ duration: 0.8, delay: 0.3, ease: [0.2, 0.7, 0.2, 1] }}
+              className="mt-7 max-w-xl text-cream-muted text-lg leading-relaxed"
+            >
+              CJA Web Services opens a private build cohort for verified token holders.
+              <span className="text-cream"> Quoted in USD. Paid in SAV. </span>
+              The token rate is locked at signing — no slippage, no surprises.
+            </motion.p>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-          <a
-            href="#apply"
-            className="group bg-amber-500 hover:bg-amber-400 text-black font-bold px-8 py-4 rounded-xl text-lg transition-all hover:scale-105 glow-gold inline-flex items-center justify-center gap-2"
+            {/* CTAs */}
+            <motion.div
+              {...fadeUp}
+              transition={{ duration: 0.8, delay: 0.45, ease: [0.2, 0.7, 0.2, 1] }}
+              className="mt-10 flex flex-wrap items-center gap-4"
+            >
+              <a
+                href="#apply"
+                className="group relative inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-medium text-ink-900 bg-gradient-to-b from-bullion-100 via-bullion-300 to-bullion-500 border border-bullion-500/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_8px_40px_-10px_rgba(212,167,82,0.55)] transition-all hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_12px_50px_-10px_rgba(212,167,82,0.7)] hover:scale-[1.015] active:scale-[0.99]"
+              >
+                Reserve your seat
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-0.5">
+                  <path d="M5 12h14M13 5l7 7-7 7" />
+                </svg>
+              </a>
+              <a
+                href="#features"
+                className="inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-base font-medium text-cream border border-white/[0.12] hover:border-bullion-400/40 hover:bg-white/[0.02] transition-colors"
+              >
+                Read the offering
+              </a>
+            </motion.div>
+
+            {/* Stats row */}
+            <motion.div
+              {...fadeUp}
+              transition={{ duration: 0.9, delay: 0.65, ease: [0.2, 0.7, 0.2, 1] }}
+              className="mt-14 grid grid-cols-3 gap-8 max-w-md"
+            >
+              {[
+                { figure: "25", label: "Seats", sub: "cohort cap" },
+                { figure: "3–5", label: "Weeks", sub: "design + build" },
+                { figure: "08", label: "Pages", sub: "in scope" },
+              ].map((s) => (
+                <div key={s.label} className="border-l border-bullion-400/25 pl-4">
+                  <div className="font-display text-bullion-leaf text-[2.4rem] leading-none italic">
+                    {s.figure}
+                  </div>
+                  <div className="mt-2 text-cream text-sm">{s.label}</div>
+                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-cream-dim mt-0.5">
+                    {s.sub}
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+
+          {/* Right: 3D bullion coin */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1.4, delay: 0.2, ease: [0.2, 0.7, 0.2, 1] }}
+            className="relative aspect-square lg:aspect-auto lg:h-[560px] w-full"
           >
-            Apply for a Spot
-            <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
-          </a>
-          <a
-            href="#features"
-            className="border border-white/10 hover:border-white/20 text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all hover:bg-white/5 inline-flex items-center justify-center"
-          >
-            See What&apos;s Included
-          </a>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 sm:gap-10 max-w-sm mx-auto">
-          {[
-            { value: "25", label: "Spots Total" },
-            { value: "3–5 wk", label: "Delivery" },
-            { value: "8", label: "Pages Built" },
-          ].map((stat) => (
-            <div key={stat.label} className="text-center">
-              <div className="text-2xl sm:text-3xl font-black text-amber-400 mb-1">{stat.value}</div>
-              <div className="text-gray-600 text-xs sm:text-sm">{stat.label}</div>
+            {/* Inner glow plate */}
+            <div className="absolute inset-0 rounded-full bg-bullion-400/[0.06] blur-2xl" />
+            <div className="absolute inset-[15%] rounded-full bg-gradient-radial from-bullion-400/30 to-transparent blur-3xl" />
+            {/* The Canvas */}
+            <SavCoin />
+            {/* Frame numerals — ornamental */}
+            <div className="absolute top-4 left-4 font-mono text-[10px] uppercase tracking-[0.22em] text-bullion-300/60">
+              Specimen · 24k
             </div>
-          ))}
+            <div className="absolute bottom-4 right-4 font-mono text-[10px] uppercase tracking-[0.22em] text-bullion-300/60 text-right">
+              Salvorias /<br />Cohort 01 · 25 of 25
+            </div>
+          </motion.div>
         </div>
+      </div>
+
+      {/* Section divider rule */}
+      <div className="container-vault mt-20">
+        <div className="rule-bullion" />
       </div>
     </section>
   );

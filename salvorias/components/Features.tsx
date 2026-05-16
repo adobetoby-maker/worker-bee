@@ -1,71 +1,130 @@
-const features = [
+"use client";
+
+import { motion } from "framer-motion";
+import {
+  PenTool,
+  Gauge,
+  ShieldCheck,
+  Smartphone,
+  FileText,
+  Rocket,
+  type LucideIcon,
+} from "lucide-react";
+
+type Feature = {
+  icon: LucideIcon;
+  eyebrow: string;
+  title: string;
+  body: string;
+  meta: string;
+};
+
+const FEATURES: Feature[] = [
   {
-    icon: "🎨",
+    icon: PenTool,
+    eyebrow: "I",
     title: "Custom Design",
-    description:
-      "Salient theme built to match your brand and vision — your colors, your style, your story.",
+    body: "Hand-built on the Salient theme. Original typography, original color, original art direction — no template you've seen before.",
+    meta: "Salient · Figma source",
   },
   {
-    icon: "⚡",
-    title: "Performance Optimized",
-    description:
-      "WP Rocket caching + CDN configured from day one so your site loads fast everywhere.",
+    icon: Gauge,
+    eyebrow: "II",
+    title: "Performance",
+    body: "WP Rocket caching, lazy media, CDN edge delivery. Lighthouse 90+ on mobile is the floor, not the ceiling.",
+    meta: "WP Rocket · Cloudflare CDN",
   },
   {
-    icon: "🔒",
-    title: "SSL + Security",
-    description:
-      "Full SSL, firewall rules, and malware scanning included — set up and monitored for you.",
+    icon: ShieldCheck,
+    eyebrow: "III",
+    title: "SSL & Security",
+    body: "Wildcard SSL, Wordfence firewall, malware scanning, daily off-site backups. Hardened from day one.",
+    meta: "Wordfence · daily backup",
   },
   {
-    icon: "📱",
+    icon: Smartphone,
+    eyebrow: "IV",
     title: "Mobile First",
-    description:
-      "Responsive on every device, tested across browsers. Your visitors always get the best view.",
+    body: "Designed at 375px, scaled up. Tested on Safari iOS, Chrome Android, and the long tail of in-app browsers.",
+    meta: "iOS · Android · in-app",
   },
   {
-    icon: "✍️",
+    icon: FileText,
+    eyebrow: "V",
     title: "Content Setup",
-    description:
-      "Up to 8 pages built and populated from your content. We handle the copy placement.",
+    body: "Eight pages drafted, formatted, image-set, and SEO-prepped. You bring direction; we bring the type.",
+    meta: "8 pages · SEO basics",
   },
   {
-    icon: "🚀",
+    icon: Rocket,
+    eyebrow: "VI",
     title: "Launch Ready",
-    description:
-      "DNS, hosting migration, and go-live support included. From approval to live in one day.",
+    body: "DNS migration, redirects from your old URL structure, post-launch monitoring for the first 14 days.",
+    meta: "DNS · 14-day watch",
   },
 ];
 
 export default function Features() {
   return (
-    <section id="features" className="py-24 px-4 sm:px-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-16">
-          <p className="text-amber-400 text-xs font-bold uppercase tracking-widest mb-3">THE OFFER</p>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-            Everything You Need to Launch
+    <section id="features" className="relative py-28">
+      <div className="container-vault">
+        <div className="max-w-2xl">
+          <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-bullion-300">
+            §&nbsp;&nbsp;The Offering
+          </p>
+          <h2 className="mt-4 font-display text-cream text-[clamp(2.25rem,5vw,3.75rem)] leading-[1.05] tracking-tight">
+            Six deliverables.
+            <br />
+            <span className="italic text-cream-muted">One signed brief.</span>
           </h2>
-          <p className="text-gray-500 text-lg max-w-xl mx-auto">
-            A complete, professional web presence built by a team that&apos;s done it hundreds of times.
+          <p className="mt-6 max-w-lg text-cream-muted leading-relaxed">
+            Each line of the package is itemized and contractual. What's listed is what
+            ships — no upsells, no decoupled "phases," no scope creep priced after the fact.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {features.map((f) => (
-            <div
-              key={f.title}
-              className="card-hover bg-white/[0.03] border border-white/10 rounded-2xl p-6 group"
-            >
-              <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center text-2xl mb-5">
-                {f.icon}
-              </div>
-              <h3 className="text-lg font-semibold text-white mb-2 group-hover:text-amber-400 transition-colors">
-                {f.title}
-              </h3>
-              <p className="text-gray-500 text-sm leading-relaxed">{f.description}</p>
-            </div>
-          ))}
+        <div className="mt-16 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {FEATURES.map((f, i) => {
+            const Icon = f.icon;
+            return (
+              <motion.article
+                key={f.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{
+                  duration: 0.6,
+                  delay: i * 0.06,
+                  ease: [0.2, 0.7, 0.2, 1],
+                }}
+                className="card-vault p-7 group"
+              >
+                <div className="flex items-start justify-between mb-6">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-bullion-400/20 blur-xl group-hover:bg-bullion-400/30 transition-colors" />
+                    <div className="relative w-12 h-12 rounded-xl border border-bullion-400/30 bg-gradient-to-br from-bullion-900/60 to-ink-700 flex items-center justify-center">
+                      <Icon className="w-5 h-5 text-bullion-300" strokeWidth={1.4} />
+                    </div>
+                  </div>
+                  <span className="font-display italic text-bullion-300/60 text-2xl leading-none mt-1">
+                    {f.eyebrow}
+                  </span>
+                </div>
+
+                <h3 className="font-display text-cream text-2xl leading-tight tracking-tight">
+                  {f.title}
+                </h3>
+                <p className="mt-3 text-cream-muted text-[15px] leading-relaxed">
+                  {f.body}
+                </p>
+                <div className="mt-6 pt-4 border-t border-white/[0.06]">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-cream-dim">
+                    {f.meta}
+                  </span>
+                </div>
+              </motion.article>
+            );
+          })}
         </div>
       </div>
     </section>
