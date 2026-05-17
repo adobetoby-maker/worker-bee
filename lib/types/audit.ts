@@ -40,6 +40,8 @@ export type BlueprintNodeType = 'seo' | 'security' | 'performance' | 'content' |
 export type BlueprintStatus = 'critical' | 'important' | 'nice-to-have'
 export type BlueprintEffort = 'low' | 'medium' | 'high'
 export type BlueprintMode = 'rebuild' | 'patch'
+// applyStatus tracks the CLI execution state for each node — cork board reads this for card color
+export type BlueprintApplyStatus = 'pending' | 'applied' | 'skipped' | 'failed'
 
 export interface BlueprintNodeData {
   title: string
@@ -49,6 +51,8 @@ export interface BlueprintNodeData {
   priority: number
   effort: BlueprintEffort
   claudePrompt: string
+  applyStatus?: BlueprintApplyStatus  // set by CLI after execution
+  appliedAt?: string                  // ISO timestamp set on success
 }
 
 export interface BlueprintNode {

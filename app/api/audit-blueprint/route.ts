@@ -176,12 +176,25 @@ function detectPatternHints(audit: AuditResult): PatternHint[] {
   return hints
 }
 
+// ── Patch mode fence — prepended to every claudePrompt in patch mode ─────────
+// This fence is the contract between the blueprint and Claude Code execution.
+// It prevents any patch task from drifting into visual/design changes.
+
+const PATCH_FENCE = `PATCH MODE — STRICT CONSTRAINTS: Do NOT touch globals.css, tailwind.config.*, any .css file, any className or style prop, any component layout or spacing, any font or color token, or any visual design decision. This is a surgical patch. Only modify the specific files and code paths named below. The site's visual design is intentional and must not change. If the fix requires touching CSS to work, stop and flag it as out of scope for a patch.
+
+`
+
 // ── Prompt builder ───────────────────────────────────────────────────────────
 
-const SYSTEM = `You are a web development strategist. Given a site audit and client notes, generate a prioritized action plan as a set of blueprint cards. Each card represents one improvement area with a specific action.
+function buildSystem(mode: BlueprintMode): string {
+  const patchRule = mode === 'patch'
+    ? `\nPATCH MODE CONSTRAINTS (CRITICAL): Every claudePrompt you generate MUST begin with the PATCH_FENCE header (it will be injected automatically). Fixes are surgical — name exact files and line-level changes only. Never suggest visual, CSS, Tailwind, layout, spacing, font, or color changes. If an audit finding can only be fixed by touching CSS, mark it effort: "high" and note "visual change required — skip in patch mode" in the description.\n`
+    : `\nREBUILD MODE: You may suggest visual improvements, design system changes, and layout restructuring alongside technical fixes.\n`
+
+  return `You are a web development strategist. Given a site audit and client notes, generate a prioritized action plan as a set of blueprint cards. Each card represents one improvement area with a specific action.
 
 CRITICAL JSON RULE: ALL string values must use plain prose only. No double quotes, backticks, angle brackets, or JSX syntax inside string values. Single apostrophes are fine.
-
+${patchRule}
 RULES FOR NODES:
 - Generate 6-10 nodes covering the most impactful audit findings
 - id: "node-1", "node-2", etc.
@@ -205,6 +218,7 @@ RULES FOR EDGES:
 - type: always "smoothstep"
 
 Return ONLY valid JSON with "nodes", "edges", and "summary" keys. No markdown.`
+}
 
 interface RequestBody {
   audit: AuditResult
@@ -281,7 +295,7 @@ Generate a prioritized blueprint of 6-10 action cards with edges connecting rela
     const msg = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
-      system: SYSTEM,
+      system: buildSystem(mode),
       messages: [
         { role: 'user', content: userMessage + extraInstruction },
         { role: 'assistant', content: '{' },
@@ -310,8 +324,18 @@ Generate a prioritized blueprint of 6-10 action cards with edges connecting rela
       return NextResponse.json({ error: 'Could not generate blueprint — please try again.' }, { status: 500 })
     }
 
+    // Inject PATCH_FENCE into every claudePrompt when in patch mode
+    const nodes = parsed.nodes as BlueprintNode[]
+    if (mode === 'patch') {
+      for (const node of nodes) {
+        if (node.data?.claudePrompt && !node.data.claudePrompt.startsWith('PATCH MODE')) {
+          node.data.claudePrompt = PATCH_FENCE + node.data.claudePrompt
+        }
+      }
+    }
+
     const result: BlueprintResult = {
-      nodes: parsed.nodes as BlueprintNode[],
+      nodes,
       edges: parsed.edges as BlueprintEdge[],
       summary: typeof parsed.summary === 'string'
         ? parsed.summary
