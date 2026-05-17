@@ -51,6 +51,17 @@ ${generatePipelineClaude()}
 
 Before every deploy, verify:
 
+### Visual (apple.com standard)
+- [ ] Lenis smooth scroll installed and wrapping root layout
+- [ ] Hero headline ≥ 80px with letter-spacing -0.03em and font-optical-sizing: auto
+- [ ] Background uses #1d1d1f or #f5f5f7 — not pure black/white
+- [ ] At least one scroll-driven animation (Framer Motion useScroll + useTransform)
+- [ ] Nav has backdrop-filter glass blur
+- [ ] All interactive elements have spring micro-interaction (cubic-bezier overshoot)
+- [ ] Section vertical padding ≥ 120px — Apple uses space as design element
+- [ ] Viewed on mobile — typography scales via clamp(), no text overflow
+
+### SEO & Infrastructure
 - [ ] \`app/sitemap.ts\` exists and lists all public routes
 - [ ] \`app/robots.ts\` exists and points to sitemap URL
 - [ ] Every page has \`export const metadata\` with title + description
@@ -60,57 +71,184 @@ Before every deploy, verify:
 - [ ] \`@vercel/analytics\` imported in root layout
 - [ ] CLAUDE.md reflects current Next.js version, env vars, and stack
 
-## Visual Excellence Standards
+## Visual Standard: apple.com
 
-Every site targets Apple/Linear/Vercel quality. Use this tiered stack:
+**Reference model: apple.com.** Before shipping any page, ask: "Does this section look like it could be on apple.com?" If not, it is not done.
 
-### Tier 1 — Always on (zero maintenance, pure CSS)
-\`\`\`css
-/* Animatable CSS variables — smooth, hardware-accelerated */
-@property --accent-h { syntax: '<number>'; initial-value: 250; inherits: false; }
-@property --gradient-stop { syntax: '<percentage>'; initial-value: 0%; inherits: false; }
+Apple's visual language has 8 core patterns. Every site should implement all 8:
 
-/* Glass depth layers */
-.glass { backdrop-filter: blur(20px) saturate(180%); background: rgba(255,255,255,0.08); }
+---
 
-/* High-contrast text inversion (Apple-style) */
-.blend-text { mix-blend-mode: difference; color: white; }
-\`\`\`
-
-### Tier 2 — Scroll animation (low maintenance, React-native)
+### 1. Default installs (run at project start, every site)
 \`\`\`bash
 npm i lenis framer-motion
 \`\`\`
-- **Lenis**: Wrap root layout — 1 import, inertia scroll used by Vercel/Linear
-- **Framer Motion \`useScroll\` + \`useTransform\`**: Scroll-driven parallax, scale, opacity
-- Use \`<motion.div style={{ y, opacity, scale }}\` from scroll transforms — no GSAP needed for most effects
-
-### Tier 3 — Complex timelines (medium maintenance, use selectively)
-\`\`\`bash
-npm i gsap @gsap/react
+Wire Lenis in root layout immediately — every site gets inertia scroll before the first component is written:
+\`\`\`tsx
+// app/layout.tsx
+'use client'
+import Lenis from 'lenis'
+import { useEffect } from 'react'
+export function SmoothScroll({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const lenis = new Lenis()
+    function raf(time: number) { lenis.raf(time); requestAnimationFrame(raf) }
+    requestAnimationFrame(raf)
+    return () => lenis.destroy()
+  }, [])
+  return <>{children}</>
+}
 \`\`\`
-- Only when multiple elements need scrub-exact synchronized timing
-- Wrap in \`useGSAP\` hook to prevent memory leaks
-- Always cleanup: \`return () => ctx.revert()\`
 
-### Tier 4 — 3D / WebGL (higher maintenance, hero moments only)
-\`\`\`bash
-npm i three @react-three/fiber @react-three/drei
-\`\`\`
-- One 3D canvas per page maximum — performance budget matters
-- Always add \`<Canvas dpr={[1, 2]} performance={{ min: 0.5 }}\` for mobile
-- Fallback to a static image if \`canvas\` not supported: \`<noscript><img …/>\`
-- Use \`Suspense\` + \`useLoader\` — never block the main thread
+---
 
-### Variable Fonts
+### 2. Typography — oversized, optically sized, tight tracking
+Apple headlines are 80–120px, weight 700–900, letter-spacing -0.03em. Body is never smaller than 17px.
 \`\`\`css
-/* Use CSS optical sizing — single font file covers all weights */
-body { font-optical-sizing: auto; }
-h1 { font-variation-settings: 'opsz' 72, 'wght' 800; }
+/* globals.css */
+:root {
+  --text-hero: clamp(56px, 8vw, 120px);
+  --text-title: clamp(32px, 5vw, 72px);
+  --text-body: clamp(17px, 1.8vw, 21px);
+  --tracking-tight: -0.03em;
+  --tracking-hero: -0.04em;
+}
+h1 {
+  font-size: var(--text-hero);
+  font-weight: 800;
+  letter-spacing: var(--tracking-hero);
+  font-optical-sizing: auto;
+  line-height: 1.05;
+}
 \`\`\`
 
-### Rule of thumb
-CSS techniques → always. Framer Motion → scroll reveals. GSAP → complex scrub. Three.js → hero only. This = Apple visual quality at low-to-medium maintenance cost.
+---
+
+### 3. Color system — near-black, near-white, one accent
+Apple does not use pure black or pure white. One product color does all the work:
+\`\`\`css
+:root {
+  --bg-dark: #1d1d1f;      /* Apple near-black */
+  --bg-light: #f5f5f7;     /* Apple near-white */
+  --text-primary: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --accent: /* single product color — e.g. #0071e3 (Apple blue) */;
+}
+\`\`\`
+Dark sections use \`#1d1d1f\` background with white text. Light sections use \`#f5f5f7\`. Never more than one accent color.
+
+---
+
+### 4. Full-bleed sections — no horizontal padding at section level
+Every section fills 100vw. Only the inner content container has max-width:
+\`\`\`tsx
+<section style={{ width: '100%', background: '#1d1d1f' }}>           {/* full bleed */}
+  <div style={{ maxWidth: 980, margin: '0 auto', padding: '140px 24px' }}>  {/* content */}
+    <h2>Headline</h2>
+  </div>
+</section>
+\`\`\`
+Vertical padding is generous: 120–180px top/bottom. Apple uses space as a design element.
+
+---
+
+### 5. Scroll storytelling — elements build as you scroll
+The core Apple pattern: sticky headline + imagery that reveals behind it as user scrolls.
+\`\`\`tsx
+// Framer Motion scroll reveal — use on every above-the-fold section
+import { useScroll, useTransform, motion } from 'framer-motion'
+import { useRef } from 'react'
+
+export function ScrollReveal({ children }: { children: React.ReactNode }) {
+  const ref = useRef(null)
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] })
+  const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 1, 1, 0])
+  const y = useTransform(scrollYProgress, [0, 0.2], [60, 0])
+  return <motion.div ref={ref} style={{ opacity, y }}>{children}</motion.div>
+}
+
+// Sticky headline with scroll-behind imagery
+<section style={{ position: 'relative', minHeight: '300vh' }}>
+  <div style={{ position: 'sticky', top: 0, height: '100vh', overflow: 'hidden' }}>
+    <motion.div style={{ scale: imageScale, opacity: imageOpacity }}>
+      <Image src="/hero.jpg" fill style={{ objectFit: 'cover' }} />
+    </motion.div>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center' }}>
+      <h1 style={{ color: 'white' }}>Headline stays. Image moves.</h1>
+    </div>
+  </div>
+</section>
+\`\`\`
+
+---
+
+### 6. Video as hero — looping, muted, with poster fallback
+Apple uses video for product demos. Always autoplay + muted + loop + playsInline:
+\`\`\`tsx
+<video
+  autoPlay muted loop playsInline
+  poster="/hero-poster.jpg"
+  style={{ width: '100%', height: '100vh', objectFit: 'cover' }}
+>
+  <source src="/hero.mp4" type="video/mp4" />
+</video>
+\`\`\`
+Generate the poster image with ComfyUI (\`/api/image-gen\`). Video from client assets or stock.
+
+---
+
+### 7. Glass nav — backdrop-filter on sticky header
+\`\`\`css
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: saturate(180%) blur(20px);
+  background: rgba(255, 255, 255, 0.72);  /* light mode */
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+/* Dark variant */
+.nav-dark {
+  background: rgba(29, 29, 31, 0.72);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+\`\`\`
+
+---
+
+### 8. Micro-interactions — every interactive element responds physically
+\`\`\`css
+/* All buttons, cards, links */
+.interactive {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+.interactive:hover {
+  transform: scale(1.03) translateY(-1px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+}
+.interactive:active {
+  transform: scale(0.98);
+}
+\`\`\`
+The spring easing (\`cubic-bezier(0.34, 1.56, 0.64, 1)\`) gives the slight overshoot that feels physical.
+
+---
+
+### When to add GSAP or Three.js
+- **GSAP ScrollTrigger**: when 3+ elements need scrub-synchronized timing (e.g. product teardown animations). \`npm i gsap @gsap/react\`. Always \`return () => ctx.revert()\`.
+- **Three.js / R3F**: one 3D hero per site maximum — rotating product, particle field, or depth map. \`npm i three @react-three/fiber @react-three/drei\`. Always set \`<Canvas dpr={[1,2]} performance={{ min: 0.5 }}>\` and provide a \`<noscript>\` image fallback.
+
+---
+
+### Visual pre-ship checklist
+- [ ] Smooth scroll installed (Lenis) and wrapping root layout
+- [ ] Hero headline is 80px+ with -0.03em tracking
+- [ ] Background is #1d1d1f (dark) or #f5f5f7 (light) — not pure black/white
+- [ ] At least one scroll-driven animation (useScroll + useTransform)
+- [ ] Nav has backdrop-filter glass blur
+- [ ] All interactive elements have spring micro-interactions
+- [ ] Section vertical padding ≥ 120px
+- [ ] Viewed on mobile before shipping — typography scales with clamp()
 
 ## Image Generation
 ComfyUI runs locally at \`127.0.0.1:8000\` with SDXL Base 1.0. Use the \`comfy\` MCP plugin:
@@ -413,18 +551,20 @@ const PIPELINE_PHASES = [
     phase: 1,
     label: 'Design',
     color: '#f59e0b',
-    tagline: 'Before writing any code — pick a visual direction and set the visual standard',
+    tagline: 'Reference model: apple.com — before writing any code, set this standard',
     skills: [
-      { cmd: '/design-shotgun', source: 'GStack', desc: 'Generate 3 divergent UI directions — pick the strongest before building' },
-      { cmd: '/tailwind-design-system', source: 'Antigravity', desc: 'Define color palette, type scale, and spacing tokens for the whole site' },
-      { cmd: '/shadcn', source: 'Antigravity', desc: 'Scaffold shadcn/ui: radius, accent color, and base component set' },
-      { cmd: '/landing-page-generator', source: 'Antigravity', desc: 'Hero layout, CTA structure, social proof, conversion section patterns' },
-      { cmd: 'CSS @property + backdrop-filter', source: 'Visual', desc: 'Zero-maintenance: animatable CSS variables, glass layers, mix-blend-mode text — always on' },
-      { cmd: 'Lenis smooth scroll', source: 'Visual', desc: 'npm i lenis — inertia scroll used by Vercel/Linear/Apple. 1 import, near-zero maintenance' },
-      { cmd: 'Framer Motion useScroll', source: 'Visual', desc: 'Scroll-driven parallax, opacity, scale reveals — React-native, low maintenance, no canvas' },
-      { cmd: 'GSAP ScrollTrigger', source: 'Visual', desc: 'Scrub-exact multi-element timelines — use when Framer Motion is not precise enough (medium maintenance)' },
-      { cmd: 'Three.js / R3F hero', source: 'Visual', desc: 'WebGL 3D product renders, particle fields — hero moments only, not every page (higher maintenance)' },
-      { cmd: 'Variable fonts + optical sizing', source: 'Visual', desc: 'font-variation-settings, font-optical-sizing: auto — single font file, infinite weight range' },
+      { cmd: '/design-shotgun', source: 'GStack', desc: 'Generate 3 divergent directions at Apple quality — pick the strongest. Ask: could this section be on apple.com?' },
+      { cmd: 'npm i lenis framer-motion', source: 'Visual ★ DEFAULT', desc: 'MANDATORY: run before writing a single component. Wire Lenis in root layout immediately — every site gets inertia scroll' },
+      { cmd: 'globals.css: clamp() typography', source: 'Visual ★ DEFAULT', desc: 'Set --text-hero: clamp(56px, 8vw, 120px), weight 800, tracking -0.04em, line-height 1.05 — Apple scale from day one' },
+      { cmd: 'globals.css: #1d1d1f + #f5f5f7', source: 'Visual ★ DEFAULT', desc: 'Set Apple color system: near-black bg, near-white bg, one accent. Never pure black/white' },
+      { cmd: 'glass nav (backdrop-filter)', source: 'Visual ★ DEFAULT', desc: 'backdrop-filter: saturate(180%) blur(20px) — sticky nav glass. Apply before any nav component is written' },
+      { cmd: 'ScrollReveal component', source: 'Visual ★ DEFAULT', desc: 'Build a reusable ScrollReveal wrapper using useScroll + useTransform. Apply to every above-the-fold section' },
+      { cmd: 'spring micro-interactions', source: 'Visual ★ DEFAULT', desc: 'All buttons/cards: transition cubic-bezier(0.34, 1.56, 0.64, 1) — slight overshoot that feels physical, like Apple' },
+      { cmd: '/tailwind-design-system', source: 'Antigravity', desc: 'Refine color palette and spacing tokens after Apple base is in place' },
+      { cmd: '/landing-page-generator', source: 'Antigravity', desc: 'Full-bleed hero layout, 120px+ section padding, CTA patterns — after visual foundation is set' },
+      { cmd: 'GSAP ScrollTrigger', source: 'Visual (selective)', desc: 'Only when 3+ elements need synchronized scrub timing. npm i gsap @gsap/react. Always return () => ctx.revert()' },
+      { cmd: 'Three.js / R3F hero', source: 'Visual (selective)', desc: 'One 3D hero per site — rotating product, particle field. Canvas dpr={[1,2]}, always noscript fallback' },
+      { cmd: 'Video hero (muted autoplay)', source: 'Visual (selective)', desc: 'autoPlay muted loop playsInline + poster image. Generate poster with ComfyUI /api/image-gen' },
     ],
   },
   {
