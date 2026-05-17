@@ -1,6 +1,7 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
-import { CheckCircle2 } from 'lucide-react'
+import { useState, useEffect, useRef, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { CheckCircle2, ClipboardCheck, ExternalLink } from 'lucide-react'
 import type {
   AuditResult,
   AuditCheck,
@@ -457,11 +458,40 @@ function CorkboardPhase({
   blueprint,
   onBack,
   onConfirm,
+  siteId,
+  siteName,
 }: {
   blueprint: BlueprintResult
   onBack: () => void
   onConfirm: () => void
+  siteId?: string
+  siteName?: string
 }) {
+  const [importStatus, setImportStatus] = useState<'idle' | 'importing' | 'done' | 'error'>('idle')
+  const [importError, setImportError] = useState('')
+
+  async function handleImport() {
+    if (!siteId) return
+    setImportStatus('importing')
+    setImportError('')
+    try {
+      const branchName = `audit-${new Date().toISOString().slice(0, 10)}`
+      const res = await fetch('/api/blueprints/import-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteId, branchName, nodes: blueprint.nodes, edges: blueprint.edges }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        throw new Error((d as { error?: string }).error ?? `Error ${res.status}`)
+      }
+      setImportStatus('done')
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : String(err))
+      setImportStatus('error')
+    }
+  }
+
   const modeBadge = blueprint.mode === 'rebuild'
     ? { bg: 'rgba(99,102,241,0.15)', color: 'var(--accent)', label: 'Rebuild' }
     : { bg: 'rgba(16,185,129,0.1)', color: '#10b981', label: 'Patch' }
@@ -598,6 +628,45 @@ function CorkboardPhase({
         className="border-t px-6 py-5 shrink-0"
         style={{ borderColor: 'rgba(255,255,255,0.07)', background: '#0b0d18' }}
       >
+        {/* Import to site blueprint row */}
+        {siteId && (
+          <div className="flex items-center justify-center gap-3 mb-4">
+            {importStatus === 'done' ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold" style={{ color: '#10b981' }}>
+                  ✓ Imported to {siteName ?? 'site'} blueprint
+                </span>
+                <a
+                  href={`/sites/${siteId}/blueprint`}
+                  className="flex items-center gap-1 text-xs font-semibold"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  Open canvas <ExternalLink size={10} />
+                </a>
+              </div>
+            ) : (
+              <button
+                onClick={handleImport}
+                disabled={importStatus === 'importing'}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-colors"
+                style={{
+                  background: 'rgba(16,185,129,0.1)',
+                  color: importStatus === 'error' ? '#f87171' : '#34d399',
+                  border: '1px solid rgba(16,185,129,0.25)',
+                  opacity: importStatus === 'importing' ? 0.7 : 1,
+                }}
+              >
+                <ClipboardCheck size={13} />
+                {importStatus === 'importing'
+                  ? 'Importing…'
+                  : importStatus === 'error'
+                  ? `Retry — ${importError}`
+                  : `Save to ${siteName ?? 'site'} blueprint`}
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="flex gap-3 max-w-md mx-auto">
           <button
             onClick={onBack}
@@ -826,9 +895,16 @@ function DonePhase({
 
 // ── Main Component ─────────────────────────────────────────────────────────
 
-export default function EvaluatePage() {
-  const [phase, setPhase] = useState<Phase>('input')
-  const [evalState, setEvalState] = useState<EvalState>({ siteUrl: '', githubRepo: '', improvements: '' })
+function EvaluateInner() {
+  const searchParams = useSearchParams()
+  const prefillUrl = searchParams.get('url') ?? ''
+  const prefillSiteId = searchParams.get('siteId') ?? ''
+  const prefillSiteName = searchParams.get('siteName') ?? ''
+
+  const [phase, setPhase] = useState<Phase>(prefillUrl ? 'scanning' : 'input')
+  const [evalState, setEvalState] = useState<EvalState>({ siteUrl: prefillUrl, githubRepo: '', improvements: '' })
+  const [linkedSiteId] = useState(prefillSiteId)
+  const [linkedSiteName] = useState(prefillSiteName)
   const [audit, setAudit] = useState<AuditResult | null>(null)
   const [blueprint, setBlueprint] = useState<BlueprintResult | null>(null)
   const [selectedMode, setSelectedMode] = useState<BlueprintMode>('patch')
@@ -972,6 +1048,8 @@ export default function EvaluatePage() {
         blueprint={blueprint}
         onBack={() => setPhase('results')}
         onConfirm={() => setPhase('confirm')}
+        siteId={linkedSiteId || undefined}
+        siteName={linkedSiteName || undefined}
       />
     )
   }
@@ -1020,5 +1098,17 @@ export default function EvaluatePage() {
       setState={setEvalState}
       onStart={() => setPhase('scanning')}
     />
+  )
+}
+
+export default function EvaluatePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0b0d18' }}>
+        <div className="w-5 h-5 rounded-full border-2 border-indigo-500/30 border-t-indigo-400 animate-spin" />
+      </div>
+    }>
+      <EvaluateInner />
+    </Suspense>
   )
 }

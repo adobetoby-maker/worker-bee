@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getBlueprint } from '@/lib/blueprintStore'
-import { ArrowLeft, ExternalLink, GitBranch, Pencil, Map, Video, Wand2, ExternalLink as ExtLink, BarChart2 } from 'lucide-react'
+import { ArrowLeft, ExternalLink, GitBranch, Pencil, Map, Video, Wand2, ExternalLink as ExtLink, BarChart2, ScanSearch } from 'lucide-react'
 import DeleteSiteButton from './DeleteSiteButton'
 
 const STACK_LABELS: Record<string, string> = {
@@ -66,6 +66,12 @@ export default async function SiteDetailPage({ params }: { params: Promise<{ id:
           </a>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href={`/evaluate?url=${encodeURIComponent(data.url ?? '')}&siteId=${id}&siteName=${encodeURIComponent(data.name ?? '')}`}
+            className="flex items-center gap-1.5 text-sm border px-3 py-2 rounded-lg hover:border-emerald-500/40 transition-colors"
+            style={{ borderColor: 'var(--border)', color: '#34d399' }}>
+            <ScanSearch size={13} /> Quality Check
+          </Link>
           <Link href={`/sites/${id}/build/progress`}
             className="flex items-center gap-1.5 text-sm border px-3 py-2 rounded-lg hover:border-indigo-500/40 transition-colors"
             style={{ borderColor: 'var(--border)', color: 'var(--muted-light)' }}>
@@ -214,6 +220,55 @@ export default async function SiteDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
+      </div>
+
+      {/* ── Iterative Loop ── */}
+      <div className="rounded-2xl border overflow-hidden mb-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <div className="flex items-center gap-2 px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+          <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Improvement Loop</span>
+          <span className="text-xs ml-2" style={{ color: 'var(--muted)', opacity: 0.5 }}>Audit → Refine Blueprint → Build or Patch → Repeat</span>
+        </div>
+        <div className="flex items-stretch divide-x" style={{ borderColor: 'var(--border)' }}>
+          {/* Step 1 */}
+          <Link href={`/evaluate?url=${encodeURIComponent(data.url ?? '')}&siteId=${id}&siteName=${encodeURIComponent(data.name ?? '')}`}
+            className="flex-1 flex flex-col items-center gap-2 px-4 py-4 hover:bg-white/[0.02] transition-colors text-center">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+              style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>1</div>
+            <ScanSearch size={15} style={{ color: '#34d399' }} />
+            <span className="text-xs font-semibold" style={{ color: '#34d399' }}>Quality Check</span>
+            <span className="text-xs leading-tight" style={{ color: 'var(--muted)' }}>Audit the live site, find SEO, security & perf issues</span>
+          </Link>
+          <div className="flex items-center px-2" style={{ color: 'var(--muted)', opacity: 0.3 }}>→</div>
+          {/* Step 2 */}
+          <Link href={`/sites/${id}/blueprint`}
+            className="flex-1 flex flex-col items-center gap-2 px-4 py-4 hover:bg-white/[0.02] transition-colors text-center">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+              style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8' }}>2</div>
+            <Map size={15} style={{ color: '#818cf8' }} />
+            <span className="text-xs font-semibold" style={{ color: '#818cf8' }}>Blueprint Canvas</span>
+            <span className="text-xs leading-tight" style={{ color: 'var(--muted)' }}>Review imported audit nodes, adjust priorities, add cards</span>
+          </Link>
+          <div className="flex items-center px-2" style={{ color: 'var(--muted)', opacity: 0.3 }}>→</div>
+          {/* Step 3 */}
+          <Link href={`/sites/${id}/build`}
+            className="flex-1 flex flex-col items-center gap-2 px-4 py-4 hover:bg-white/[0.02] transition-colors text-center">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+              style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>3</div>
+            <Wand2 size={15} style={{ color: '#f59e0b' }} />
+            <span className="text-xs font-semibold" style={{ color: '#f59e0b' }}>Build / Patch</span>
+            <span className="text-xs leading-tight" style={{ color: 'var(--muted)' }}>Configure the pipeline, generate CLAUDE.md, run fixes</span>
+          </Link>
+          <div className="flex items-center px-2" style={{ color: 'var(--muted)', opacity: 0.3 }}>→</div>
+          {/* Step 4 */}
+          <Link href={`/sites/${id}/build/progress`}
+            className="flex-1 flex flex-col items-center gap-2 px-4 py-4 hover:bg-white/[0.02] transition-colors text-center">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+              style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171' }}>4</div>
+            <BarChart2 size={15} style={{ color: '#f87171' }} />
+            <span className="text-xs font-semibold" style={{ color: '#f87171' }}>Track Progress</span>
+            <span className="text-xs leading-tight" style={{ color: 'var(--muted)' }}>Monitor build phases, fix errors with AI, then repeat</span>
+          </Link>
+        </div>
       </div>
 
       {/* ── Meta row ── */}
