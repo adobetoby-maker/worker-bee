@@ -51,7 +51,9 @@ ${generatePipelineClaude()}
 
 Before every deploy, verify:
 
-### Visual (apple.com standard)
+### ⛔ Design Review Gate (Phase 5 — BLOCKING)
+Run \`npm run dev\` → open localhost:3000 → check every section against apple.com:
+- [ ] \`/design-review\` passes — all 8 Apple patterns checked
 - [ ] Lenis smooth scroll installed and wrapping root layout
 - [ ] Hero headline ≥ 80px with letter-spacing -0.03em and font-optical-sizing: auto
 - [ ] Background uses #1d1d1f or #f5f5f7 — not pure black/white
@@ -59,7 +61,11 @@ Before every deploy, verify:
 - [ ] Nav has backdrop-filter glass blur
 - [ ] All interactive elements have spring micro-interaction (cubic-bezier overshoot)
 - [ ] Section vertical padding ≥ 120px — Apple uses space as design element
-- [ ] Viewed on mobile — typography scales via clamp(), no text overflow
+- [ ] Mobile at 375px — typography scales via clamp(), no overflow or horizontal scroll
+- [ ] All tests pass (\`npm test\`), no lint errors (\`npm run lint\`)
+- [ ] Patch loop complete — all design-review findings resolved via wb-apply
+
+**Do not proceed to Phase 6 (Ship) until every item above is checked.**
 
 ### SEO & Infrastructure
 - [ ] \`app/sitemap.ts\` exists and lists all public routes
@@ -258,7 +264,136 @@ ComfyUI runs locally at \`127.0.0.1:8000\` with SDXL Base 1.0. Use the \`comfy\`
 4. Save to \`public/images/\` and reference in code
 
 Always include \`negative_prompt: "text, watermark, letters, words, blurry"\`. Best at 1024×1024 or 1216×832.
-`,
+${d.appleAesthetic ? `
+## Apple Aesthetic — Scroll Story Blueprint
+
+**Target standard: apple.com.** Every decision below is derived from building Salvorias (salvorias.vercel.app) iteratively against that benchmark.
+
+### Core Rules (non-negotiable)
+- **No borders between sections.** Use \`py-40\` to \`py-52\` whitespace only — never \`border-t\`.
+- **No feature grids.** Each feature is its own full-width section. One idea per screen.
+- **No proof bars, no numbered steps, no SaaS patterns.**
+- **Motion is scroll-driven only.** Use \`useScroll\` + \`useTransform\` from framer-motion. Never \`animate\` loops or CSS keyframe loops for hero elements.
+- **Product image fills the viewport.** Use \`min(105vmin, 1060px)\` — not a "featured card."
+- **Typography via \`clamp()\`.** Hero: \`clamp(3.8rem, 11vw, 9rem)\`. Section heads: \`clamp(2.8rem, 7vw, 6rem)\`. No fixed px font sizes.
+
+### Step 1 — Generate the Hero Image
+Before writing any component code, generate the product/hero image with ComfyUI:
+
+\`\`\`bash
+# Via MCP comfy plugin — enqueue_workflow with this node structure:
+# checkpoint: sd_xl_base_1.0.safetensors, steps: 40, cfg: 8, sampler: dpmpp_2m karras
+# positive: "photorealistic [product], ultra polished, cinematic rim lighting,
+#            pure jet black background, 8k, macro lens, light caustics, luxury render"
+# negative: "white background, blurry, cartoon, watermark, text, flat"
+# size: 1024x1024
+\`\`\`
+
+Save output to \`public/hero.png\`. The image must have a **pure black background** so it dissolves into the page via \`drop-shadow\`.
+
+### Step 2 — ScrollStory Component
+Create \`components/ScrollStory.tsx\` — this replaces the hero + all feature sections:
+
+\`\`\`tsx
+'use client'
+import { useRef } from 'react'
+import { motion, useScroll, useTransform } from 'framer-motion'
+import Image from 'next/image'
+
+// Outer section height = panels.length * 100vh (gives scroll room)
+// Sticky inner = 100vh (keeps scene in view while outer scrolls)
+// Product on RIGHT, text panels on LEFT — they never share horizontal space
+
+export default function ScrollStory() {
+  const ref = useRef<HTMLElement>(null)
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] })
+
+  // Product FALLS DOWN the screen — large Y travel tied to scroll
+  const productY   = useTransform(scrollYProgress, [0, 1], ['-55vh', '60vh'])
+  const rotateZ    = useTransform(scrollYProgress, [0, .2, .4, .6, .8, 1], [-8, 12, -16, 10, -14, 8])
+  const rotateX    = useTransform(scrollYProgress, [0, .25, .5, .75, 1], [0, 18, -12, 20, -8])
+  const rotateY    = useTransform(scrollYProgress, [0, .33, .66, 1], [0, 18, -12, 6])
+  const scaleP     = useTransform(scrollYProgress, [0, .08, .92, 1], [.95, .88, .88, .75])
+
+  const panels = [
+    { label: '', heading: ['${d.name}', 'tagline here.'], sub: 'One sentence. What you do. No fluff.' },
+    { label: 'Feature 1', heading: ['Headline.', 'italic variant.'], sub: 'One sentence body.' },
+    { label: 'Feature 2', heading: ['Headline.', 'italic variant.'], sub: 'One sentence body.' },
+    { label: 'Feature 3', heading: ['Headline.', 'italic variant.'], sub: 'One sentence body.' },
+  ]
+  const STEP = 1 / panels.length
+
+  return (
+    <section ref={ref} style={{ height: \`\${panels.length * 100}vh\` }}>
+      <div className="sticky top-0 h-screen overflow-hidden">
+
+        {/* Product — right side, falls with scroll */}
+        <motion.div style={{
+          position: 'absolute', right: '2%', top: '50%', translateY: '-50%',
+          y: productY, rotateY, rotateX, rotateZ, scale: scaleP,
+          width: 'min(58vw, 640px)', height: 'min(58vw, 640px)',
+          perspective: 1400, transformStyle: 'preserve-3d',
+        }}>
+          <Image src="/hero.png" alt="${d.name}" fill priority className="object-contain"
+            style={{ filter: 'drop-shadow(0 0 90px rgba(var(--accent-rgb),0.45))' }} />
+        </motion.div>
+
+        {/* Text panels — left side only, never reach the product zone */}
+        {panels.map((p, i) => {
+          const inAt = i * STEP
+          const opacity = useTransform(scrollYProgress, [inAt, inAt+STEP*.25, inAt+STEP*.85, inAt+STEP], [0,1,1,0])
+          const y = useTransform(scrollYProgress, [inAt, inAt+STEP*.25], [48, 0])
+          return (
+            <motion.div key={i} style={{ opacity, y }}
+              className="absolute left-8 md:left-16 top-1/2 -translate-y-1/2 max-w-[42vw] md:max-w-sm z-20">
+              {p.label && <span className="text-xs tracking-widest uppercase text-muted font-medium block mb-4">{p.label}</span>}
+              <h2 className="font-heading font-normal text-white leading-[0.92] tracking-tight"
+                style={{ fontSize: 'clamp(2.4rem, 5.5vw, 5rem)' }}>
+                <span className="block">{p.heading[0]}</span>
+                <span className="block italic text-muted">{p.heading[1]}</span>
+              </h2>
+              <p className="mt-5 text-muted text-base leading-relaxed">{p.sub}</p>
+            </motion.div>
+          )
+        })}
+
+        {/* Vignette — dissolves product edges into background */}
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse 95% 90% at 65% 50%, transparent 35%, var(--bg) 78%)' }} />
+      </div>
+    </section>
+  )
+}
+\`\`\`
+
+### Step 3 — Page Structure
+\`page.tsx\` should only contain:
+1. Fixed nav (transparent → blur on scroll)
+2. \`<ScrollStory />\` (replaces hero + all features)
+3. Price section (one number, huge \`clamp(6rem, 22vw, 18rem)\` size)
+4. CTA / apply section
+5. Footer
+
+**No other sections.**
+
+### Step 4 — Vignette Pattern
+The vignette must dissolve the product into the dark background — no visible image box:
+\`\`\`css
+/* Coin/product is on the right — vignette is offset to 65% x */
+background: radial-gradient(ellipse 95% 90% at 65% 50%, transparent 35%, #080808 78%);
+\`\`\`
+
+### Design Review Gate (Apple Aesthetic)
+Before shipping, verify:
+- [ ] Hero image has pure black background (no white edge box visible)
+- [ ] Product size ≥ 55vw — dominates the screen
+- [ ] Coin/product only moves when user scrolls — no independent CSS loops
+- [ ] Text panels never overlap the product zone
+- [ ] Zero \`border-t\` or \`border-b\` between page sections
+- [ ] No feature card grids anywhere
+- [ ] Typography uses \`clamp()\` for all heading sizes
+- [ ] Price/key number is at minimum \`clamp(6rem, 18vw, 14rem)\`
+` : ''}`,
     settings: {
       model: 'claude-sonnet-4-6',
       permissions: { defaultMode: 'auto' },
@@ -325,7 +460,7 @@ type TemplateKey = keyof typeof TEMPLATES
 type FormData = {
   name: string; description: string; url: string; routes: string; rules: string
   devCommand: string; buildCommand: string; nextjsVersion: string; wpTheme: string
-  supabase: boolean; tailwind: boolean; typescript: boolean
+  supabase: boolean; tailwind: boolean; typescript: boolean; appleAesthetic: boolean
 }
 
 const SKILLS = [
@@ -616,9 +751,24 @@ const PIPELINE_PHASES = [
   },
   {
     phase: 5,
+    label: 'Design Review Gate',
+    color: '#f43f5e',
+    tagline: '⛔ BLOCKING — cannot ship until this loop passes clean',
+    gate: true,
+    skills: [
+      { cmd: '/design-review', source: 'Gate ★ REQUIRED', desc: 'Run on localhost ONLY. Checks all 8 Apple patterns: Lenis, clamp typography, #1d1d1f colors, glass nav, scroll reveals, spring micro-interactions, 120px padding, mobile scale. Screenshots key pages.' },
+      { cmd: 'npm run dev → localhost:3000', source: 'Gate ★ REQUIRED', desc: 'Review must happen against local dev server, not staging. Open every above-the-fold section. Ask: could this be on apple.com?' },
+      { cmd: 'npm test / npm run lint', source: 'Gate ★ REQUIRED', desc: 'All tests green, no lint errors. If tests fail, generate patch nodes — do not skip.' },
+      { cmd: 'wb-apply patch loop', source: 'Gate', desc: 'If /design-review finds issues: blueprint nodes auto-generated → node ~/.claude/scripts/wb-apply.mjs → re-run /design-review. Loop until clean.' },
+      { cmd: 'Mobile check (375px)', source: 'Gate ★ REQUIRED', desc: 'Resize browser to 375px. Typography must scale via clamp() with no overflow, truncation, or horizontal scroll.' },
+      { cmd: '/qa', source: 'GStack', desc: 'Golden path user flow, edge cases, form submissions, back/forward navigation — only after visual review passes.' },
+    ],
+  },
+  {
+    phase: 6,
     label: 'Ship & Monetize',
     color: '#a78bfa',
-    tagline: 'Deploy, measure, and optimize for revenue',
+    tagline: 'Design Review Gate passed — deploy, measure, optimize',
     skills: [
       { cmd: '/ship', source: 'GStack', desc: 'Pre-ship checklist: review → QA → commit → Vercel deploy' },
       { cmd: '/vercel-deployment', source: 'Antigravity', desc: 'Vercel project config, env vars, domain, and preview URL setup' },
@@ -629,10 +779,12 @@ const PIPELINE_PHASES = [
 ]
 
 function generatePipelineClaude(): string {
-  return PIPELINE_PHASES.map(p =>
-    `**Phase ${p.phase} — ${p.label}** _(${p.tagline})_\n` +
-    p.skills.map(s => `- \`${s.cmd}\` [${s.source}] — ${s.desc}`).join('\n')
-  ).join('\n\n')
+  return PIPELINE_PHASES.map(p => {
+    const header = (p as { gate?: boolean }).gate
+      ? `**⛔ Phase ${p.phase} — ${p.label} (BLOCKING GATE)**\n> Cannot advance to Phase ${p.phase + 1} until this loop passes clean. Run on localhost. Loop: /design-review → patch → /design-review until all 8 Apple patterns pass.`
+      : `**Phase ${p.phase} — ${p.label}** _(${p.tagline})_`
+    return header + '\n' + p.skills.map(s => `- \`${s.cmd}\` [${s.source}] — ${s.desc}`).join('\n')
+  }).join('\n\n')
 }
 
 const GSTACK_INSTALL = `# GStack (garrytan/gstack) — requires bun
@@ -761,7 +913,7 @@ export default function ConfiguratorPage() {
   const [form, setForm] = useState<FormData>({
     name: '', description: '', url: '', routes: '', rules: '',
     devCommand: '', buildCommand: '', nextjsVersion: '16',
-    wpTheme: '', supabase: true, tailwind: true, typescript: true,
+    wpTheme: '', supabase: true, tailwind: true, typescript: true, appleAesthetic: false,
   })
   const [selectedSkills, setSelectedSkills] = useState<string[]>(['superpowers', 'searchfit-seo'])
   const [showPreview, setShowPreview] = useState(false)
@@ -816,6 +968,17 @@ export default function ConfiguratorPage() {
   const claudeMd = TEMPLATES[template].claude(form)
   const settings = {
     ...TEMPLATES[template].settings,
+    ...(template === 'nextjs' && form.appleAesthetic ? {
+      apple_aesthetic: true,
+      visual_stack: {
+        hero_image: 'comfyui-generated — pure black bg, photorealistic product, 1024x1024',
+        scroll_story: 'ScrollStory.tsx — sticky 100vh, product falls with useScroll+useTransform',
+        motion_rule: 'scroll-driven only — no CSS keyframe loops on hero elements',
+        borders: 'none — whitespace only between sections',
+        typography: 'clamp() for all headings — no fixed px sizes',
+        product_size: 'min(58vw, 640px) minimum — fills viewport',
+      },
+    } : {}),
     enabledPlugins: Object.fromEntries(selectedSkills.map(s => [`${s}@claude-plugins-official`, true])),
   }
   const settingsJson = JSON.stringify(settings, null, 2)
@@ -915,7 +1078,7 @@ export default function ConfiguratorPage() {
                       <label className="label-xs">Route Map <span style={{ color: 'var(--muted)' }}>(optional)</span></label>
                       <textarea className={input} style={inputStyle} rows={3} placeholder="- `/` — home&#10;- `/admin` — admin dashboard" value={form.routes} onChange={e => set('routes', e.target.value)} />
                     </div>
-                    <div className="flex gap-4">
+                    <div className="flex gap-4 flex-wrap">
                       {[['supabase', 'Supabase'], ['tailwind', 'Tailwind'], ['typescript', 'TypeScript']].map(([k, l]) => (
                         <label key={k} className="flex items-center gap-2 cursor-pointer text-sm text-slate-300">
                           <input type="checkbox" checked={form[k as keyof FormData] as boolean} onChange={e => set(k as keyof FormData, e.target.checked)} className="accent-indigo-500 w-4 h-4" />
@@ -923,6 +1086,13 @@ export default function ConfiguratorPage() {
                         </label>
                       ))}
                     </div>
+                    <label className="flex items-start gap-3 cursor-pointer group mt-1 p-3 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40 transition-colors">
+                      <input type="checkbox" checked={form.appleAesthetic} onChange={e => set('appleAesthetic', e.target.checked)} className="accent-amber-500 w-4 h-4 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="text-sm font-semibold text-amber-400 group-hover:text-amber-300 transition-colors">Apple Aesthetic</span>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Injects Scroll Story blueprint — AI-generated hero image, scroll-driven coin/product fall, no borders, no grids. Targets apple.com visual standard.</p>
+                      </div>
+                    </label>
                   </>
                 )}
                 {template === 'wordpress' && (

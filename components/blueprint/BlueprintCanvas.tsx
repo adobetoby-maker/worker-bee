@@ -69,7 +69,7 @@ interface Props {
   initialVideoUrl?: string
 }
 
-type Modal = null | 'start-over' | 'new-branch' | 'merge' | 'ai-wizard'
+type Modal = null | 'start-over' | 'new-branch' | 'merge' | 'ai-wizard' | 'apply-github'
 
 function getVideoEmbedUrl(url: string): string | null {
   if (!url) return null
@@ -100,7 +100,7 @@ export function BlueprintCanvas({
   const [currentBranch, setCurrentBranch] = useState(initialBranch)
   const [branches, setBranches] = useState<string[]>(initBranches)
   const [branchData, setBranchData] = useState<Record<string, BranchRecord>>(initBranchData)
-  const [modal, setModal] = useState<Modal>(null)
+  const [modal, setModal] = useState<Modal>(() => initialNodes.length === 0 ? 'ai-wizard' : null)
   const [newBranchName, setNewBranchName] = useState('')
   const [wizardBusiness, setWizardBusiness] = useState(initialWizardInput?.business ?? siteNotes ?? siteName)
   const [wizardGoal, setWizardGoal] = useState(initialWizardInput?.goal ?? 'Convert visitors into consultation bookings')
@@ -110,6 +110,9 @@ export function BlueprintCanvas({
   const [storedWizardInput, setStoredWizardInput] = useState<WizardInput | undefined>(initialWizardInput)
   const [videoUrl, setVideoUrl] = useState(initialVideoUrl)
   const [panelOpen, setPanelOpen] = useState(!!initialWizardInput)
+  const [dispatchState, setDispatchState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [dispatchResult, setDispatchResult] = useState<{ actionsUrl: string; pullsUrl: string; workflowInstalled?: boolean } | null>(null)
+  const [dispatchError, setDispatchError] = useState('')
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [tourStep, setTourStep] = useState<1|2|3>(() => {
@@ -218,6 +221,27 @@ export function BlueprintCanvas({
       })
       return next
     })
+  }
+
+  // ── GitHub dispatch ──────────────────────────────────────────────
+  async function dispatchToGitHub() {
+    setDispatchState('loading')
+    setDispatchError('')
+    setDispatchResult(null)
+    try {
+      const res = await fetch(`/api/sites/${siteId}/dispatch-apply`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ branch: currentBranch }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setDispatchError(data.error ?? 'Dispatch failed'); setDispatchState('error'); return }
+      setDispatchResult({ actionsUrl: data.actionsUrl, pullsUrl: data.pullsUrl, workflowInstalled: data.workflowInstalled })
+      setDispatchState('done')
+    } catch (err) {
+      setDispatchError(err instanceof Error ? err.message : String(err))
+      setDispatchState('error')
+    }
   }
 
   // ── AI Wizard ────────────────────────────────────────────────────
@@ -588,6 +612,20 @@ export function BlueprintCanvas({
               ))}
             </div>
 
+            {/* Apply to GitHub → PR */}
+            <button
+              onClick={() => { setDispatchState('idle'); setDispatchError(''); setDispatchResult(null); setModal('apply-github') }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 7,
+                background: 'linear-gradient(135deg, #166534, #15803d)',
+                border: '1px solid rgba(34,197,94,0.35)',
+                color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.02em',
+              }}
+              title="Apply this blueprint branch to the GitHub repo — opens a PR with Vercel preview"
+            >
+              <Hammer size={12} /> Apply → GitHub PR
+            </button>
+
             {/* Send to Worker Bee */}
             <Link href={`/sites/${siteId}/build`} onClick={() => advanceTour(3)} style={{
               display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 7,
@@ -859,6 +897,100 @@ export function BlueprintCanvas({
               </div>
             </>}
 
+          </div>
+        </div>
+      )}
+
+      {/* ── Apply → GitHub PR Modal ──────────────────────────── */}
+      {modal === 'apply-github' && (
+        <div onClick={() => dispatchState !== 'loading' && setModal(null)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 600,
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#0a0f18', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 16,
+            padding: 28, width: 460, maxWidth: '90vw', boxShadow: '0 24px 80px rgba(0,0,0,0.9)',
+          }}>
+            {dispatchState !== 'done' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                <Hammer size={18} style={{ color: '#22c55e' }} />
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>Apply to GitHub</div>
+                <div style={{ marginLeft: 'auto', fontSize: 11, color: '#334155', fontFamily: 'monospace' }}>{currentBranch}</div>
+              </div>
+            )}
+
+            {dispatchState === 'idle' && (
+              <>
+                <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.65, marginBottom: 20 }}>
+                  This will:
+                  <ol style={{ marginTop: 8, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <li>Install the Worker Bee GitHub Action in <strong style={{ color: '#94a3b8' }}>{siteName}</strong> (first time only)</li>
+                    <li>Check out the repo and apply each fix card using Claude Code</li>
+                    <li>Open a PR with a <strong style={{ color: '#94a3b8' }}>live Vercel preview URL</strong></li>
+                    <li>You review the preview → merge → Vercel deploys to production</li>
+                  </ol>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#475569' }}>
+                  Requires <code style={{ color: '#94a3b8' }}>ANTHROPIC_API_KEY</code> set as a GitHub secret in the client repo.
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setModal(null)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'none', color: '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={dispatchToGitHub} style={{ flex: 2, padding: '10px 0', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #166534, #15803d)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                    <Hammer size={13} /> Apply branch &ldquo;{currentBranch}&rdquo;
+                  </button>
+                </div>
+              </>
+            )}
+
+            {dispatchState === 'loading' && (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <Loader2 size={28} style={{ color: '#22c55e', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+                <div style={{ fontSize: 14, color: '#e2e8f0', fontWeight: 600, marginBottom: 6 }}>Dispatching to GitHub…</div>
+                <div style={{ fontSize: 12, color: '#475569' }}>Installing workflow if needed, then triggering the run</div>
+              </div>
+            )}
+
+            {dispatchState === 'done' && dispatchResult && (
+              <>
+                <div style={{ textAlign: 'center', marginBottom: 24 }}>
+                  <div style={{ fontSize: 28, marginBottom: 12 }}>🐝</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0', marginBottom: 6 }}>Running on GitHub</div>
+                  <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>
+                    The action is applying your fix cards. A PR with a Vercel preview URL will appear in a few minutes.
+                    {dispatchResult.workflowInstalled && <span style={{ display: 'block', marginTop: 6, color: '#22c55e' }}>✓ Workflow installed on first run</span>}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+                  <a href={dispatchResult.actionsUrl} target="_blank" rel="noopener noreferrer" style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    padding: '11px 0', borderRadius: 8, background: 'rgba(34,197,94,0.1)',
+                    border: '1px solid rgba(34,197,94,0.25)', color: '#22c55e', fontSize: 12, fontWeight: 700, textDecoration: 'none',
+                  }}>
+                    Watch action run →
+                  </a>
+                  <a href={dispatchResult.pullsUrl} target="_blank" rel="noopener noreferrer" style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    padding: '11px 0', borderRadius: 8, background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: 12, fontWeight: 600, textDecoration: 'none',
+                  }}>
+                    View PRs (preview URL will appear here)
+                  </a>
+                </div>
+                <button onClick={() => setModal(null)} style={{ width: '100%', padding: '9px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'none', color: '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Close</button>
+              </>
+            )}
+
+            {dispatchState === 'error' && (
+              <>
+                <div style={{ padding: '12px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, fontSize: 12, color: '#fca5a5', marginBottom: 16 }}>
+                  {dispatchError}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setModal(null)} style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'none', color: '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Close</button>
+                  <button onClick={dispatchToGitHub} style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', background: '#1e293b', color: '#94a3b8', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Retry</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
