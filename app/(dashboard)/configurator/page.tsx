@@ -60,6 +60,58 @@ Before every deploy, verify:
 - [ ] \`@vercel/analytics\` imported in root layout
 - [ ] CLAUDE.md reflects current Next.js version, env vars, and stack
 
+## Visual Excellence Standards
+
+Every site targets Apple/Linear/Vercel quality. Use this tiered stack:
+
+### Tier 1 — Always on (zero maintenance, pure CSS)
+\`\`\`css
+/* Animatable CSS variables — smooth, hardware-accelerated */
+@property --accent-h { syntax: '<number>'; initial-value: 250; inherits: false; }
+@property --gradient-stop { syntax: '<percentage>'; initial-value: 0%; inherits: false; }
+
+/* Glass depth layers */
+.glass { backdrop-filter: blur(20px) saturate(180%); background: rgba(255,255,255,0.08); }
+
+/* High-contrast text inversion (Apple-style) */
+.blend-text { mix-blend-mode: difference; color: white; }
+\`\`\`
+
+### Tier 2 — Scroll animation (low maintenance, React-native)
+\`\`\`bash
+npm i lenis framer-motion
+\`\`\`
+- **Lenis**: Wrap root layout — 1 import, inertia scroll used by Vercel/Linear
+- **Framer Motion \`useScroll\` + \`useTransform\`**: Scroll-driven parallax, scale, opacity
+- Use \`<motion.div style={{ y, opacity, scale }}\` from scroll transforms — no GSAP needed for most effects
+
+### Tier 3 — Complex timelines (medium maintenance, use selectively)
+\`\`\`bash
+npm i gsap @gsap/react
+\`\`\`
+- Only when multiple elements need scrub-exact synchronized timing
+- Wrap in \`useGSAP\` hook to prevent memory leaks
+- Always cleanup: \`return () => ctx.revert()\`
+
+### Tier 4 — 3D / WebGL (higher maintenance, hero moments only)
+\`\`\`bash
+npm i three @react-three/fiber @react-three/drei
+\`\`\`
+- One 3D canvas per page maximum — performance budget matters
+- Always add \`<Canvas dpr={[1, 2]} performance={{ min: 0.5 }}\` for mobile
+- Fallback to a static image if \`canvas\` not supported: \`<noscript><img …/>\`
+- Use \`Suspense\` + \`useLoader\` — never block the main thread
+
+### Variable Fonts
+\`\`\`css
+/* Use CSS optical sizing — single font file covers all weights */
+body { font-optical-sizing: auto; }
+h1 { font-variation-settings: 'opsz' 72, 'wght' 800; }
+\`\`\`
+
+### Rule of thumb
+CSS techniques → always. Framer Motion → scroll reveals. GSAP → complex scrub. Three.js → hero only. This = Apple visual quality at low-to-medium maintenance cost.
+
 ## Image Generation
 ComfyUI runs locally at \`127.0.0.1:8000\` with SDXL Base 1.0. Use the \`comfy\` MCP plugin:
 1. \`create_workflow\` (template: "txt2img") with a descriptive photorealistic prompt
@@ -69,7 +121,17 @@ ComfyUI runs locally at \`127.0.0.1:8000\` with SDXL Base 1.0. Use the \`comfy\`
 
 Always include \`negative_prompt: "text, watermark, letters, words, blurry"\`. Best at 1024×1024 or 1216×832.
 `,
-    settings: { model: 'claude-sonnet-4-6', permissions: { defaultMode: 'auto' } },
+    settings: {
+      model: 'claude-sonnet-4-6',
+      permissions: { defaultMode: 'auto' },
+      visual_stack: {
+        tier1_always: ['CSS @property', 'backdrop-filter', 'mix-blend-mode'],
+        tier2_scroll: ['lenis', 'framer-motion'],
+        tier3_timelines: ['gsap', '@gsap/react'],
+        tier4_3d: ['three', '@react-three/fiber', '@react-three/drei'],
+        fonts: ['font-optical-sizing: auto', 'font-variation-settings'],
+      },
+    },
   },
   wordpress: {
     label: 'WordPress',
@@ -351,12 +413,18 @@ const PIPELINE_PHASES = [
     phase: 1,
     label: 'Design',
     color: '#f59e0b',
-    tagline: 'Before writing any code — pick a visual direction',
+    tagline: 'Before writing any code — pick a visual direction and set the visual standard',
     skills: [
       { cmd: '/design-shotgun', source: 'GStack', desc: 'Generate 3 divergent UI directions — pick the strongest before building' },
       { cmd: '/tailwind-design-system', source: 'Antigravity', desc: 'Define color palette, type scale, and spacing tokens for the whole site' },
       { cmd: '/shadcn', source: 'Antigravity', desc: 'Scaffold shadcn/ui: radius, accent color, and base component set' },
       { cmd: '/landing-page-generator', source: 'Antigravity', desc: 'Hero layout, CTA structure, social proof, conversion section patterns' },
+      { cmd: 'CSS @property + backdrop-filter', source: 'Visual', desc: 'Zero-maintenance: animatable CSS variables, glass layers, mix-blend-mode text — always on' },
+      { cmd: 'Lenis smooth scroll', source: 'Visual', desc: 'npm i lenis — inertia scroll used by Vercel/Linear/Apple. 1 import, near-zero maintenance' },
+      { cmd: 'Framer Motion useScroll', source: 'Visual', desc: 'Scroll-driven parallax, opacity, scale reveals — React-native, low maintenance, no canvas' },
+      { cmd: 'GSAP ScrollTrigger', source: 'Visual', desc: 'Scrub-exact multi-element timelines — use when Framer Motion is not precise enough (medium maintenance)' },
+      { cmd: 'Three.js / R3F hero', source: 'Visual', desc: 'WebGL 3D product renders, particle fields — hero moments only, not every page (higher maintenance)' },
+      { cmd: 'Variable fonts + optical sizing', source: 'Visual', desc: 'font-variation-settings, font-optical-sizing: auto — single font file, infinite weight range' },
     ],
   },
   {
