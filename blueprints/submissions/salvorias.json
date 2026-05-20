@@ -1,0 +1,42 @@
+{
+  "id": "salvorias-1747353600000-ab3x7k",
+  "name": "Jay CJA",
+  "email": "jay@cjawebservices.com",
+  "business": "CJA Web Services / Salvorias",
+  "vision": "Landing page for our SAV token community offer. 25 spots for SAV holders to get a custom WordPress site built for 1,995 USD in SAV. Need: hero with urgency badge, 6-feature package grid, pricing card (1995 USD in SAV), 4-step how-it-works timeline, 8-field application form with success state, footer with services and company links. Dark navy + amber gold. Crypto-adjacent luxury feel like lovable.dev.",
+  "nodes": [
+    {
+      "id": "hero",
+      "position": { "x": 80, "y": 80 },
+      "data": { "title": "Hero — Paid in SAV", "type": "section", "notes": "Headline with urgency badge (25 spots), amber gradient text, dual CTAs, 3 stat chips", "claudePrompt": "", "status": "planned" }
+    },
+    {
+      "id": "features",
+      "position": { "x": 320, "y": 80 },
+      "data": { "title": "Package Features Grid", "type": "section", "notes": "6 deliverables: Custom Design, Performance, SSL+Security, Mobile First, Content Setup, Launch Ready", "claudePrompt": "", "status": "planned" }
+    },
+    {
+      "id": "pricing",
+      "position": { "x": 560, "y": 80 },
+      "data": { "title": "Pricing — 1995 SAV", "type": "section", "notes": "Glowing card: 1,995 USD in SAV, token locked at current rate, no USD accepted", "claudePrompt": "", "status": "planned" }
+    },
+    {
+      "id": "how-it-works",
+      "position": { "x": 800, "y": 80 },
+      "data": { "title": "How It Works", "type": "section", "notes": "4-step timeline: share assets, draft structure, design+build, approve+launch", "claudePrompt": "", "status": "planned" }
+    },
+    {
+      "id": "application-form",
+      "position": { "x": 1040, "y": 80 },
+      "data": { "title": "Application Form", "type": "section", "notes": "8 fields: name, business, SAV wallet, telegram, discord, site type, 3 inspirations, #1 goal", "claudePrompt": "", "status": "planned" }
+    },
+    {
+      "id": "footer",
+      "position": { "x": 1200, "y": 80 },
+      "data": { "title": "Footer", "type": "section", "notes": "Services + Company columns, copyright 2026 CJA Web Services LLC Lehi Utah, info@cjawebservices.com", "claudePrompt": "", "status": "planned" }
+    }
+  ],
+  "edges": [],
+  "submittedAt": "2026-05-15T00:00:00.000Z",
+  "status": "pending"
+}
