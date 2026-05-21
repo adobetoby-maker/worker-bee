@@ -24,10 +24,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const base = new URL(req.url).origin
 
   // ── 1. Site audit ─────────────────────────────────────────────────────────
-  const auditParams = new URLSearchParams({ url })
-  if (githubRepo) auditParams.set('github', githubRepo)
+  const auditBody: Record<string, string> = { url }
+  if (githubRepo) auditBody.githubRepo = githubRepo
 
-  const auditRes = await fetch(`${base}/api/site-audit?${auditParams}`, {
+  const auditRes = await fetch(`${base}/api/site-audit`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(auditBody),
     signal: AbortSignal.timeout(30_000),
   })
   if (!auditRes.ok) {
