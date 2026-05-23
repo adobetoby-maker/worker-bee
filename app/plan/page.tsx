@@ -877,11 +877,80 @@ function SubmittingScreen() {
 
 // ── Done Screen ────────────────────────────────────────────────────────────
 
+const BUILD_PHASES = [
+  { id: 'research', label: 'Research' },
+  { id: 'scaffold', label: 'Scaffold' },
+  { id: 'visual-loop', label: 'Quality loop' },
+  { id: 'deploy', label: 'Deploy' },
+] as const
+
+type BuildPhaseId = typeof BUILD_PHASES[number]['id']
+type PhaseStatus = 'pending' | 'running' | 'done' | 'error'
+
+interface BuildJob {
+  jobId: string
+  status: 'queued' | 'building' | 'iterating' | 'deploying' | 'done' | 'error'
+  iteration: number
+  maxIterations: number
+  scores: Array<{ i: number; total: number; worst: string }>
+  currentScore: number
+  deployUrl?: string
+  phases: Record<BuildPhaseId, PhaseStatus>
+  log: string[]
+}
+
 function DoneScreen({ wizard, blueprint, submittedId }: {
   wizard: WizardData
   blueprint: { nodes: BlueprintNode[]; edges: BlueprintEdge[] } | null
   submittedId: string
 }) {
+  const [launching, setLaunching] = useState(false)
+  const [jobId, setJobId] = useState<string | null>(null)
+  const [job, setJob] = useState<BuildJob | null>(null)
+  const [launchError, setLaunchError] = useState('')
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  async function launchBuild() {
+    setLaunching(true)
+    setLaunchError('')
+    try {
+      const res = await fetch('/api/build-trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submissionId: submittedId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`)
+      setJobId(data.jobId)
+    } catch (err) {
+      setLaunchError(err instanceof Error ? err.message : String(err))
+      setLaunching(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!jobId) return
+
+    async function poll() {
+      try {
+        const res = await fetch(`/api/build-status/${jobId}`)
+        if (!res.ok) return
+        const data = await res.json() as BuildJob
+        setJob(data)
+        if (data.status === 'done' || data.status === 'error') {
+          if (pollRef.current) clearInterval(pollRef.current)
+        }
+      } catch { /* non-fatal */ }
+    }
+
+    poll()
+    pollRef.current = setInterval(poll, 4000)
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+  }, [jobId])
+
+  const phaseColor = (s: PhaseStatus) =>
+    s === 'done' ? '#34d399' : s === 'running' ? '#6366f1' : s === 'error' ? '#f87171' : 'rgba(255,255,255,0.15)'
+
   return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: '#0b0d18' }}>
       <div className="max-w-md w-full text-center">
@@ -891,7 +960,6 @@ function DoneScreen({ wizard, blueprint, submittedId }: {
             style={{ background: 'rgba(52,211,153,0.15)', animation: 'pulse-check 0.6s ease both' }}>
             <CheckCircle2 size={40} style={{ color: '#34d399' }} />
           </div>
-          {/* Confetti dots */}
           <div className="absolute -top-2 -right-2 w-3 h-3 rounded-full" style={{ background: '#6366f1', animation: 'confetti-1 0.8s ease both' }} />
           <div className="absolute -top-1 -left-3 w-2 h-2 rounded-full" style={{ background: '#f59e0b', animation: 'confetti-2 0.9s ease both' }} />
           <div className="absolute top-0 right-0 w-2 h-2 rounded-full" style={{ background: '#ec4899', animation: 'confetti-3 0.7s ease both' }} />
@@ -899,7 +967,7 @@ function DoneScreen({ wizard, blueprint, submittedId }: {
 
         <h1 className="text-3xl font-bold text-white mb-2">Plan submitted!</h1>
         <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.45)' }}>
-          We&apos;ll reach out within 24 hours to get started.
+          {jobId ? 'Build pipeline active — tracking progress below.' : 'Your blueprint is ready. Launch the build when you\'re ready.'}
         </p>
 
         {/* Summary card */}
@@ -930,19 +998,117 @@ function DoneScreen({ wizard, blueprint, submittedId }: {
           </div>
         </div>
 
-        <div className="rounded-2xl border p-5 text-left"
-          style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}>
-          <p className="text-xs font-bold uppercase tracking-widest text-white/30 mb-3">What happens next</p>
-          <ul className="space-y-2 text-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>
-            <li>→ We review your plan and blueprint</li>
-            <li>→ We confirm scope and timeline</li>
-            <li>→ Build begins within 1–2 business days</li>
-          </ul>
-        </div>
+        {/* Build pipeline status — shown after launch */}
+        {job && (
+          <div className="rounded-2xl border p-5 text-left mb-6"
+            style={{ borderColor: 'rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.05)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: '#6366f1' }}>
+                Build pipeline
+              </p>
+              {job.currentScore > 0 && (
+                <span className="text-xs font-bold" style={{ color: '#34d399' }}>
+                  {job.currentScore}/100
+                </span>
+              )}
+            </div>
+
+            {/* Phase list */}
+            <div className="space-y-2 mb-4">
+              {BUILD_PHASES.map(ph => {
+                const status = job.phases?.[ph.id] ?? 'pending'
+                return (
+                  <div key={ph.id} className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: phaseColor(status) }} />
+                    <span className="text-sm flex-1" style={{ color: status === 'pending' ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.8)' }}>
+                      {ph.label}
+                    </span>
+                    {status === 'running' && job.phases?.[ph.id] === 'running' && ph.id === 'visual-loop' && (
+                      <span className="text-xs tabular-nums" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                        iter {job.iteration}/{job.maxIterations}
+                      </span>
+                    )}
+                    {status === 'done' && (
+                      <span className="text-xs" style={{ color: '#34d399' }}>✓</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Score history */}
+            {job.scores.length > 0 && (
+              <div className="border-t pt-3" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+                <p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>Quality scores</p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {job.scores.map((s, i) => (
+                    <span key={i} className="text-xs font-bold px-2 py-0.5 rounded-full"
+                      style={{
+                        background: s.total >= 85 ? 'rgba(52,211,153,0.15)' : 'rgba(255,255,255,0.06)',
+                        color: s.total >= 85 ? '#34d399' : 'rgba(255,255,255,0.5)',
+                      }}>
+                      {s.total}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Live URL when done */}
+            {job.status === 'done' && job.deployUrl && (
+              <a
+                href={job.deployUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold transition-all"
+                style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}
+              >
+                View live site →
+              </a>
+            )}
+
+            {/* Last log line */}
+            {job.log.length > 0 && (
+              <p className="text-xs mt-3 truncate" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                {job.log[job.log.length - 1]}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Launch build CTA — shown before launch */}
+        {!jobId && (
+          <div className="space-y-3">
+            <button
+              onClick={launchBuild}
+              disabled={launching || !submittedId}
+              className="w-full py-4 rounded-2xl text-sm font-bold transition-all disabled:opacity-50"
+              style={{ background: 'var(--accent)', color: 'white' }}
+            >
+              {launching ? 'Launching build…' : 'Launch Build →'}
+            </button>
+
+            {launchError && (
+              <p className="text-xs" style={{ color: '#f87171' }}>{launchError}</p>
+            )}
+
+            <div className="rounded-2xl border p-5 text-left"
+              style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}>
+              <p className="text-xs font-bold uppercase tracking-widest text-white/30 mb-3">What the build does</p>
+              <ul className="space-y-2 text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <li>→ Research: reads your blueprint, sets up project</li>
+                <li>→ Scaffold: builds all pages from your blueprint cards</li>
+                <li>→ Quality loop: up to 10 visual iterations, scored /100</li>
+                <li>→ Deploy: live on worker-bee.app when score ≥ 85</li>
+              </ul>
+            </div>
+          </div>
+        )}
 
         {submittedId && (
           <p className="text-xs mt-4" style={{ color: 'rgba(255,255,255,0.2)' }}>
-            Ref: {submittedId}
+            Ref: {submittedId}{jobId ? ` · Job: ${jobId}` : ''}
           </p>
         )}
       </div>

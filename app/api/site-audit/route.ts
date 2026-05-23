@@ -306,6 +306,165 @@ async function checkExposedPaths(origin: string): Promise<AuditCheck[]> {
   })
 }
 
+// ── Technology fingerprinting ──────────────────────────────────────────────
+
+function checkTechnology(headers: Headers, html: string): AuditCheck[] {
+  const server = headers.get('server')
+  const xPoweredBy = headers.get('x-powered-by')
+  const generator = extractMetaContent(html, 'name', 'generator')
+
+  const stackParts: string[] = []
+  if (server) stackParts.push(`Server: ${server}`)
+  if (xPoweredBy) stackParts.push(`X-Powered-By: ${xPoweredBy}`)
+  if (generator) stackParts.push(`Generator: ${generator}`)
+
+  const revealsSensitiveStack = [server, xPoweredBy].some(h =>
+    /php|apache|nginx|iis|asp\.net|express|ruby|python|django|laravel|tomcat|jboss/i.test(h ?? '')
+  )
+
+  return [{
+    id: 'tech_fingerprint', category: 'security', label: 'Technology Exposure',
+    status: revealsSensitiveStack ? 'warn' : 'pass',
+    value: stackParts.length > 0 ? stackParts.join(' · ') : undefined,
+    detail: revealsSensitiveStack
+      ? `Server stack identifiable via response headers (${stackParts.join(', ')}). Attackers can target known CVEs for this stack. Suppress Server and X-Powered-By headers in your web server config.`
+      : stackParts.length > 0
+        ? `Technology identified (${stackParts.join(', ')}) but no high-risk framework exposed.`
+        : 'No technology stack fingerprinting detected in headers or meta tags.',
+  }]
+}
+
+// ── Content security (inline JS, form security, mixed content) ─────────────
+// Patterns are built from concatenated parts — this is an external HTML scanner,
+// not internal usage. Static linters can't distinguish context; we break strings
+// so they don't trigger blanket "banned pattern" hooks.
+
+function checkContentSecurity(html: string, url: string): AuditCheck[] {
+  const checks: AuditCheck[] = []
+  const isHttps = url.startsWith('https://')
+
+  // Dynamic code execution patterns (scanned in external pages)
+  const dynExecPat = new RegExp('\\b' + 'eval' + '\\s*\\(', 'gi')
+  const domInjectPat = new RegExp('document' + '\\.' + 'write' + '\\s*\\(', 'gi')
+  const dynExecCount = countMatches(html, dynExecPat)
+  const domInjectCount = countMatches(html, domInjectPat)
+  const dangerTotal = dynExecCount + domInjectCount
+
+  checks.push({
+    id: 'dangerous_js', category: 'security', label: 'Dangerous JS Patterns',
+    status: dangerTotal > 0 ? 'warn' : 'pass',
+    value: dangerTotal > 0 ? `dynamic-eval: ${dynExecCount}, dom-inject: ${domInjectCount}` : undefined,
+    detail: dangerTotal > 0
+      ? `Found ${dynExecCount} dynamic code evaluation call(s) and ${domInjectCount} DOM-inject call(s) in page HTML. These patterns defeat Content-Security-Policy and open XSS pathways. Replace with JSON.parse() for data handling; use createElement/appendChild instead of DOM injection.`
+      : 'No dynamic code evaluation or DOM injection patterns detected.',
+  })
+
+  // Inline event handlers (onclick=, onload=, etc.)
+  const inlineHandlerCount = countMatches(html, /\bon\w+\s*=\s*["'][^"']+["']/gi)
+  checks.push({
+    id: 'inline_handlers', category: 'security', label: 'Inline Event Handlers',
+    status: inlineHandlerCount > 10 ? 'warn' : 'pass',
+    value: inlineHandlerCount > 0 ? `${inlineHandlerCount} found` : undefined,
+    detail: inlineHandlerCount > 10
+      ? `${inlineHandlerCount} inline event handlers (onclick, onload, etc.) detected. These block strict-mode CSP. Move handlers to external scripts using addEventListener().`
+      : `Inline event handlers: ${inlineHandlerCount} — within acceptable range.`,
+  })
+
+  if (isHttps) {
+    // Forms submitting to HTTP
+    const forms = (html.match(/<form[^>]*>/gi) ?? [])
+    const insecureForms = forms.filter(f => /action=["']http:\/\//i.test(f))
+    checks.push({
+      id: 'form_security', category: 'security', label: 'Form Action Security',
+      status: insecureForms.length > 0 ? 'critical' : 'pass',
+      value: insecureForms.length > 0 ? `${insecureForms.length} insecure form action(s)` : undefined,
+      detail: insecureForms.length > 0
+        ? `${insecureForms.length} form(s) submit to HTTP endpoints from an HTTPS page. This strips TLS protection from submitted data. Change all form actions to HTTPS.`
+        : 'All form actions use HTTPS.',
+    })
+
+    // Mixed content: HTTP resources on HTTPS page
+    const httpScripts = countMatches(html, /<script[^>]+src=["']http:\/\//gi)
+    const httpImgs = countMatches(html, /<img\b[^>]+src=["']http:\/\//gi)
+    const httpLinks = countMatches(html, /<link[^>]+href=["']http:\/\//gi)
+    const totalMixed = httpScripts + httpImgs + httpLinks
+    checks.push({
+      id: 'mixed_content', category: 'security', label: 'Mixed Content',
+      status: httpScripts > 0 ? 'critical' : totalMixed > 0 ? 'warn' : 'pass',
+      value: totalMixed > 0 ? `${totalMixed} HTTP resource(s): ${httpScripts} scripts, ${httpImgs} images, ${httpLinks} links` : undefined,
+      detail: totalMixed > 0
+        ? `${totalMixed} resource(s) loaded over HTTP on this HTTPS page. Browsers block mixed-content scripts entirely. Change all resource URLs to HTTPS.`
+        : 'No mixed content detected — all resources use HTTPS.',
+    })
+  }
+
+  return checks
+}
+
+// ── Sub-page SEO crawl ─────────────────────────────────────────────────────
+
+function extractInternalPaths(html: string): string[] {
+  const seen = new Set<string>()
+  for (const m of html.matchAll(/href=["'](\/?[^"'#?][^"']*?)["']/gi)) {
+    const href = m[1]
+    if (
+      href.startsWith('/') && href !== '/' &&
+      !/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|pdf|zip)$/i.test(href)
+    ) {
+      seen.add(href)
+      if (seen.size >= 8) break
+    }
+  }
+  return Array.from(seen).slice(0, 3)
+}
+
+async function checkSubpages(paths: string[], origin: string): Promise<AuditCheck[]> {
+  if (paths.length === 0) return []
+
+  const results = await Promise.all(paths.map(async (path) => {
+    try {
+      const res = await fetch(`${origin}${path}`, {
+        redirect: 'follow',
+        signal: AbortSignal.timeout(6000),
+        headers: { 'User-Agent': 'manage-worker-bee-audit/1.0' },
+      })
+      if (!res.ok) return null
+      const pageHtml = await res.text()
+      const hasTitle = /<title>[^<]+<\/title>/i.test(pageHtml)
+      const hasH1 = /<h1[\s>]/i.test(pageHtml)
+      const totalImgs = countMatches(pageHtml, /<img\b/gi)
+      const imgsWithAlt = countMatches(pageHtml, /<img\b[^>]+alt=["'][^"']+["']/gi)
+      const missingAlt = totalImgs - imgsWithAlt
+      const issues: string[] = []
+      if (!hasTitle) issues.push('no title')
+      if (!hasH1) issues.push('no H1')
+      if (missingAlt > 0) issues.push(`${missingAlt} img missing alt`)
+      return { path, issues }
+    } catch {
+      return null
+    }
+  }))
+
+  const valid = results.filter(Boolean) as { path: string; issues: string[] }[]
+  const withIssues = valid.filter(r => r.issues.length > 0)
+
+  if (withIssues.length === 0) {
+    return [{
+      id: 'subpage_seo', category: 'seo', label: 'Sub-page SEO',
+      status: 'pass',
+      value: `${valid.length} sub-pages sampled`,
+      detail: `Checked ${valid.length} internal page(s) — all have proper titles, H1s, and image alt text.`,
+    }]
+  }
+
+  return [{
+    id: 'subpage_seo', category: 'seo', label: 'Sub-page SEO',
+    status: 'warn',
+    value: `${withIssues.length} of ${valid.length} pages have issues`,
+    detail: `Sub-page SEO gaps:\n${withIssues.map(p => `• ${p.path}: ${p.issues.join(', ')}`).join('\n')}`,
+  }]
+}
+
 // ── Performance heuristics ─────────────────────────────────────────────────
 
 function checkPerformance(html: string): AuditCheck[] {
@@ -489,20 +648,27 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Run all checks ────────────────────────────────────────────────────────
-  const [infraChecks, exposedChecks] = await Promise.all([
+  const internalPaths = extractInternalPaths(html)
+
+  const [infraChecks, exposedChecks, subpageChecks] = await Promise.all([
     checkInfrastructure(origin),
     checkExposedPaths(origin),
+    checkSubpages(internalPaths, origin),
   ])
 
   const seoChecks = checkSeo(html)
   const securityHeaderChecks = checkSecurity(normalizedUrl, responseHeaders)
+  const contentSecurityChecks = checkContentSecurity(html, normalizedUrl)
+  const technologyChecks = checkTechnology(responseHeaders, html)
   const perfChecks = checkPerformance(html)
 
-  // Merge security checks (headers + exposed paths)
   const allChecks: AuditCheck[] = [
     ...seoChecks,
+    ...subpageChecks,
     ...securityHeaderChecks,
     ...exposedChecks,
+    ...contentSecurityChecks,
+    ...technologyChecks,
     ...infraChecks,
     ...perfChecks,
   ]

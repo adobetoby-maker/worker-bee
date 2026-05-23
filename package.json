@@ -10,14 +10,18 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",
     "@sentry/cloudflare": "^10.52.0",
+    "@sparticuz/chromium": "^148.0.0",
     "@supabase/supabase-js": "^2.105.1",
     "@types/nodemailer": "^8.0.0",
     "@xyflow/react": "^12.10.2",
     "lucide-react": "^1.14.0",
     "next": "16.2.4",
     "nodemailer": "^8.0.7",
+    "playwright-core": "^1.60.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

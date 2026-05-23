@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
+export const maxDuration = 300
+export const dynamic = 'force-dynamic'
+
 const PRONTO_URL = 'https://pronto-en.worker-bee.app/api/translate'
 const BUILD_API_URL = 'https://build-api.worker-bee.app/run'
 const BUILD_API_KEY = 'wb-build-local-9f4a2c'
@@ -73,6 +76,129 @@ curl -s -X POST https://manage.worker-bee.app/api/blueprints/update \\
 `
 }
 
+function buildRemoveSpec(
+  site: { id: string; name: string; github_repo: string | null },
+  term: string,
+): string {
+  const localPath = `/Users/drive/${site.github_repo?.split('/')[1] ?? site.name}`
+  const slug = term.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+
+  return `# Content Fix: Remove "${term}" — ${site.name}
+
+This is a CONTENT REMOVAL MOD — surgically remove all references to "${term}" from the site copy.
+
+**Repo:** ${site.github_repo}
+**Local path:** ${localPath}
+**Term to remove:** ${term}
+
+## Instructions
+
+1. cd to ${localPath}. Read CLAUDE.md before touching anything.
+2. Search for all occurrences of "${term}" (case-insensitive) across:
+   - lib/*.ts (shopInfo, articles, howtos, data, copy)
+   - components/*.tsx
+   - app/**/*.tsx
+3. For each file found, make the minimal correct change:
+   - If it's an array item (service list, feature list, nav link): remove that item
+   - If it's a prose string mentioning "${term}": rewrite the sentence without it
+   - If it's a standalone article/page about "${term}": remove the entire article object or page
+   - If it's in a chatbot keyword list: remove the keyword
+   - If it's in a pricing table: remove that row
+   - NEVER leave broken TypeScript — trailing commas, orphaned object keys, etc.
+4. Run \`npm run build\` — must pass with zero TypeScript errors.
+5. Run \`npm run lint\` if available.
+6. git checkout -b mods/remove-${slug}
+7. git add -A
+8. git commit -m "fix: remove ${term} — not offered at ${site.name}"
+9. git push origin HEAD
+10. gh pr create --title "fix: remove ${term} references from ${site.name}" --body "Content Fix mod via manage.worker-bee.app/mods\\n\\nRemoved all references to \\"${term}\\" — this service/feature is not offered."
+11. Report the PR URL and a bullet list of every file changed.
+12. curl -s -X POST https://manage.worker-bee.app/api/blueprints/update \\
+  -H "x-api-key: ${BLUEPRINT_API_KEY}" \\
+  -H "content-type: application/json" \\
+  -d '{"siteId":"${site.id}","summary":"Content Fix: removed all references to \\"${term}\\". PR opened."}'
+`
+}
+
+function buildSwapSpec(
+  site: { id: string; name: string; github_repo: string | null },
+  from: string,
+  to: string,
+): string {
+  const localPath = `/Users/drive/${site.github_repo?.split('/')[1] ?? site.name}`
+  const slug = from.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30)
+
+  return `# Content Swap: "${from}" → "${to}" — ${site.name}
+
+Replace every occurrence of "${from}" with "${to}" across the site copy.
+
+**Repo:** ${site.github_repo}
+**Local path:** ${localPath}
+**From:** ${from}
+**To:** ${to}
+
+## Instructions
+
+1. cd to ${localPath}. Read CLAUDE.md before touching anything.
+2. Search (case-sensitive first, then case-insensitive) for "${from}" in:
+   - lib/*.ts (shopInfo, articles, howtos, data, copy)
+   - components/*.tsx
+   - app/**/*.tsx
+3. For each match, replace "${from}" with "${to}" preserving surrounding case pattern:
+   - ALL CAPS → ALL CAPS replacement
+   - Title Case → Title Case replacement
+   - lowercase → lowercase replacement
+4. Do NOT replace inside: import paths, variable names, CSS classes, route paths, HTML attributes (id, className), or comments.
+5. Run \`npm run build\` — must pass with zero TypeScript errors.
+6. Run \`npm run lint\` if available.
+7. git checkout -b mods/swap-${slug}
+8. git add -A
+9. git commit -m "fix: swap \\"${from}\\" → \\"${to}\\" across all site copy"
+10. git push origin HEAD
+11. gh pr create --title "fix: \\"${from}\\" → \\"${to}\\"" --body "Content Swap mod via manage.worker-bee.app/mods\\n\\nReplaced all instances of \\"${from}\\" with \\"${to}\\"."
+12. Report the PR URL and a count of replacements made per file.
+13. curl -s -X POST https://manage.worker-bee.app/api/blueprints/update \\
+  -H "x-api-key: ${BLUEPRINT_API_KEY}" \\
+  -H "content-type: application/json" \\
+  -d '{"siteId":"${site.id}","summary":"Content Swap: \\"${from}\\" → \\"${to}\\". PR opened."}'
+`
+}
+
+function buildRequestSpec(
+  site: { id: string; name: string; github_repo: string | null },
+  request: string,
+): string {
+  const localPath = `/Users/drive/${site.github_repo?.split('/')[1] ?? site.name}`
+
+  return `# Custom Request — ${site.name}
+
+You are making changes to an existing production codebase. Read CLAUDE.md before touching anything.
+
+**Repo:** ${site.github_repo}
+**Local path:** ${localPath}
+
+## Request
+
+${request}
+
+## Standing Rules
+
+- cd to ${localPath} first. The repo already exists — do NOT scaffold anything new.
+- Read CLAUDE.md before touching any file.
+- Run \`npm run build\` after your changes — must pass with zero TypeScript errors.
+- Run \`npm run lint\` if it exists.
+- Create a branch: git checkout -b mods/request-$(date +%Y%m%d%H%M)
+- git add -A && git commit -m "feat: custom request via manage.worker-bee.app/mods"
+- git push origin HEAD
+- gh pr create --title "Custom request: ${request.slice(0, 60).replace(/"/g, '')}" --body "Request dispatched via manage.worker-bee.app/mods\\n\\n${request.replace(/"/g, '\\"')}"
+- Report the PR URL and a summary of every file changed.
+- curl -s -X POST https://manage.worker-bee.app/api/blueprints/update \\
+  -H "x-api-key: ${BLUEPRINT_API_KEY}" \\
+  -H "content-type: application/json" \\
+  -d '{"siteId":"${site.id}","summary":"Custom request complete. PR opened."}'
+`
+}
+
 function buildSeoSpec(site: { id: string; name: string; github_repo: string | null }): string {
   const localPath = `/Users/drive/${site.github_repo?.split('/')[1] ?? site.name}`
 
@@ -119,9 +245,13 @@ curl -s -X POST https://manage.worker-bee.app/api/blueprints/update \\
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null) as {
     siteId: string
-    modType: 'translate' | 'seo'
+    modType: 'translate' | 'seo' | 'remove' | 'swap' | 'request'
     targetLangs?: string[]
     tone?: string
+    term?: string
+    from?: string
+    to?: string
+    request?: string
   } | null
 
   if (!body?.siteId || !body?.modType) {
@@ -148,6 +278,21 @@ export async function POST(req: NextRequest) {
     const langs = body.targetLangs?.length ? body.targetLangs : ['es']
     const tone = body.tone ?? 'auto'
     spec = buildTranslateSpec(site, langs, tone, prontoKey)
+  } else if (body.modType === 'remove') {
+    if (!body.term?.trim()) {
+      return NextResponse.json({ error: 'term is required for remove mod' }, { status: 400 })
+    }
+    spec = buildRemoveSpec(site, body.term.trim())
+  } else if (body.modType === 'swap') {
+    if (!body.from?.trim() || !body.to?.trim()) {
+      return NextResponse.json({ error: 'from and to are required for swap mod' }, { status: 400 })
+    }
+    spec = buildSwapSpec(site, body.from.trim(), body.to.trim())
+  } else if (body.modType === 'request') {
+    if (!body.request?.trim()) {
+      return NextResponse.json({ error: 'request text is required' }, { status: 400 })
+    }
+    spec = buildRequestSpec(site, body.request.trim())
   } else {
     spec = buildSeoSpec(site)
   }

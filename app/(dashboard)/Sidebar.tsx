@@ -1,23 +1,29 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Globe, KeyRound, LayoutDashboard, LogOut, Cpu, Inbox, GitBranch, Wrench, Layers, Sparkles, Search } from 'lucide-react'
+import { Globe, KeyRound, LayoutDashboard, LogOut, Cpu, Inbox, GitBranch, Wrench, Layers, Sparkles, Search, Zap, Shield, Hammer, HelpCircle, Map, Brain } from 'lucide-react'
 
 const NAV = [
-  { href: '/',              label: 'Dashboard',   icon: LayoutDashboard },
-  { href: '/sites',         label: 'Sites',        icon: Globe },
-  { href: '/submissions',   label: 'Submissions',  icon: Inbox },
-  { href: '/audits',        label: 'Audits',       icon: Search },
-  { href: '/iterations',    label: 'Iterations',   icon: GitBranch },
-  { href: '/maintenance',   label: 'Maintain',     icon: Wrench },
-  { href: '/batch',         label: 'Batch',        icon: Layers },
-  { href: '/mods',          label: 'Mods',         icon: Sparkles },
-  { href: '/vault',         label: 'Vault',        icon: KeyRound },
-  { href: '/configurator',  label: 'Config',       icon: Cpu },
+  { href: '/',               label: 'Dashboard',    icon: LayoutDashboard },
+  { href: '/sites',          label: 'Sites',         icon: Globe },
+  { href: '/builds',         label: 'Builds',        icon: Hammer, accent: '#34d399' },
+  { href: '/tetrad',         label: 'TETRAD',        icon: Zap,    accent: '#fbbf24' },
+  { href: '/language-lens',  label: 'Lang Lens',     icon: Shield, accent: '#d4af37' },
+  { href: '/submissions',    label: 'Submissions',   icon: Inbox },
+  { href: '/audits',         label: 'Audits',        icon: Search },
+  { href: '/iterations',     label: 'Iterations',    icon: GitBranch },
+  { href: '/maintenance',    label: 'Maintain',      icon: Wrench },
+  { href: '/batch',          label: 'Batch',         icon: Layers },
+  { href: '/mods',           label: 'Mods',          icon: Sparkles },
+  { href: '/vault',          label: 'Vault',         icon: KeyRound },
+  { href: '/neural-map',     label: 'Neural Map',    icon: Brain, accent: '#a78bfa' },
+  { href: '/configurator',   label: 'Config',        icon: Cpu },
+  { href: '/sitemap-visual', label: 'Sitemap',       icon: Map },
+  { href: '/help',           label: 'Help',          icon: HelpCircle },
 ]
 
 /* Mobile tab bar shows only top-level items */
-const MOBILE_NAV = NAV.slice(0, 6)
+const MOBILE_NAV = NAV.slice(0, 7)
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -58,17 +64,19 @@ export default function Sidebar() {
 
         {/* Nav */}
         <nav className="flex-1 px-2 py-3 space-y-px overflow-y-auto">
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {NAV.map(({ href, label, icon: Icon, accent }) => {
             const active = isActive(href)
+            const activeColor = accent ?? '#6366f1'
+            const activeIconColor = accent ?? '#818cf8'
             return (
               <Link key={href} href={href}
                 className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all relative"
                 style={{
                   color: active ? '#e0e7ff' : 'var(--muted-light)',
-                  background: active ? 'rgba(99,102,241,0.15)' : 'transparent',
-                  boxShadow: active ? 'inset 3px 0 0 0 #6366f1' : 'none',
+                  background: active ? `${activeColor}22` : 'transparent',
+                  boxShadow: active ? `inset 3px 0 0 0 ${activeColor}` : 'none',
                 }}>
-                <Icon size={14} className="shrink-0" style={{ color: active ? '#818cf8' : undefined }} />
+                <Icon size={14} className="shrink-0" style={{ color: active ? activeIconColor : undefined }} />
                 {label}
               </Link>
             )

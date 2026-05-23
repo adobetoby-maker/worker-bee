@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Sparkles, Languages, Loader2, CheckCircle2, GitPullRequest, ChevronDown, AlertTriangle } from 'lucide-react'
+import { Sparkles, Languages, Loader2, CheckCircle2, GitPullRequest, ChevronDown, AlertTriangle, Scissors, ArrowLeftRight, MessageSquarePlus } from 'lucide-react'
 
 interface Site {
   id: string
@@ -27,11 +27,14 @@ const LANGUAGES = [
 ]
 
 const MOD_TYPES = [
-  { key: 'translate', label: 'Translate', icon: Languages, description: 'Localize site copy via Pronto' },
-  { key: 'seo', label: 'SEO Boost', icon: Sparkles, description: 'Schema markup, meta descriptions, OpenGraph' },
+  { key: 'translate',  label: 'Translate',    icon: Languages,         description: 'Localize site copy via Pronto' },
+  { key: 'seo',        label: 'SEO Boost',    icon: Sparkles,          description: 'Schema markup, meta, OpenGraph' },
+  { key: 'remove',     label: 'Content Fix',  icon: Scissors,          description: 'Remove a service or feature from all copy' },
+  { key: 'swap',       label: 'Swap',         icon: ArrowLeftRight,    description: 'Replace one phrase with another everywhere' },
+  { key: 'request',    label: 'Request',      icon: MessageSquarePlus, description: 'Type any task — build machine does the work' },
 ]
 
-type ModType = 'translate' | 'seo'
+type ModType = 'translate' | 'seo' | 'remove' | 'swap' | 'request'
 type Stage = 'idle' | 'generating' | 'firing' | 'done' | 'error'
 
 export function ModsPanel({ sites }: Props) {
@@ -39,6 +42,10 @@ export function ModsPanel({ sites }: Props) {
   const [modType, setModType] = useState<ModType>('translate')
   const [targetLangs, setTargetLangs] = useState<Set<string>>(new Set(['es']))
   const [tone, setTone] = useState<'auto' | 'formal' | 'informal'>('auto')
+  const [removeTerm, setRemoveTerm] = useState('')
+  const [swapFrom, setSwapFrom] = useState('')
+  const [swapTo, setSwapTo] = useState('')
+  const [requestText, setRequestText] = useState('')
   const [stage, setStage] = useState<Stage>('idle')
   const [log, setLog] = useState('')
   const [error, setError] = useState('')
@@ -68,6 +75,10 @@ export function ModsPanel({ sites }: Props) {
           modType,
           targetLangs: Array.from(targetLangs),
           tone,
+          term: removeTerm,
+          from: swapFrom,
+          to: swapTo,
+          request: requestText,
         }),
       })
 
@@ -91,7 +102,11 @@ export function ModsPanel({ sites }: Props) {
     }
   }
 
-  const canDispatch = !!selectedSite && (modType !== 'translate' || targetLangs.size > 0)
+  const canDispatch = !!selectedSite &&
+    (modType !== 'translate' || targetLangs.size > 0) &&
+    (modType !== 'remove'  || removeTerm.trim().length > 0) &&
+    (modType !== 'swap'    || (swapFrom.trim().length > 0 && swapTo.trim().length > 0)) &&
+    (modType !== 'request' || requestText.trim().length > 0)
   const isRunning = stage === 'generating' || stage === 'firing'
 
   return (
@@ -199,6 +214,80 @@ export function ModsPanel({ sites }: Props) {
           </>
         )}
 
+        {/* Content Fix term input */}
+        {modType === 'remove' && (
+          <div>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">
+              What to remove?
+            </label>
+            <input
+              type="text"
+              value={removeTerm}
+              onChange={e => setRemoveTerm(e.target.value)}
+              placeholder="e.g. Alignment, Free Estimates, Towing…"
+              disabled={isRunning}
+              className="w-full rounded-xl px-4 py-3 text-sm text-white font-medium"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', outline: 'none' }}
+            />
+            <p className="text-xs text-slate-600 mt-1.5">
+              Finds every mention across components, copy files, articles, chatbot, and pricing — removes them all and opens a PR.
+            </p>
+          </div>
+        )}
+
+        {/* Swap inputs */}
+        {modType === 'swap' && (
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+              Replace
+            </label>
+            <input
+              type="text"
+              value={swapFrom}
+              onChange={e => setSwapFrom(e.target.value)}
+              placeholder="Current text (e.g. Auto Repair)"
+              disabled={isRunning}
+              className="w-full rounded-xl px-4 py-2.5 text-sm text-white"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', outline: 'none' }}
+            />
+            <div className="flex items-center gap-2 px-1">
+              <ArrowLeftRight size={12} className="text-slate-600 shrink-0" />
+              <span className="text-xs text-slate-600">with</span>
+            </div>
+            <input
+              type="text"
+              value={swapTo}
+              onChange={e => setSwapTo(e.target.value)}
+              placeholder="New text (e.g. Auto Service)"
+              disabled={isRunning}
+              className="w-full rounded-xl px-4 py-2.5 text-sm text-white"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', outline: 'none' }}
+            />
+            <p className="text-xs text-slate-600">Case-aware replacement across all components, copy files, and articles.</p>
+          </div>
+        )}
+
+        {/* Request textarea */}
+        {modType === 'request' && (
+          <div>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">
+              What do you need?
+            </label>
+            <textarea
+              value={requestText}
+              onChange={e => setRequestText(e.target.value)}
+              placeholder={"Client called — add a banner for their summer promotion: 20% off oil changes in June, runs through June 30. Add it to the hero section and the footer."}
+              disabled={isRunning}
+              rows={5}
+              className="w-full rounded-xl px-4 py-3 text-sm text-white resize-none leading-relaxed"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', outline: 'none' }}
+            />
+            <p className="text-xs text-slate-600 mt-1.5">
+              Write it like you'd explain it to a developer. Build machine reads the site first, then does the work and opens a PR.
+            </p>
+          </div>
+        )}
+
         {/* Dispatch button */}
         <button
           onClick={dispatch}
@@ -216,7 +305,14 @@ export function ModsPanel({ sites }: Props) {
           {(stage === 'generating' || stage === 'firing') && <><Loader2 size={14} className="animate-spin" /> Dispatching mod…</>}
           {stage === 'done' && <><CheckCircle2 size={14} /> Mod dispatched — PR incoming</>}
           {(stage === 'idle' || stage === 'error') && (
-            <>{modType === 'translate' ? <Languages size={14} /> : <Sparkles size={14} />} Dispatch Mod</>
+            <>
+              {modType === 'translate'  ? <Languages size={14} />
+                : modType === 'remove'  ? <Scissors size={14} />
+                : modType === 'swap'    ? <ArrowLeftRight size={14} />
+                : modType === 'request' ? <MessageSquarePlus size={14} />
+                : <Sparkles size={14} />}
+              {' '}Dispatch
+            </>
           )}
         </button>
 
@@ -247,17 +343,25 @@ export function ModsPanel({ sites }: Props) {
         ) : (
           <div className="flex flex-col items-center justify-center h-64 rounded-xl text-center px-8"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            {modType === 'translate'
-              ? <Languages size={32} className="text-slate-700 mb-4" />
+            {modType === 'translate'  ? <Languages size={32} className="text-slate-700 mb-4" />
+              : modType === 'remove'  ? <Scissors size={32} className="text-slate-700 mb-4" />
+              : modType === 'swap'    ? <ArrowLeftRight size={32} className="text-slate-700 mb-4" />
+              : modType === 'request' ? <MessageSquarePlus size={32} className="text-slate-700 mb-4" />
               : <Sparkles size={32} className="text-slate-700 mb-4" />
             }
             <p className="text-sm font-semibold text-slate-500">
-              {modType === 'translate' ? 'Pick site + languages, then dispatch' : 'Pick site, then dispatch'}
+              {modType === 'translate'  ? 'Pick site + languages, then dispatch'
+                : modType === 'remove'  ? 'Pick site + enter what to remove, then dispatch'
+                : modType === 'swap'    ? 'Pick site + enter from/to, then dispatch'
+                : modType === 'request' ? 'Pick site + describe the task, then dispatch'
+                : 'Pick site, then dispatch'}
             </p>
             <p className="text-xs text-slate-600 mt-1">
-              {modType === 'translate'
-                ? 'Build machine will call Pronto API to translate content and open a PR.'
-                : 'Build machine will audit and improve SEO metadata and schema.'}
+              {modType === 'translate'  ? 'Build machine calls Pronto API, writes translations, opens a PR.'
+                : modType === 'remove'  ? 'Build machine hunts every reference across all files, removes them, opens a PR.'
+                : modType === 'swap'    ? 'Build machine replaces all instances with case-awareness, opens a PR.'
+                : modType === 'request' ? 'Build machine reads the site, does the work, and opens a PR.'
+                : 'Build machine audits and improves SEO metadata and schema.'}
             </p>
             {modType === 'translate' && (
               <p className="text-xs mt-3 px-3 py-1.5 rounded-lg"

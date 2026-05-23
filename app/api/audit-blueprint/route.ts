@@ -298,14 +298,14 @@ Generate a prioritized blueprint of 6-10 action cards with edges connecting rela
       system: buildSystem(mode),
       messages: [
         { role: 'user', content: userMessage + extraInstruction },
-        { role: 'assistant', content: '{' },
       ],
     })
-    const raw = '{' + (msg.content[0].type === 'text' ? msg.content[0].text : '')
+    const raw = msg.content[0].type === 'text' ? msg.content[0].text : ''
+    const start = raw.indexOf('{')
     const end = raw.lastIndexOf('}')
-    if (end === -1) return null
+    if (start === -1 || end === -1) return null
     try {
-      return safeParseJson(raw.slice(0, end + 1)) as {
+      return safeParseJson(raw.slice(start, end + 1)) as {
         nodes?: unknown
         edges?: unknown
         summary?: unknown

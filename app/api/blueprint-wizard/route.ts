@@ -132,6 +132,16 @@ function safeParseJson(json: string): unknown {
   }
 }
 
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS })
+}
+
 export async function POST(req: NextRequest) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   try {
@@ -160,13 +170,13 @@ Generate a complete site blueprint as JSON. Create one node per requested page, 
           system: SYSTEM,
           messages: [
             { role: 'user', content: userMessage + extraInstruction },
-            { role: 'assistant', content: '{' },
           ],
         })
-        const raw = '{' + (message.content[0].type === 'text' ? message.content[0].text : '')
+        const raw = message.content[0].type === 'text' ? message.content[0].text : ''
+        const s = raw.indexOf('{')
         const e = raw.lastIndexOf('}')
-        if (e === -1) return null
-        try { return safeParseJson(raw.slice(0, e + 1)) as { nodes?: unknown; edges?: unknown } } catch {
+        if (s === -1 || e === -1) return null
+        try { return safeParseJson(raw.slice(s, e + 1)) as { nodes?: unknown; edges?: unknown } } catch {
           return null
         }
       }
@@ -176,7 +186,7 @@ Generate a complete site blueprint as JSON. Create one node per requested page, 
         parsed = await tryGenerate('\n\nCRITICAL: Return ONLY valid JSON. Use plain prose in all string values.')
       }
       if (!parsed || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
-        return NextResponse.json({ error: 'Could not generate blueprint — please try again.' }, { status: 500 })
+        return NextResponse.json({ error: 'Could not generate blueprint — please try again.' }, { status: 500, headers: CORS })
       }
 
       // ── Analysis outputs (CLAUDE.md, settings.json, starters) ─────────
@@ -198,13 +208,13 @@ Generate the project scaffolding outputs.`
           system: ANALYSIS_SYSTEM,
           messages: [
             { role: 'user', content: analysisUserMsg },
-            { role: 'assistant', content: '{' },
           ],
         })
-        const rawAnalysis = '{' + (analysisMsg.content[0].type === 'text' ? analysisMsg.content[0].text : '')
+        const rawAnalysis = analysisMsg.content[0].type === 'text' ? analysisMsg.content[0].text : ''
+        const as2 = rawAnalysis.indexOf('{')
         const ae = rawAnalysis.lastIndexOf('}')
-        if (ae !== -1) {
-          const parsed2 = safeParseJson(rawAnalysis.slice(0, ae + 1))
+        if (as2 !== -1 && ae !== -1) {
+          const parsed2 = safeParseJson(rawAnalysis.slice(as2, ae + 1))
           if (parsed2 && typeof parsed2 === 'object') {
             analysis = parsed2 as Record<string, string>
           }
@@ -218,7 +228,7 @@ Generate the project scaffolding outputs.`
         nodes: parsed.nodes,
         edges: parsed.edges,
         analysis,
-      })
+      }, { headers: CORS })
     }
 
     // ── Legacy generate mode ──────────────────────────────────────────────
@@ -256,16 +266,16 @@ Generate a complete site blueprint as JSON.`
         system: SYSTEM,
         messages: [
           { role: 'user', content: userMessage + extraInstruction },
-          { role: 'assistant', content: '{' },
         ],
       })
-      const raw = '{' + (message.content[0].type === 'text' ? message.content[0].text : '')
+      const raw = message.content[0].type === 'text' ? message.content[0].text : ''
+      const s = raw.indexOf('{')
       const e = raw.lastIndexOf('}')
-      if (e === -1) {
-        console.error('blueprint-wizard: no closing } in response, length=', raw.length)
+      if (s === -1 || e === -1) {
+        console.error('blueprint-wizard: no JSON object in response, length=', raw.length)
         return null
       }
-      try { return safeParseJson(raw.slice(0, e + 1)) as { nodes?: unknown; edges?: unknown } } catch (err) {
+      try { return safeParseJson(raw.slice(s, e + 1)) as { nodes?: unknown; edges?: unknown } } catch (err) {
         console.error('blueprint-wizard: JSON parse failed:', String(err).slice(0, 200))
         return null
       }
@@ -278,10 +288,10 @@ Generate a complete site blueprint as JSON.`
     if (!parsed) throw new Error('No JSON object in response')
 
     if (!Array.isArray(parsed?.nodes) || !Array.isArray(parsed?.edges)) {
-      return NextResponse.json({ error: 'Invalid blueprint shape from model' }, { status: 500 })
+      return NextResponse.json({ error: 'Invalid blueprint shape from model' }, { status: 500, headers: CORS })
     }
 
-    return NextResponse.json(parsed)
+    return NextResponse.json(parsed, { headers: CORS })
   } catch (err) {
     const msg = String(err)
     console.error('Blueprint wizard error:', msg)
@@ -290,6 +300,6 @@ Generate a complete site blueprint as JSON.`
       : msg.includes('overloaded') || msg.includes('529')
       ? 'AI is overloaded — please try again in a moment.'
       : `Generation failed: ${msg.slice(0, 200)}`
-    return NextResponse.json({ error: userMsg }, { status: 500 })
+    return NextResponse.json({ error: userMsg }, { status: 500, headers: CORS })
   }
 }

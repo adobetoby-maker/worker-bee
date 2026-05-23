@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { getBlueprint } from '@/lib/blueprintStore'
 import { ArrowLeft, ExternalLink, GitBranch, Pencil, Map, Video, Wand2, ExternalLink as ExtLink, BarChart2, ScanSearch } from 'lucide-react'
 import DeleteSiteButton from './DeleteSiteButton'
+import VisualQACard from './VisualQACard'
 
 const STACK_LABELS: Record<string, string> = {
   nextjs: 'Next.js', wordpress: 'WordPress', react: 'React', static: 'Static', other: 'Other',
@@ -287,6 +288,8 @@ export default async function SiteDetailPage({ params }: { params: Promise<{ id:
           </div>
         ))}
       </div>
+
+      {data.url && <VisualQACard siteUrl={data.url} />}
 
       {data.notes && (
         <div className="rounded-xl border px-5 py-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
