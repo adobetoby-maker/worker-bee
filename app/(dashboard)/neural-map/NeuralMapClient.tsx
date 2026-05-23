@@ -10,7 +10,7 @@ import { Brain, Zap, Terminal, FileText } from 'lucide-react'
 
 // ─── Data model ─────────────────────────────────────────────────────────────
 
-type NodeKind = 'model' | 'agent' | 'cluster' | 'rule' | 'shell'
+type NodeKind = 'model' | 'agent' | 'cluster' | 'rule' | 'shell' | 'galaxy'
 
 interface NodeData extends Record<string, unknown> {
   kind: NodeKind
@@ -20,6 +20,7 @@ interface NodeData extends Record<string, unknown> {
   icon?: string
   skills?: string[]
   models?: string[]
+  count?: number
 }
 
 // Model nodes
@@ -131,6 +132,28 @@ const CLUSTERS = [
   },
 ]
 
+// Skill Galaxy (buckyball) — 950+ Antigravity skills
+const GALAXY = {
+  id: 'sk-galaxy',
+  label: 'Antigravity Skills',
+  sub: '1,460 installed · /skill-name to invoke any',
+  color: '#22d3ee',
+  x: 640, y: 860,
+  models: ['sonnet', 'haiku'],
+  skills: [
+    'nextjs-best-practices', 'react-best-practices', 'shadcn', 'tailwind-design-system',
+    'supabase-automation', 'cloudflare-workers-expert', 'vercel-ai-sdk-expert',
+    'seo-aeo-blog-writer', 'seo-audit', 'content-strategy', 'copywriting',
+    'landing-page-generator', 'multi-agent-patterns', 'parallel-agents',
+    'production-code-audit', 'testing-patterns', 'github-actions-templates',
+    'competitor-profiling', 'deep-research', 'prompt-engineering',
+    'systematic-debugging', 'performance-optimizer', 'accessibility-compliance',
+    'database-design', 'postgresql-optimization', 'api-design-principles',
+    // ... and 1,434 more
+  ],
+  count: 1460,
+}
+
 // Rules/shells
 const RULES = [
   { id: 'r-quality',   label: 'quality-gate.md',      sub: 'tsc · lint · build · visual · deploy gates', color: '#f43f5e', x: 0,    y: 960 },
@@ -185,6 +208,18 @@ function buildGraph() {
       style: { stroke: MODELS.find(x => x.id === m)?.color ?? '#6366f1', strokeWidth: 1, opacity: 0.3, strokeDasharray: '4 3' },
     }))
   })
+
+  // Skill Galaxy node
+  nodes.push({
+    id: GALAXY.id, type: 'galaxyNode',
+    position: { x: GALAXY.x, y: GALAXY.y },
+    data: { kind: 'galaxy', label: GALAXY.label, sub: GALAXY.sub, color: GALAXY.color, skills: GALAXY.skills, models: GALAXY.models, count: GALAXY.count },
+  })
+  GALAXY.models.forEach(m => edges.push({
+    id: `${GALAXY.id}-${m}`, source: m, target: GALAXY.id,
+    style: { stroke: '#22d3ee', strokeWidth: 1.5, opacity: 0.5, strokeDasharray: '3 3' },
+  }))
+  edges.push({ id: 'tac-galaxy', source: 'tac', target: GALAXY.id, style: { stroke: '#22d3ee', strokeWidth: 1.5, opacity: 0.5 }, animated: true })
 
   RULES.forEach(r => nodes.push({
     id: r.id, type: 'ruleNode',
@@ -269,6 +304,81 @@ function ClusterNode({ data, selected }: NodeProps<Node<NodeData>>) {
   )
 }
 
+function SkillGalaxyNode({ data, selected }: NodeProps<Node<NodeData>>) {
+  const count = (data.count as number) ?? 1460
+  const color = data.color as string
+  const r = 90  // galaxy radius in px
+
+  // Generate dot positions — concentric rings (buckyball spiked layout)
+  const dots: { x: number; y: number; size: number; opacity: number }[] = []
+  const rings = [
+    { n: 6,  radius: 28, size: 2.5, opacity: 0.9 },
+    { n: 12, radius: 48, size: 2,   opacity: 0.75 },
+    { n: 18, radius: 65, size: 1.8, opacity: 0.6 },
+    { n: 24, radius: 80, size: 1.5, opacity: 0.45 },
+    { n: 30, radius: 94, size: 1.2, opacity: 0.3 },
+    { n: 36, radius: 108, size: 1,  opacity: 0.2 },
+  ]
+  rings.forEach(ring => {
+    for (let i = 0; i < ring.n; i++) {
+      const angle = (i / ring.n) * Math.PI * 2 + (ring.radius * 0.05)
+      dots.push({
+        x: Math.cos(angle) * ring.radius,
+        y: Math.sin(angle) * ring.radius,
+        size: ring.size,
+        opacity: ring.opacity,
+      })
+    }
+  })
+
+  const svgSize = 240
+  const cx = svgSize / 2
+  const cy = svgSize / 2
+
+  return (
+    <div style={{ position: 'relative', width: svgSize, height: svgSize }}>
+      <Handle type="target" position={Position.Top} style={{ background: color, left: '50%' }} />
+      <svg width={svgSize} height={svgSize} style={{ overflow: 'visible' }}>
+        {/* Glow rings */}
+        <circle cx={cx} cy={cy} r={r - 30} fill="none" stroke={color} strokeWidth={0.5} opacity={0.15} />
+        <circle cx={cx} cy={cy} r={r - 10} fill="none" stroke={color} strokeWidth={0.5} opacity={0.1} />
+        <circle cx={cx} cy={cy} r={r + 10} fill="none" stroke={color} strokeWidth={0.5} opacity={0.08} />
+
+        {/* Spike lines from center to dots */}
+        {dots.map((d, i) => (
+          <line key={`l${i}`}
+            x1={cx} y1={cy} x2={cx + d.x} y2={cy + d.y}
+            stroke={color} strokeWidth={0.4} opacity={d.opacity * 0.4} />
+        ))}
+
+        {/* Dots */}
+        {dots.map((d, i) => (
+          <circle key={i} cx={cx + d.x} cy={cy + d.y} r={d.size}
+            fill={color} opacity={d.opacity}
+            style={{ filter: `drop-shadow(0 0 ${d.size * 2}px ${color})` }} />
+        ))}
+
+        {/* Center blob */}
+        <circle cx={cx} cy={cy} r={36} fill={`${color}18`} stroke={`${color}55`} strokeWidth={selected ? 2 : 1} />
+        <circle cx={cx} cy={cy} r={22} fill={`${color}30`} />
+
+        {/* Center text */}
+        <text x={cx} y={cy - 10} textAnchor="middle" fill={color}
+          fontSize={22} fontWeight={800} fontFamily="monospace">{count.toLocaleString()}</text>
+        <text x={cx} y={cy + 6} textAnchor="middle" fill={color}
+          fontSize={7} fontWeight={600} opacity={0.8} letterSpacing={1}>SKILLS</text>
+        <text x={cx} y={cy + 17} textAnchor="middle" fill={color}
+          fontSize={6.5} opacity={0.6}>/skill-name</text>
+      </svg>
+      {/* Label below */}
+      <div style={{ position: 'absolute', bottom: -22, left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', textAlign: 'center' }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color, letterSpacing: '0.06em' }}>{data.label as string}</div>
+        <div style={{ fontSize: 7.5, color: '#64748b' }}>{data.sub as string}</div>
+      </div>
+    </div>
+  )
+}
+
 function RuleNode({ data }: NodeProps<Node<NodeData>>) {
   return (
     <div style={{ background: '#1e1e2e', border: `1px solid ${data.color}55`, borderRadius: 8, padding: '6px 10px', minWidth: 160 }}>
@@ -299,22 +409,24 @@ const nodeTypes = {
   modelNode: ModelNode,
   agentNode: AgentNode,
   clusterNode: ClusterNode,
+  galaxyNode: SkillGalaxyNode,
   ruleNode: RuleNode,
   shellNode: ShellNode,
 }
 
 // ─── Filter panel ────────────────────────────────────────────────────────────
 
-type FilterKey = 'all' | 'haiku' | 'sonnet' | 'opus' | 'qwen' | 'agents' | 'rules'
+type FilterKey = 'all' | 'haiku' | 'sonnet' | 'opus' | 'qwen' | 'agents' | 'rules' | 'skills'
 
 const FILTERS: { key: FilterKey; label: string; color: string }[] = [
-  { key: 'all',    label: 'All',    color: '#e2e8f0' },
-  { key: 'haiku',  label: 'Haiku',  color: '#10b981' },
-  { key: 'sonnet', label: 'Sonnet', color: '#6366f1' },
-  { key: 'opus',   label: 'Opus',   color: '#f59e0b' },
-  { key: 'qwen',   label: 'Qwen',   color: '#a78bfa' },
-  { key: 'agents', label: 'Agents', color: '#818cf8' },
-  { key: 'rules',  label: 'Rules',  color: '#f43f5e' },
+  { key: 'all',    label: 'All',        color: '#e2e8f0' },
+  { key: 'haiku',  label: 'Haiku',      color: '#10b981' },
+  { key: 'sonnet', label: 'Sonnet',     color: '#6366f1' },
+  { key: 'opus',   label: 'Opus',       color: '#f59e0b' },
+  { key: 'qwen',   label: 'Qwen',       color: '#a78bfa' },
+  { key: 'agents', label: 'Agents',     color: '#818cf8' },
+  { key: 'skills', label: 'Skills',     color: '#22d3ee' },
+  { key: 'rules',  label: 'Rules',      color: '#f43f5e' },
 ]
 
 // ─── Main component ─────────────────────────────────────────────────────────
@@ -331,6 +443,7 @@ export default function NeuralMapClient() {
     if (filter === 'all') return nodes
     if (filter === 'agents') return nodes.filter(n => n.data.kind === 'agent' || n.data.kind === 'model')
     if (filter === 'rules') return nodes.filter(n => n.data.kind === 'rule' || n.data.kind === 'shell')
+    if (filter === 'skills') return nodes.filter(n => n.data.kind === 'cluster' || n.data.kind === 'galaxy' || n.data.kind === 'model')
     // model filter → show that model + clusters that use it + agents that use it
     return nodes.filter(n => {
       if (n.id === filter) return true
@@ -385,6 +498,7 @@ export default function NeuralMapClient() {
           { label: 'Model',   color: '#6366f1', shape: '■' },
           { label: 'Agent',   color: '#818cf8', shape: '◆' },
           { label: 'Skill cluster (click to expand)', color: '#10b981', shape: '▲' },
+          { label: '1,460 skills galaxy', color: '#22d3ee', shape: '✦' },
           { label: 'Rule file', color: '#f43f5e', shape: '▬' },
           { label: 'Shell fn', color: '#475569', shape: '▬' },
         ].map(l => (
