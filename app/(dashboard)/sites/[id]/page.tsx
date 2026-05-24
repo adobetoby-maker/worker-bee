@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getBlueprint } from '@/lib/blueprintStore'
-import { ArrowLeft, ExternalLink, GitBranch, Pencil, Map, Video, Wand2, ExternalLink as ExtLink, BarChart2, ScanSearch } from 'lucide-react'
+import { ArrowLeft, ExternalLink, GitBranch, Pencil, Map, Video, Wand2, ExternalLink as ExtLink, BarChart2, ScanSearch, Settings2 } from 'lucide-react'
 import DeleteSiteButton from './DeleteSiteButton'
 import VisualQACard from './VisualQACard'
 
@@ -82,6 +82,11 @@ export default async function SiteDetailPage({ params }: { params: Promise<{ id:
             className="flex items-center gap-1.5 text-sm border px-3 py-2 rounded-lg hover:border-indigo-500/40 transition-colors"
             style={{ borderColor: 'var(--border)', color: 'var(--muted-light)' }}>
             <Map size={13} /> Blueprint Canvas
+          </Link>
+          <Link href={`/sites/${id}/config`}
+            className="flex items-center gap-1.5 text-sm border px-3 py-2 rounded-lg hover:border-emerald-500/30 transition-colors"
+            style={{ borderColor: 'var(--border)', color: '#34d399' }}>
+            <Settings2 size={13} /> Config
           </Link>
           <Link href={`/sites/${id}/edit`}
             className="flex items-center gap-1.5 text-sm border px-3 py-2 rounded-lg hover:border-white/20 transition-colors"
