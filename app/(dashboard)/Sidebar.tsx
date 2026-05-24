@@ -6,7 +6,7 @@ import {
   Globe, KeyRound, LayoutDashboard, LogOut, Inbox, GitBranch, Wrench,
   Layers, Sparkles, Search, Zap, Shield, Hammer, HelpCircle, Map, Brain,
   Cpu, ArrowLeft, Settings2, BarChart2, Wand2, ScanSearch, ExternalLink,
-  ChevronRight, LineChart,
+  ChevronRight, LineChart, Users, FileText,
 } from 'lucide-react'
 
 const GLOBAL_NAV = [
@@ -42,6 +42,8 @@ function projectNav(siteId: string, siteUrl?: string) {
         { href: `${base}/build`,          label: 'Build',      icon: Wand2,           accent: '#f59e0b' },
         { href: `${base}/build/progress`, label: 'Progress',   icon: BarChart2,       accent: '#f87171' },
         { href: evaluateUrl,              label: 'Quality QA', icon: ScanSearch,      accent: '#34d399' },
+        { href: `${base}/portal`,         label: 'Portal',     icon: Users,           accent: '#818cf8' },
+        { href: `${base}/cms`,            label: 'CMS',        icon: FileText,        accent: '#f59e0b' },
       ],
     },
     {
