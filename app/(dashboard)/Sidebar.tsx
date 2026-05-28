@@ -6,14 +6,20 @@ import {
   Globe, KeyRound, LayoutDashboard, LogOut, Inbox, GitBranch, Wrench,
   Layers, Sparkles, Search, Zap, Shield, Hammer, HelpCircle, Map, Brain,
   Cpu, ArrowLeft, Settings2, BarChart2, Wand2, ScanSearch, ExternalLink,
-  ChevronRight, LineChart, Users, FileText,
+  ChevronRight, LineChart, Users, FileText, DollarSign, Receipt, Rocket,
+  Terminal, Pin, Activity,
 } from 'lucide-react'
 
 const GLOBAL_NAV = [
-  { href: '/',               label: 'Dashboard',   icon: LayoutDashboard },
-  { href: '/sites',          label: 'Sites',        icon: Globe },
-  { href: '/builds',         label: 'Builds',       icon: Hammer,    accent: '#34d399' },
-  { href: '/analytics',      label: 'Analytics',    icon: LineChart,  accent: '#60a5fa' },
+  { href: '/',               label: 'Dashboard',    icon: LayoutDashboard },
+  { href: '/sites',          label: 'Sites',         icon: Globe },
+  { href: '/monitor',        label: 'Monitor',       icon: Activity,     accent: '#34d399' },
+  { href: '/builds',         label: 'Builds',        icon: Hammer,       accent: '#34d399' },
+  { href: '/analytics',      label: 'Analytics',     icon: LineChart,     accent: '#60a5fa' },
+  { href: '/billing',        label: 'Billing',       icon: Receipt,    accent: '#10b981' },
+  { href: '/monetization',   label: 'Monetization', icon: DollarSign, accent: '#34d399' },
+  { href: '/build-studio',   label: 'Build Studio', icon: Terminal,   accent: '#818cf8' },
+  { href: '/ship-ready',     label: 'Ship Ready',   icon: Rocket,     accent: '#34d399' },
   { href: '/tetrad',         label: 'TETRAD',       icon: Zap,        accent: '#fbbf24' },
   { href: '/language-lens',  label: 'Lang Lens',    icon: Shield,     accent: '#d4af37' },
   { href: '/submissions',    label: 'Submissions',  icon: Inbox },
@@ -25,6 +31,7 @@ const GLOBAL_NAV = [
   { href: '/vault',          label: 'Vault',        icon: KeyRound },
   { href: '/neural-map',     label: 'Neural Map',   icon: Brain,      accent: '#a78bfa' },
   { href: '/configurator',   label: 'Config',       icon: Cpu },
+  { href: '/flow-boards',    label: 'Flow Boards',  icon: Pin,        accent: '#c9a96e' },
   { href: '/sitemap-visual', label: 'Sitemap',      icon: Map },
   { href: '/help',           label: 'Help',         icon: HelpCircle },
 ]

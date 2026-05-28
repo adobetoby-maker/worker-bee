@@ -1,7 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
-export const maxDuration = 120
+export const maxDuration = 300
+
+// Calls Anthropic via Max OAuth proxy when CLAUDE_PROXY_URL is set,
+// otherwise falls back to ANTHROPIC_API_KEY (production/multi-tenant path).
+async function callClaude(payload: {
+  model: string
+  max_tokens: number
+  system: string
+  messages: { role: 'user' | 'assistant'; content: string }[]
+}): Promise<{ content: Array<{ type: string; text: string }> }> {
+  const proxyUrl = process.env.CLAUDE_PROXY_URL
+  if (proxyUrl) {
+    const res = await fetch(`${proxyUrl}/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-proxy-key': process.env.CLAUDE_PROXY_SECRET ?? '',
+      },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as { error?: string | { message?: string } }
+      const msg = typeof err.error === 'string' ? err.error : (err.error as { message?: string })?.message ?? `Proxy error ${res.status}`
+      throw new Error(msg)
+    }
+    return res.json() as Promise<{ content: Array<{ type: string; text: string }> }>
+  }
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  return client.messages.create(payload) as Promise<{ content: Array<{ type: string; text: string }> }>
+}
 
 const SYSTEM = `You are a senior web architect helping plan a client's website as a visual blueprint.
 
@@ -87,6 +116,7 @@ interface WizardRequest {
   mode: 'wizard'
   wizard: {
     businessName: string
+    siteType: string
     description: string
     audience: string
     cta: string
@@ -96,6 +126,7 @@ interface WizardRequest {
   }
   cleaned: Partial<{
     businessName: string
+    siteType: string
     description: string
     audience: string
     cta: string
@@ -143,17 +174,17 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   try {
     const body = await req.json() as AnyRequest
 
-    // ── Wizard mode (new /plan flow) ──────────────────────────────────────
+    // ── Wizard mode — SSE streaming to survive long Anthropic calls ──────
     if (body.mode === 'wizard') {
       const { wizard, cleaned } = body as WizardRequest
       const effectiveDesc = cleaned.description || wizard.description
       const pageList = wizard.pages.join(', ')
 
       const userMessage = `Business: ${wizard.businessName}
+Site type: ${wizard.siteType || 'general'}
 Description: ${effectiveDesc}
 Audience: ${wizard.audience}
 Primary CTA / Goal: ${wizard.cta}
@@ -161,74 +192,72 @@ Pages needed: ${pageList}
 Style direction: ${wizard.style}
 Inspiration / notes: ${wizard.inspiration || 'none'}
 
-Generate a complete site blueprint as JSON. Create one node per requested page, plus any critical supporting sections.`
+Generate a complete site blueprint as JSON. Create one node per requested page, plus critical supporting components.`
 
-      const tryGenerate = async (extraInstruction = '') => {
-        const message = await client.messages.create({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 6000,
-          system: SYSTEM,
-          messages: [
-            { role: 'user', content: userMessage + extraInstruction },
-          ],
-        })
-        const raw = message.content[0].type === 'text' ? message.content[0].text : ''
-        const s = raw.indexOf('{')
-        const e = raw.lastIndexOf('}')
-        if (s === -1 || e === -1) return null
-        try { return safeParseJson(raw.slice(s, e + 1)) as { nodes?: unknown; edges?: unknown } } catch {
-          return null
-        }
-      }
+      const enc = new TextEncoder()
+      const sseLog = (msg: string) => enc.encode(`event: log\ndata: ${JSON.stringify(msg)}\n\n`)
+      const sseData = (payload: unknown) => enc.encode(`data: ${JSON.stringify(payload)}\n\n`)
 
-      let parsed = await tryGenerate()
-      if (!parsed || !Array.isArray(parsed.nodes)) {
-        parsed = await tryGenerate('\n\nCRITICAL: Return ONLY valid JSON. Use plain prose in all string values.')
-      }
-      if (!parsed || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
-        return NextResponse.json({ error: 'Could not generate blueprint — please try again.' }, { status: 500, headers: CORS })
-      }
+      const stream = new ReadableStream({
+        async start(controller) {
+          let closed = false
+          const send = (chunk: Uint8Array) => { if (!closed) controller.enqueue(chunk) }
 
-      // ── Analysis outputs (CLAUDE.md, settings.json, starters) ─────────
-      let analysis: Record<string, string> | null = null
-      try {
-        const analysisUserMsg = `Business name: ${wizard.businessName}
-Description: ${effectiveDesc}
-Audience: ${wizard.audience}
-CTA goal: ${wizard.cta}
-Pages: ${pageList}
-Style: ${wizard.style}
-Notes: ${wizard.inspiration || 'none'}
+          // Heartbeat every 8s keeps the CDN proxy alive during long Anthropic calls
+          const hb = setInterval(() => send(enc.encode(': ping\n\n')), 8000)
 
-Generate the project scaffolding outputs.`
+          try {
+            send(sseLog('Connecting to AI…'))
 
-        const analysisMsg = await client.messages.create({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 3000,
-          system: ANALYSIS_SYSTEM,
-          messages: [
-            { role: 'user', content: analysisUserMsg },
-          ],
-        })
-        const rawAnalysis = analysisMsg.content[0].type === 'text' ? analysisMsg.content[0].text : ''
-        const as2 = rawAnalysis.indexOf('{')
-        const ae = rawAnalysis.lastIndexOf('}')
-        if (as2 !== -1 && ae !== -1) {
-          const parsed2 = safeParseJson(rawAnalysis.slice(as2, ae + 1))
-          if (parsed2 && typeof parsed2 === 'object') {
-            analysis = parsed2 as Record<string, string>
+            const tryGenerate = async (extraInstruction = '') => {
+              const message = await callClaude({
+                model: 'claude-sonnet-4-6',
+                max_tokens: 6000,
+                system: SYSTEM,
+                messages: [{ role: 'user', content: userMessage + extraInstruction }],
+              })
+              const raw = message.content[0].type === 'text' ? message.content[0].text : ''
+              const s = raw.indexOf('{')
+              const e = raw.lastIndexOf('}')
+              if (s === -1 || e === -1) return null
+              try { return safeParseJson(raw.slice(s, e + 1)) as { nodes?: unknown; edges?: unknown } } catch { return null }
+            }
+
+            send(sseLog('Generating blueprint…'))
+            let parsed = await tryGenerate()
+
+            if (!parsed || !Array.isArray(parsed.nodes)) {
+              send(sseLog('Retrying with stricter JSON instructions…'))
+              parsed = await tryGenerate('\n\nCRITICAL: Return ONLY valid JSON. Use plain prose in all string values.')
+            }
+
+            if (!parsed || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
+              send(sseData({ error: 'Could not generate blueprint — please try again.' }))
+            } else {
+              const nodeCount = (parsed.nodes as unknown[]).length
+              send(sseLog(`Blueprint ready — ${nodeCount} cards`))
+              send(sseData({ nodes: parsed.nodes, edges: parsed.edges, analysis: null }))
+            }
+          } catch (err) {
+            const msg = String(err)
+            console.error('blueprint-wizard SSE error:', msg.slice(0, 300))
+            send(sseData({ error: msg.includes('overloaded') ? 'AI is busy — please try again.' : `Generation failed: ${msg.slice(0, 150)}` }))
+          } finally {
+            clearInterval(hb)
+            closed = true
+            controller.close()
           }
-        }
-      } catch (err) {
-        // Non-fatal — blueprint still returns without analysis
-        console.error('blueprint-wizard: analysis generation failed:', String(err).slice(0, 200))
-      }
+        },
+      })
 
-      return NextResponse.json({
-        nodes: parsed.nodes,
-        edges: parsed.edges,
-        analysis,
-      }, { headers: CORS })
+      return new Response(stream, {
+        headers: {
+          ...CORS,
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          'X-Accel-Buffering': 'no',
+        },
+      })
     }
 
     // ── Legacy generate mode ──────────────────────────────────────────────
@@ -260,7 +289,7 @@ Generate a complete site blueprint as JSON.`
     }
 
     const tryGenerate = async (extraInstruction = '') => {
-      const message = await client.messages.create({
+      const message = await callClaude({
         model: 'claude-sonnet-4-6',
         max_tokens: 4096,
         system: SYSTEM,

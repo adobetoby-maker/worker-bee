@@ -68,6 +68,7 @@ Master password stored encrypted in `vault_session` cookie (signed with `ADMIN_S
 | Route | Purpose |
 |---|---|
 | `/(dashboard)/sites/` | Client site list + blueprint canvas (@xyflow/react) |
+| `/(dashboard)/monitor/` | Live uptime dashboard — pings all sites, auto-refresh 60s |
 | `/(dashboard)/configurator/` | Generates CLAUDE.md + settings.json for new client projects |
 | `/(dashboard)/vault/` | Encrypted credential manager |
 | `/(dashboard)/submissions/` | Incoming client blueprint submissions |
@@ -89,6 +90,7 @@ Master password stored encrypted in `vault_session` cookie (signed with `ADMIN_S
 | `POST /api/site-audit` | Crawl + score a site (SEO, security, perf) |
 | `POST /api/build-trigger` | Trigger a build pipeline job |
 | `GET /api/build-status/[jobId]` | Check build job status |
+| `GET /api/monitor` | Ping all sites server-side, return uptime + latency array |
 
 ### Blueprint Push (external use)
 ```bash

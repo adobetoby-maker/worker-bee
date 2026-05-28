@@ -15,13 +15,46 @@ Minimum 80 words. Be specific — the developer needs zero clarification. Return
 Include: visual design (colors, typography, spacing, theme), exact content (headlines, CTAs, copy tone), functionality (interactions, forms, animations, validation), technical notes, mobile behavior, SEO if it is a page.
 For images: describe the visual subject needed (e.g. "knee surgery operating room"), not a hardcoded URL. For CSS: if Tailwind v4, all resets go in @layer base.
 Return ONLY the prompt text, no preamble.`,
+
+  businessName: `You are a copy editor. Fix capitalisation and spelling of this business name. Return ONLY the corrected business name, nothing else.`,
+
+  audience: `You are a concise copywriter. Fix spelling and grammar in this target audience description. Make it specific and vivid without adding new information. Return ONLY the corrected text, nothing else.`,
+
+  cta: `You are a conversion copywriter. Fix spelling and grammar in this call-to-action. Make it clear and action-oriented. Return ONLY the corrected CTA text, nothing else.`,
+
+  inspiration: `You are a copy editor. Fix spelling, punctuation, and grammar. Do not add new information. Return ONLY the corrected text, nothing else.`,
 }
 
-const MAX: Record<string, number> = { title: 200, description: 500, prompt: 3000 }
+const MAX: Record<string, number> = { title: 200, description: 500, prompt: 3000, businessName: 120, audience: 300, cta: 200, inspiration: 600 }
+
+async function callClaude(payload: {
+  model: string
+  max_tokens: number
+  system: string
+  messages: { role: 'user' | 'assistant'; content: string }[]
+}): Promise<{ content: Array<{ type: string; text: string }> }> {
+  const proxyUrl = process.env.CLAUDE_PROXY_URL
+  if (proxyUrl) {
+    const res = await fetch(`${proxyUrl}/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-proxy-key': process.env.CLAUDE_PROXY_SECRET ?? '',
+      },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as { error?: string | { message?: string } }
+      const msg = typeof err.error === 'string' ? err.error : (err.error as { message?: string })?.message ?? `Proxy error ${res.status}`
+      throw new Error(msg)
+    }
+    return res.json() as Promise<{ content: Array<{ type: string; text: string }> }>
+  }
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  return client.messages.create(payload) as Promise<{ content: Array<{ type: string; text: string }> }>
+}
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  const client = new Anthropic({ apiKey })
   try {
     const body = await req.json()
     const { field, value = '', cardType = '', cardTitle = '', cardDescription = '' } = body
@@ -40,7 +73,7 @@ export async function POST(req: NextRequest) {
       ? `Card title: ${cardTitle}\nCard type: ${cardType}\nDescription: ${cardDescription}\n\nGenerate a detailed build instruction prompt.`
       : cardType ? `Card type: ${cardType}\n\n${value}` : value
 
-    const message = await client.messages.create({
+    const message = await callClaude({
       model: 'claude-sonnet-4-6',
       max_tokens: 800,
       system: SYSTEM[field],

@@ -15,12 +15,36 @@ export interface WizardInput {
   generatedAt: string
 }
 
+export interface DesignSwatch {
+  role: string
+  hex: string
+  name: string
+}
+
+export interface DesignScheme {
+  style: string
+  styleKeywords: string
+  palette: DesignSwatch[]
+  headingFont: string
+  bodyFont: string
+  fontImportUrl: string
+  landingPattern: string[]
+  antiPatterns: string[]
+  effects: string
+  businessDescription: string
+  generatedAt: string
+  overrides?: string
+}
+
 export interface BlueprintData {
   currentBranch: string
   branches: Record<string, BranchData>
   summary?: string
   wizardInput?: WizardInput
   videoUrl?: string
+  designScheme?: DesignScheme          // legacy single-scheme (migrated on read)
+  designSchemes?: Record<string, DesignScheme>  // named branches: { main, v2, coastal, ... }
+  activeDesignBranch?: string
 }
 
 export async function getBlueprint(siteId: string): Promise<BlueprintData | null> {

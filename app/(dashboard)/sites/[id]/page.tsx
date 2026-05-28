@@ -6,6 +6,7 @@ import { getBlueprint } from '@/lib/blueprintStore'
 import { ArrowLeft, ExternalLink, GitBranch, Pencil, Map, Video, Wand2, ExternalLink as ExtLink, BarChart2, ScanSearch, Settings2 } from 'lucide-react'
 import DeleteSiteButton from './DeleteSiteButton'
 import VisualQACard from './VisualQACard'
+import DesignSchemePanel from '@/components/DesignSchemePanel'
 
 const STACK_LABELS: Record<string, string> = {
   nextjs: 'Next.js', wordpress: 'WordPress', react: 'React', static: 'Static', other: 'Other',
@@ -40,6 +41,11 @@ export default async function SiteDetailPage({ params }: { params: Promise<{ id:
   const wizardInput = blueprint?.wizardInput
   const videoUrl = blueprint?.videoUrl ?? ''
   const embedUrl = getVideoEmbedUrl(videoUrl)
+  const designSchemes = blueprint?.designSchemes ?? (blueprint?.designScheme ? { main: blueprint.designScheme } : {})
+  const activeDesignBranch = blueprint?.activeDesignBranch ?? (Object.keys(designSchemes)[0] ?? 'main')
+  const designSchemeData = Object.keys(designSchemes).length > 0
+    ? { schemes: designSchemes, active: activeDesignBranch }
+    : null
 
   const metaRows = [
     { label: 'Stack', value: STACK_LABELS[data.stack] ?? data.stack },
@@ -295,6 +301,8 @@ export default async function SiteDetailPage({ params }: { params: Promise<{ id:
       </div>
 
       {data.url && <VisualQACard siteUrl={data.url} />}
+
+      <DesignSchemePanel siteId={id} initial={designSchemeData} siteName={data.name} />
 
       {data.notes && (
         <div className="rounded-xl border px-5 py-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>

@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Mic, MicOff } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -15,8 +15,18 @@ const STYLE_OPTIONS = [
   { id: 'editorial', label: 'Editorial', desc: 'Magazine-style, type-forward, cultural' },
 ] as const
 
+const SITE_TYPE_OPTIONS = [
+  { id: 'marketing', label: 'Marketing / Landing', desc: 'Showcase and convert visitors' },
+  { id: 'saas', label: 'SaaS Product', desc: 'Software with signup and dashboard' },
+  { id: 'ecommerce', label: 'E-commerce', desc: 'Online store with cart and checkout' },
+  { id: 'leadgen', label: 'Lead Generation', desc: 'Capture contacts and book calls' },
+  { id: 'blog', label: 'Blog / CMS', desc: 'Content-driven, editorial, articles' },
+  { id: 'info', label: 'Info / Portfolio', desc: 'Reference site or showcase work' },
+] as const
+
 interface WizardData {
   businessName: string
+  siteType: string
   description: string
   audience: string
   cta: string
@@ -67,47 +77,188 @@ interface SubmissionPayload {
 
 type Phase = 'wizard' | 'corkboard' | 'submitting' | 'done'
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────────────────
 
-function useDebouncedCleanup(wizard: WizardData, step: number) {
-  const [cleaned, setCleaned] = useState<Partial<WizardData>>({})
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const prevStepRef = useRef(step)
+// Steps that have text inputs — eligible for dictation + AI cleanup
+// Step layout: 1=name, 2=siteType, 3=description, 4=audience, 5=cta, 6=pages, 7=style, 8=inspiration
+const STEP_FIELD: Partial<Record<number, TextWizardField>> = {
+  1: 'businessName',
+  3: 'description',
+  4: 'audience',
+  5: 'cta',
+  8: 'inspiration',
+}
 
-  const runCleanup = useCallback(async (data: WizardData) => {
-    if (!data.description.trim()) return
-    try {
-      const res = await fetch('/api/blueprint-cleanup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          field: 'description',
-          value: data.description,
-        }),
-      })
-      if (res.ok) {
+const STEP_FIELD_SET = new Set<string>(Object.values(STEP_FIELD) as string[])
+
+// ── Hooks ──────────────────────────────────────────────────────────────────
+
+function useFieldCleanup() {
+  const [cleaned, setCleaned] = useState<Partial<Record<TextWizardField, string>>>({})
+  const timers = useRef<Partial<Record<string, ReturnType<typeof setTimeout>>>>({})
+
+  const scheduleClean = useCallback((field: TextWizardField, value: string) => {
+    if (timers.current[field]) clearTimeout(timers.current[field])
+    timers.current[field] = setTimeout(async () => {
+      if (!value.trim() || value.length < 4) return
+      try {
+        const res = await fetch('/api/blueprint-cleanup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ field, value }),
+        })
+        if (!res.ok) return
         const json = await res.json()
-        if (json.result) {
-          setCleaned(prev => ({ ...prev, description: json.result }))
+        if (json.result && json.result.trim() !== value.trim()) {
+          setCleaned(prev => ({ ...prev, [field]: json.result }))
         }
-      }
-    } catch {
-      // silent — this is a background enhancement
-    }
+      } catch {} // silent background enhancement
+    }, 1200)
   }, [])
 
-  useEffect(() => {
-    if (step !== prevStepRef.current) {
-      prevStepRef.current = step
-      if (timerRef.current) clearTimeout(timerRef.current)
-      timerRef.current = setTimeout(() => runCleanup(wizard), 800)
-    }
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
-  }, [step, wizard, runCleanup])
+  const clearCleaned = useCallback((field: TextWizardField) => {
+    setCleaned(prev => {
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
+  }, [])
 
-  return cleaned
+  return { cleaned, scheduleClean, clearCleaned }
+}
+
+// Text-field-only keys — subset of WizardData that are strings (not pages array)
+type TextWizardField = 'businessName' | 'description' | 'audience' | 'cta' | 'inspiration'
+
+type DictationUpdater = (field: TextWizardField, value: string) => void
+
+function useDictation(onTranscript: DictationUpdater) {
+  const [listeningField, setListeningField] = useState<TextWizardField | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recogRef = useRef<any>(null)
+  const baseRef = useRef<string>('')
+
+  const toggle = useCallback((field: TextWizardField, currentValue: string) => {
+    // Stop any running recognition
+    if (recogRef.current) {
+      recogRef.current.abort()
+      recogRef.current = null
+    }
+    // Toggle off same field
+    if (listeningField === field) {
+      setListeningField(null)
+      return
+    }
+
+    if (typeof window === 'undefined') return
+    const WinAny = window as unknown as Record<string, unknown>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (WinAny.SpeechRecognition ?? WinAny.webkitSpeechRecognition) as any
+    if (!SR) return
+
+    // Base is whatever user typed so far — we append dictation to it
+    baseRef.current = currentValue ? currentValue.trimEnd() + ' ' : ''
+
+    const recog = new SR()
+    recog.continuous = true
+    recog.interimResults = true
+    recog.lang = 'en-US'
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recog.onresult = (event: any) => {
+      let finalPart = ''
+      let interimPart = ''
+      for (let i = 0; i < event.results.length; i++) {
+        const r = event.results[i]
+        if (r.isFinal) finalPart += r[0].transcript
+        else interimPart += r[0].transcript
+      }
+      const full = (baseRef.current + finalPart + interimPart).trim()
+      onTranscript(field, full)
+    }
+
+    recog.onerror = () => {
+      setListeningField(null)
+      recogRef.current = null
+    }
+
+    recog.onend = () => {
+      setListeningField(prev => (prev === field ? null : prev))
+      recogRef.current = null
+    }
+
+    try {
+      recog.start()
+      recogRef.current = recog
+      setListeningField(field)
+    } catch { /* permission denied or browser unsupported */ }
+  }, [listeningField, onTranscript])
+
+  return { listeningField, toggle }
+}
+
+// ── Shared UI ──────────────────────────────────────────────────────────────
+
+function MicButton({ isListening, onClick }: { isListening: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={isListening ? 'Stop dictation' : 'Speak your answer'}
+      className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-xl transition-all"
+      style={{
+        width: 44,
+        height: 44,
+        background: isListening ? '#f59e0b' : 'rgba(245,158,11,0.12)',
+        color: isListening ? '#0b0d18' : '#f59e0b',
+        border: isListening ? '2px solid #f59e0b' : '1.5px solid rgba(245,158,11,0.35)',
+        animation: isListening ? 'mic-pulse 1.4s ease-in-out infinite' : 'none',
+        flexShrink: 0,
+      }}
+    >
+      {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+    </button>
+  )
+}
+
+function CleanSuggestion({ value, onApply, onDismiss }: {
+  value: string
+  onApply: () => void
+  onDismiss: () => void
+}) {
+  return (
+    <div
+      className="mt-3 rounded-2xl p-4 flex items-start gap-3"
+      style={{
+        background: 'rgba(99,102,241,0.08)',
+        border: '1px solid rgba(99,102,241,0.2)',
+      }}
+    >
+      <span style={{ fontSize: 16, lineHeight: 1, marginTop: 1, flexShrink: 0 }}>✨</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold mb-1" style={{ color: 'rgba(165,180,252,0.65)' }}>
+          AI cleaned this up
+        </p>
+        <p className="text-sm leading-relaxed text-white break-words">{value}</p>
+      </div>
+      <div className="flex flex-col gap-1.5 shrink-0 ml-2">
+        <button
+          onClick={onApply}
+          className="text-xs font-bold px-3 py-1.5 rounded-xl transition-colors"
+          style={{ background: 'rgba(99,102,241,0.25)', color: '#a5b4fc' }}
+        >
+          Apply
+        </button>
+        <button
+          onClick={onDismiss}
+          className="text-xs px-3 py-1.5 rounded-xl"
+          style={{ color: 'rgba(255,255,255,0.25)' }}
+        >
+          Skip
+        </button>
+      </div>
+    </div>
+  )
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────
@@ -118,6 +269,7 @@ export default function PlanPage() {
 
   const [wizard, setWizard] = useState<WizardData>({
     businessName: '',
+    siteType: '',
     description: '',
     audience: '',
     cta: '',
@@ -126,21 +278,37 @@ export default function PlanPage() {
     inspiration: '',
   })
 
-  const cleaned = useDebouncedCleanup(wizard, step)
+  const { cleaned, scheduleClean, clearCleaned } = useFieldCleanup()
 
-  const [customPage, setCustomPage] = useState('')
-  const [blueprint, setBlueprint] = useState<{ nodes: BlueprintNode[]; edges: BlueprintEdge[] } | null>(null)
-  const [analysis, setAnalysis] = useState<AnalysisOutput | null>(null)
-  const [blueprintError, setBlueprintError] = useState('')
-  const [blueprintLoading, setBlueprintLoading] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState('')
-  const [submittedId, setSubmittedId] = useState('')
-
-  const totalSteps = 7
+  // Tracks fields the user has explicitly dismissed the suggestion for
+  const [dismissedFields, setDismissedFields] = useState<Set<TextWizardField>>(new Set())
 
   function update<K extends keyof WizardData>(key: K, value: WizardData[K]) {
     setWizard(prev => ({ ...prev, [key]: value }))
+    if (typeof value === 'string' && value.length >= 4 && STEP_FIELD_SET.has(key as string)) {
+      const tf = key as TextWizardField
+      // New typing clears a previous dismissal so suggestion can re-appear if AI improves it
+      setDismissedFields(prev => {
+        if (!prev.has(tf)) return prev
+        const next = new Set(prev)
+        next.delete(tf)
+        return next
+      })
+      scheduleClean(tf, value)
+    }
+  }
+
+  const dictation = useDictation((field, value) => update(field, value))
+
+  function applyClean(field: TextWizardField) {
+    const cv = cleaned[field]
+    if (!cv) return
+    setWizard(prev => ({ ...prev, [field]: cv }))
+    clearCleaned(field)
+  }
+
+  function dismissClean(field: TextWizardField) {
+    setDismissedFields(prev => new Set([...prev, field]))
   }
 
   function togglePage(page: string) {
@@ -152,6 +320,18 @@ export default function PlanPage() {
     }))
   }
 
+  const [customPage, setCustomPage] = useState('')
+  const [blueprint, setBlueprint] = useState<{ nodes: BlueprintNode[]; edges: BlueprintEdge[] } | null>(null)
+  const [analysis, setAnalysis] = useState<AnalysisOutput | null>(null)
+  const [blueprintError, setBlueprintError] = useState('')
+  const [blueprintLoading, setBlueprintLoading] = useState(false)
+  const [sseLog, setSseLog] = useState<string[]>([])
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [submittedId, setSubmittedId] = useState('')
+
+  const totalSteps = 8
+
   function addCustomPage() {
     const trimmed = customPage.trim()
     if (!trimmed || wizard.pages.includes(trimmed)) return
@@ -162,19 +342,26 @@ export default function PlanPage() {
   function canAdvance(): boolean {
     switch (step) {
       case 1: return wizard.businessName.trim().length > 0
-      case 2: return wizard.description.trim().length > 0
-      case 3: return wizard.audience.trim().length > 0
-      case 4: return wizard.cta.trim().length > 0
-      case 5: return wizard.pages.length > 0
-      case 6: return wizard.style.length > 0
-      case 7: return true // inspiration is optional
+      case 2: return wizard.siteType.length > 0
+      case 3: return wizard.description.trim().length > 0
+      case 4: return wizard.audience.trim().length > 0
+      case 5: return wizard.cta.trim().length > 0
+      case 6: return wizard.pages.length > 0
+      case 7: return wizard.style.length > 0
+      case 8: return true // inspiration is optional
       default: return false
     }
   }
 
   async function goNext() {
+    // Auto-apply AI-cleaned version for this step's field before advancing
+    const currentField: TextWizardField | undefined = STEP_FIELD[step]
+    if (currentField && cleaned[currentField] && !dismissedFields.has(currentField)) {
+      setWizard(prev => ({ ...prev, [currentField]: cleaned[currentField]! }))
+      clearCleaned(currentField)
+    }
     if (step < totalSteps) {
-      setStep(s => s + 1)
+      setStep(step + 1)
     } else {
       await generateBlueprint()
     }
@@ -187,33 +374,73 @@ export default function PlanPage() {
       setBlueprint(null)
       setBlueprintError('')
     } else if (step > 1) {
-      setStep(s => s - 1)
+      setStep(step - 1)
     }
   }
 
   async function generateBlueprint() {
     setBlueprintLoading(true)
     setBlueprintError('')
+    setSseLog([])
     setPhase('corkboard')
+
+    const addLog = (msg: string) =>
+      setSseLog(prev => [...prev, `${new Date().toLocaleTimeString()} — ${msg}`])
+
     try {
+      addLog('Connecting…')
       const res = await fetch('/api/blueprint-wizard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: 'wizard',
-          wizard,
-          cleaned,
-        }),
+        body: JSON.stringify({ mode: 'wizard', wizard, cleaned }),
       })
-      if (!res.ok) {
+
+      if (!res.ok || !res.body) {
         const d = await res.json().catch(() => ({}))
         throw new Error(d.error ?? `Error ${res.status}`)
       }
-      const data = await res.json()
-      setBlueprint({ nodes: data.nodes ?? [], edges: data.edges ?? [] })
-      setAnalysis(data.analysis ?? null)
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let isLogEvent = false
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          if (line.startsWith('event: log')) { isLogEvent = true; continue }
+          if (line === '') { isLogEvent = false; continue }
+          if (line.startsWith(': ')) continue // heartbeat
+
+          if (line.startsWith('data: ')) {
+            const raw = line.slice(6)
+            if (isLogEvent) {
+              try { addLog(JSON.parse(raw)) } catch { /* ignore */ }
+              isLogEvent = false
+            } else {
+              const json = JSON.parse(raw)
+              if (json.error) throw new Error(json.error)
+              if (json.nodes) {
+                addLog(`Done ��� ${(json.nodes as unknown[]).length} cards`)
+                const bp = { nodes: json.nodes ?? [], edges: json.edges ?? [] }
+                setBlueprint(bp)
+                setAnalysis(json.analysis ?? null)
+                try { localStorage.setItem('wb-pipeline-blueprint', JSON.stringify(bp)) } catch { /* quota */ }
+              }
+            }
+          }
+        }
+      }
     } catch (err) {
-      setBlueprintError(err instanceof Error ? err.message : String(err))
+      const msg = err instanceof Error ? err.message : String(err)
+      addLog(`Error: ${msg}`)
+      setBlueprintError(msg)
     } finally {
       setBlueprintLoading(false)
     }
@@ -243,7 +470,6 @@ export default function PlanPage() {
       }
       const data = await res.json()
       setSubmittedId(data.id ?? '')
-      // Brief delay for the "finalizing" message to show
       await new Promise(r => setTimeout(r, 1800))
       setPhase('done')
     } catch (err) {
@@ -251,6 +477,9 @@ export default function PlanPage() {
       setPhase('corkboard')
     }
   }
+
+  // suppress unused-var warning — submitting is used implicitly via setPhase
+  void submitting
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -270,6 +499,7 @@ export default function PlanPage() {
         loading={blueprintLoading}
         error={blueprintError}
         submitError={submitError}
+        sseLog={sseLog}
         onConfirm={confirmAndSubmit}
         onBack={goBack}
         onRetry={generateBlueprint}
@@ -291,11 +521,21 @@ export default function PlanPage() {
       canAdvance={canAdvance}
       goNext={goNext}
       goBack={goBack}
+      dictation={dictation}
+      cleaned={cleaned}
+      dismissedFields={dismissedFields}
+      applyClean={applyClean}
+      dismissClean={dismissClean}
     />
   )
 }
 
 // ── Wizard Screen ──────────────────────────────────────────────────────────
+
+interface DictationHandle {
+  listeningField: TextWizardField | null
+  toggle: (field: TextWizardField, currentValue: string) => void
+}
 
 interface WizardScreenProps {
   step: number
@@ -309,16 +549,21 @@ interface WizardScreenProps {
   canAdvance: () => boolean
   goNext: () => void
   goBack: () => void
+  dictation: DictationHandle
+  cleaned: Partial<Record<TextWizardField, string>>
+  dismissedFields: Set<TextWizardField>
+  applyClean: (field: TextWizardField) => void
+  dismissClean: (field: TextWizardField) => void
 }
 
 function WizardScreen({
   step, totalSteps, wizard, update, togglePage,
   customPage, setCustomPage, addCustomPage, canAdvance, goNext, goBack,
+  dictation, cleaned, dismissedFields, applyClean, dismissClean,
 }: WizardScreenProps) {
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
-    // Focus main input on step change
     const t = setTimeout(() => {
       if (inputRef.current) inputRef.current.focus()
     }, 50)
@@ -334,6 +579,16 @@ function WizardScreen({
 
   const inputBase = "w-full bg-transparent rounded-2xl border px-5 py-4 text-lg text-white placeholder-white/30 outline-none transition-all focus:border-white/40"
   const inputStyle: React.CSSProperties = { borderColor: 'rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.04)' }
+
+  // Current field eligible for dictation + cleanup
+  const currentField = STEP_FIELD[step]
+  const cleanedValue = currentField ? cleaned[currentField] : undefined
+  const showSuggestion = !!(
+    cleanedValue &&
+    currentField &&
+    !dismissedFields.has(currentField) &&
+    cleanedValue.trim() !== (wizard[currentField] as string | undefined)?.trim()
+  )
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#0b0d18' }}>
@@ -358,7 +613,6 @@ function WizardScreen({
       {/* Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         <div className="w-full max-w-xl animate-fade-in" key={step}>
-          {/* Question */}
           <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--accent)' }}>
             Question {step}
           </p>
@@ -371,39 +625,53 @@ function WizardScreen({
               inputBase={inputBase}
               inputStyle={inputStyle}
               onKeyDown={handleKeyDown}
+              isListening={dictation.listeningField === 'businessName'}
+              onMicClick={() => dictation.toggle('businessName', wizard.businessName)}
             />
           )}
           {step === 2 && (
-            <WizardStep2
+            <WizardStepSiteType
+              siteType={wizard.siteType}
+              setSiteType={v => update('siteType', v)}
+            />
+          )}
+          {step === 3 && (
+            <WizardStep3
               value={wizard.description}
               onChange={v => update('description', v)}
               inputRef={inputRef as React.RefObject<HTMLTextAreaElement>}
               inputBase={inputBase}
               inputStyle={inputStyle}
+              isListening={dictation.listeningField === 'description'}
+              onMicClick={() => dictation.toggle('description', wizard.description)}
             />
           )}
-          {step === 3 && (
-            <WizardStep3
+          {step === 4 && (
+            <WizardStep4
               value={wizard.audience}
               onChange={v => update('audience', v)}
               inputRef={inputRef as React.RefObject<HTMLInputElement>}
               inputBase={inputBase}
               inputStyle={inputStyle}
               onKeyDown={handleKeyDown}
+              isListening={dictation.listeningField === 'audience'}
+              onMicClick={() => dictation.toggle('audience', wizard.audience)}
             />
           )}
-          {step === 4 && (
-            <WizardStep4
+          {step === 5 && (
+            <WizardStep5
               value={wizard.cta}
               onChange={v => update('cta', v)}
               inputRef={inputRef as React.RefObject<HTMLInputElement>}
               inputBase={inputBase}
               inputStyle={inputStyle}
               onKeyDown={handleKeyDown}
+              isListening={dictation.listeningField === 'cta'}
+              onMicClick={() => dictation.toggle('cta', wizard.cta)}
             />
           )}
-          {step === 5 && (
-            <WizardStep5
+          {step === 6 && (
+            <WizardStep6
               pages={wizard.pages}
               togglePage={togglePage}
               customPage={customPage}
@@ -411,24 +679,35 @@ function WizardScreen({
               addCustomPage={addCustomPage}
             />
           )}
-          {step === 6 && (
-            <WizardStep6
+          {step === 7 && (
+            <WizardStep7
               style={wizard.style}
               setStyle={v => update('style', v)}
             />
           )}
-          {step === 7 && (
-            <WizardStep7
+          {step === 8 && (
+            <WizardStep8
               value={wizard.inspiration}
               onChange={v => update('inspiration', v)}
               inputRef={inputRef as React.RefObject<HTMLTextAreaElement>}
               inputBase={inputBase}
               inputStyle={inputStyle}
+              isListening={dictation.listeningField === 'inspiration'}
+              onMicClick={() => dictation.toggle('inspiration', wizard.inspiration)}
+            />
+          )}
+
+          {/* AI cleanup suggestion — visible card with Apply / Skip */}
+          {showSuggestion && currentField && (
+            <CleanSuggestion
+              value={cleanedValue!}
+              onApply={() => applyClean(currentField)}
+              onDismiss={() => dismissClean(currentField)}
             />
           )}
 
           {/* Nav buttons */}
-          <div className="flex gap-3 mt-8">
+          <div className="flex gap-3 mt-6">
             {step > 1 && (
               <button
                 onClick={goBack}
@@ -455,110 +734,197 @@ function WizardScreen({
           )}
         </div>
       </div>
+
+      <style>{`
+        @keyframes mic-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.5); }
+          50% { box-shadow: 0 0 0 8px rgba(245,158,11,0); }
+        }
+      `}</style>
     </div>
   )
 }
 
 // ── Individual Steps ───────────────────────────────────────────────────────
 
-function WizardStep1({ value, onChange, inputRef, inputBase, inputStyle, onKeyDown }: {
+function WizardStep1({ value, onChange, inputRef, inputBase, inputStyle, onKeyDown, isListening, onMicClick }: {
   value: string; onChange: (v: string) => void
   inputRef: React.RefObject<HTMLInputElement>
   inputBase: string; inputStyle: React.CSSProperties
   onKeyDown: (e: React.KeyboardEvent) => void
+  isListening: boolean; onMicClick: () => void
 }) {
   return (
     <>
       <h1 className="text-3xl font-bold text-white mb-3">What&apos;s your business name?</h1>
       <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.4)' }}>Just the name — we&apos;ll build on it.</p>
-      <input
-        ref={inputRef}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder="e.g. Acme Plumbing Co."
-        className={inputBase}
-        style={inputStyle}
-      />
+      <div className="relative">
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="e.g. Acme Plumbing Co."
+          className={inputBase}
+          style={{ ...inputStyle, paddingRight: '64px' }}
+        />
+        <MicButton isListening={isListening} onClick={onMicClick} />
+      </div>
     </>
   )
 }
 
-function WizardStep2({ value, onChange, inputRef, inputBase, inputStyle }: {
+function WizardStepSiteType({ siteType, setSiteType }: { siteType: string; setSiteType: (v: string) => void }) {
+  return (
+    <>
+      <h1 className="text-3xl font-bold text-white mb-3">What kind of site are you building?</h1>
+      <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.4)' }}>This shapes your entire blueprint.</p>
+
+      <div className="grid grid-cols-2 gap-3">
+        {SITE_TYPE_OPTIONS.map(opt => {
+          const selected = siteType === opt.id
+          return (
+            <button
+              key={opt.id}
+              onClick={() => setSiteType(opt.id)}
+              className="text-left p-4 rounded-2xl border transition-all"
+              style={{
+                background: selected ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.03)',
+                borderColor: selected ? '#f59e0b' : 'rgba(255,255,255,0.1)',
+              }}
+            >
+              <div className="text-sm font-bold text-white mb-0.5">{opt.label}</div>
+              <div className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>{opt.desc}</div>
+            </button>
+          )
+        })}
+      </div>
+    </>
+  )
+}
+
+function WizardStep3({ value, onChange, inputRef, inputBase, inputStyle, isListening, onMicClick }: {
   value: string; onChange: (v: string) => void
   inputRef: React.RefObject<HTMLTextAreaElement>
   inputBase: string; inputStyle: React.CSSProperties
+  isListening: boolean; onMicClick: () => void
 }) {
   return (
     <>
       <h1 className="text-3xl font-bold text-white mb-3">What does it do in one sentence?</h1>
       <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.4)' }}>Don&apos;t overthink it — raw and honest is fine.</p>
-      <textarea
-        ref={inputRef}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder="e.g. We help Twin Falls homeowners fix plumbing emergencies fast, any time of day."
-        rows={3}
-        className={inputBase}
-        style={{ ...inputStyle, resize: 'none' }}
-      />
+      <div className="relative">
+        <textarea
+          ref={inputRef}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder="e.g. We help Twin Falls homeowners fix plumbing emergencies fast, any time of day."
+          rows={3}
+          className={inputBase}
+          style={{ ...inputStyle, resize: 'none', paddingRight: '64px' }}
+        />
+        <div className="absolute right-3 top-4">
+          <MicButton isListening={isListening} onClick={onMicClick} />
+        </div>
+      </div>
     </>
   )
 }
 
-function WizardStep3({ value, onChange, inputRef, inputBase, inputStyle, onKeyDown }: {
+function WizardStep4({ value, onChange, inputRef, inputBase, inputStyle, onKeyDown, isListening, onMicClick }: {
   value: string; onChange: (v: string) => void
   inputRef: React.RefObject<HTMLInputElement>
   inputBase: string; inputStyle: React.CSSProperties
   onKeyDown: (e: React.KeyboardEvent) => void
+  isListening: boolean; onMicClick: () => void
 }) {
   return (
     <>
       <h1 className="text-3xl font-bold text-white mb-3">Who is it for?</h1>
       <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.4)' }}>Describe the person who needs you most.</p>
-      <input
-        ref={inputRef}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder="e.g. Homeowners in their 30s–50s who value reliability over price"
-        className={inputBase}
-        style={inputStyle}
-      />
+      <div className="relative">
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="e.g. Homeowners in their 30s–50s who value reliability over price"
+          className={inputBase}
+          style={{ ...inputStyle, paddingRight: '64px' }}
+        />
+        <MicButton isListening={isListening} onClick={onMicClick} />
+      </div>
     </>
   )
 }
 
-function WizardStep4({ value, onChange, inputRef, inputBase, inputStyle, onKeyDown }: {
+function WizardStep5({ value, onChange, inputRef, inputBase, inputStyle, onKeyDown, isListening, onMicClick }: {
   value: string; onChange: (v: string) => void
   inputRef: React.RefObject<HTMLInputElement>
   inputBase: string; inputStyle: React.CSSProperties
   onKeyDown: (e: React.KeyboardEvent) => void
+  isListening: boolean; onMicClick: () => void
 }) {
   return (
     <>
       <h1 className="text-3xl font-bold text-white mb-3">What&apos;s the main thing you want visitors to do?</h1>
       <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.4)' }}>Your primary call-to-action and conversion goal.</p>
-      <input
-        ref={inputRef}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder="e.g. Call us or book a service online"
-        className={inputBase}
-        style={inputStyle}
-      />
+      <div className="relative">
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="e.g. Call us or book a service online"
+          className={inputBase}
+          style={{ ...inputStyle, paddingRight: '64px' }}
+        />
+        <MicButton isListening={isListening} onClick={onMicClick} />
+      </div>
     </>
   )
 }
 
-function WizardStep5({ pages, togglePage, customPage, setCustomPage, addCustomPage }: {
+function WizardStep6({ pages, togglePage, customPage, setCustomPage, addCustomPage }: {
   pages: string[]
   togglePage: (p: string) => void
   customPage: string
   setCustomPage: (v: string) => void
   addCustomPage: () => void
 }) {
+  const [listeningCustom, setListeningCustom] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recogRef = useRef<any>(null)
+
+  function toggleCustomMic() {
+    if (recogRef.current) {
+      recogRef.current.abort()
+      recogRef.current = null
+      setListeningCustom(false)
+      return
+    }
+    const WinAny = window as unknown as Record<string, unknown>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (WinAny.SpeechRecognition ?? WinAny.webkitSpeechRecognition) as any
+    if (!SR) return
+
+    const recog = new SR()
+    recog.continuous = false
+    recog.interimResults = false
+    recog.lang = 'en-US'
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recog.onresult = (event: any) => {
+      const transcript = (event.results[0]?.[0]?.transcript ?? '').trim()
+      if (transcript) setCustomPage(transcript)
+    }
+
+    recog.onend = () => { setListeningCustom(false); recogRef.current = null }
+    recog.onerror = () => { setListeningCustom(false); recogRef.current = null }
+
+    try { recog.start(); recogRef.current = recog; setListeningCustom(true) } catch { /* unsupported */ }
+  }
+
   return (
     <>
       <h1 className="text-3xl font-bold text-white mb-3">What pages do you need?</h1>
@@ -583,7 +949,6 @@ function WizardStep5({ pages, togglePage, customPage, setCustomPage, addCustomPa
           )
         })}
 
-        {/* Custom pages already added */}
         {pages.filter(p => !(PAGE_OPTIONS as readonly string[]).includes(p)).map(page => (
           <button
             key={page}
@@ -600,16 +965,34 @@ function WizardStep5({ pages, togglePage, customPage, setCustomPage, addCustomPa
         ))}
       </div>
 
-      {/* Add custom page */}
+      {/* Custom page input with mic */}
       <div className="flex gap-2">
-        <input
-          value={customPage}
-          onChange={e => setCustomPage(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomPage() } }}
-          placeholder="Add custom page…"
-          className="flex-1 bg-transparent rounded-xl border px-4 py-2.5 text-sm text-white placeholder-white/25 outline-none focus:border-white/30 transition-all"
-          style={{ borderColor: 'rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)' }}
-        />
+        <div className="relative flex-1">
+          <input
+            value={customPage}
+            onChange={e => setCustomPage(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomPage() } }}
+            placeholder="Add custom page… or speak it"
+            className="w-full bg-transparent rounded-xl border px-4 py-2.5 text-sm text-white placeholder-white/25 outline-none focus:border-white/30 transition-all"
+            style={{ borderColor: 'rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)', paddingRight: '56px' }}
+          />
+          <button
+            type="button"
+            onClick={toggleCustomMic}
+            title={listeningCustom ? 'Stop dictation' : 'Speak a page name'}
+            className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-lg transition-all"
+            style={{
+              width: 34,
+              height: 34,
+              background: listeningCustom ? '#f59e0b' : 'rgba(245,158,11,0.12)',
+              color: listeningCustom ? '#0b0d18' : '#f59e0b',
+              border: listeningCustom ? '2px solid #f59e0b' : '1.5px solid rgba(245,158,11,0.35)',
+              animation: listeningCustom ? 'mic-pulse 1.4s ease-in-out infinite' : 'none',
+            }}
+          >
+            {listeningCustom ? <MicOff size={14} /> : <Mic size={14} />}
+          </button>
+        </div>
         <button
           onClick={addCustomPage}
           disabled={!customPage.trim()}
@@ -623,7 +1006,7 @@ function WizardStep5({ pages, togglePage, customPage, setCustomPage, addCustomPa
   )
 }
 
-function WizardStep6({ style, setStyle }: { style: string; setStyle: (v: string) => void }) {
+function WizardStep7({ style, setStyle }: { style: string; setStyle: (v: string) => void }) {
   return (
     <>
       <h1 className="text-3xl font-bold text-white mb-3">What&apos;s your style?</h1>
@@ -652,25 +1035,140 @@ function WizardStep6({ style, setStyle }: { style: string; setStyle: (v: string)
   )
 }
 
-function WizardStep7({ value, onChange, inputRef, inputBase, inputStyle }: {
+function WizardStep8({ value, onChange, inputRef, inputBase, inputStyle, isListening, onMicClick }: {
   value: string; onChange: (v: string) => void
   inputRef: React.RefObject<HTMLTextAreaElement>
   inputBase: string; inputStyle: React.CSSProperties
+  isListening: boolean; onMicClick: () => void
 }) {
   return (
     <>
       <h1 className="text-3xl font-bold text-white mb-3">Any sites you love the look of?</h1>
       <p className="text-sm mb-8" style={{ color: 'rgba(255,255,255,0.4)' }}>Optional — paste links or just describe what you like.</p>
-      <textarea
-        ref={inputRef}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder="e.g. stripe.com — clean and modern. Or: I love dark themes with big headlines."
-        rows={4}
-        className={inputBase}
-        style={{ ...inputStyle, resize: 'none' }}
-      />
+      <div className="relative">
+        <textarea
+          ref={inputRef}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder="e.g. stripe.com — clean and modern. Or: I love dark themes with big headlines."
+          rows={4}
+          className={inputBase}
+          style={{ ...inputStyle, resize: 'none', paddingRight: '64px' }}
+        />
+        <div className="absolute right-3 top-4">
+          <MicButton isListening={isListening} onClick={onMicClick} />
+        </div>
+      </div>
     </>
+  )
+}
+
+// ── Blueprint Generating View ──────────────────────────────────────────────
+
+const GENERATING_STAGES = [
+  'Analyzing your business…',
+  'Planning your pages…',
+  'Designing your blueprint…',
+  'Connecting everything together…',
+  'Putting on finishing touches…',
+]
+
+// Checkpoints: [progressPercent, delayMs, stageIndex] — tuned for Sonnet 4.6 + SSE ~25-50s
+const CHECKPOINTS: [number, number, number][] = [
+  [18,  1500, 0],
+  [40,  6000, 1],
+  [62, 13000, 2],
+  [80, 22000, 3],
+  [93, 30000, 4],
+  [97, 45000, 4], // slow crawl after last stage — still alive
+]
+
+function BlueprintGeneratingView({ sseLog }: { sseLog: string[] }) {
+  const [progress, setProgress] = useState(0)
+  const [stageIdx, setStageIdx] = useState(0)
+  const [slowAlert, setSlowAlert] = useState(false)
+
+  useEffect(() => {
+    const timers = CHECKPOINTS.map(([pct, delay, stage]) =>
+      setTimeout(() => { setProgress(pct); setStageIdx(stage) }, delay)
+    )
+    const slowTimer = setTimeout(() => setSlowAlert(true), 38000)
+    return () => { timers.forEach(clearTimeout); clearTimeout(slowTimer) }
+  }, [])
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[500px] px-6">
+      <div className="w-full max-w-sm">
+        {/* Bee icon */}
+        <div
+          className="w-14 h-14 rounded-2xl mx-auto mb-8 flex items-center justify-center text-2xl select-none"
+          style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)' }}
+        >
+          🐝
+        </div>
+
+        <h2 className="text-xl font-bold text-white text-center mb-2">Building your site plan</h2>
+        <p
+          className="text-sm text-center mb-8 transition-all duration-700"
+          style={{ color: 'rgba(255,255,255,0.45)', minHeight: 20 }}
+          key={stageIdx}
+        >
+          {GENERATING_STAGES[stageIdx]}
+        </p>
+
+        {/* Progress track */}
+        <div className="w-full h-1.5 rounded-full overflow-hidden mb-3"
+          style={{ background: 'rgba(255,255,255,0.07)' }}>
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${progress}%`,
+              background: 'linear-gradient(90deg, var(--accent), #818cf8)',
+              transition: 'width 2s ease-out',
+            }}
+          />
+        </div>
+
+        <div className="flex justify-between text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>
+          <span>Step {stageIdx + 1} of {GENERATING_STAGES.length}</span>
+          <span>{progress}%</span>
+        </div>
+
+        {slowAlert ? (
+          <p className="text-xs text-center mt-6" style={{ color: 'rgba(245,158,11,0.5)' }}>
+            Still working — Sonnet is building a detailed blueprint…
+          </p>
+        ) : (
+          <p className="text-xs text-center mt-6" style={{ color: 'rgba(255,255,255,0.18)' }}>
+            Usually takes 30–50 seconds
+          </p>
+        )}
+      </div>
+
+      {/* Debug log — copyable, shown while generating */}
+      {sseLog.length > 0 && (
+        <div className="w-full max-w-sm mt-8">
+          <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+              <span className="text-xs uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace' }}>log</span>
+              <button
+                type="button"
+                onClick={() => navigator.clipboard?.writeText(sseLog.join('\n'))}
+                className="text-xs px-2 py-0.5 rounded-md"
+                style={{ color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.06)' }}
+              >
+                copy
+              </button>
+            </div>
+            <div className="p-3 max-h-28 overflow-y-auto space-y-0.5" style={{ fontFamily: 'monospace' }}>
+              {sseLog.map((entry, i) => (
+                <p key={i} className="text-xs leading-snug" style={{ color: 'rgba(255,255,255,0.32)' }}>{entry}</p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -687,12 +1185,13 @@ const CARD_COLORS = [
 
 const PIN_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899']
 
-function CorkboardScreen({ wizard, blueprint, loading, error, submitError, onConfirm, onBack, onRetry }: {
+function CorkboardScreen({ wizard, blueprint, loading, error, submitError, sseLog, onConfirm, onBack, onRetry }: {
   wizard: WizardData
   blueprint: { nodes: BlueprintNode[]; edges: BlueprintEdge[] } | null
   loading: boolean
   error: string
   submitError: string
+  sseLog: string[]
   onConfirm: () => void
   onBack: () => void
   onRetry: () => void
@@ -711,13 +1210,7 @@ function CorkboardScreen({ wizard, blueprint, loading, error, submitError, onCon
 
       {/* Board area */}
       <div className="flex-1 overflow-auto p-6 md:p-10">
-        {loading && (
-          <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-            <div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-white/60"
-              style={{ animation: 'spin 0.9s linear infinite' }} />
-            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.4)' }}>Building your site plan…</p>
-          </div>
-        )}
+        {loading && <BlueprintGeneratingView sseLog={sseLog} />}
 
         {error && !loading && (
           <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 text-center">
@@ -754,16 +1247,6 @@ function CorkboardScreen({ wizard, blueprint, loading, error, submitError, onCon
                 backgroundImage: 'radial-gradient(circle at 20% 30%, rgba(255,255,255,0.15) 1px, transparent 1px), radial-gradient(circle at 60% 70%, rgba(0,0,0,0.1) 1px, transparent 1px)',
                 backgroundSize: '18px 18px, 24px 24px',
               }} />
-
-              {/* SVG edges / threads */}
-              {blueprint.edges.length > 0 && (
-                <svg
-                  className="absolute inset-0 pointer-events-none"
-                  style={{ width: '100%', height: '100%', overflow: 'visible' }}
-                >
-                  {/* We skip edge rendering since absolute-positioned cards make coordinate mapping complex */}
-                </svg>
-              )}
 
               {/* Cards grid */}
               <div className="relative grid gap-6"
@@ -1013,7 +1496,6 @@ function DoneScreen({ wizard, blueprint, submittedId }: {
               )}
             </div>
 
-            {/* Phase list */}
             <div className="space-y-2 mb-4">
               {BUILD_PHASES.map(ph => {
                 const status = job.phases?.[ph.id] ?? 'pending'
@@ -1024,7 +1506,7 @@ function DoneScreen({ wizard, blueprint, submittedId }: {
                     <span className="text-sm flex-1" style={{ color: status === 'pending' ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.8)' }}>
                       {ph.label}
                     </span>
-                    {status === 'running' && job.phases?.[ph.id] === 'running' && ph.id === 'visual-loop' && (
+                    {status === 'running' && ph.id === 'visual-loop' && (
                       <span className="text-xs tabular-nums" style={{ color: 'rgba(255,255,255,0.4)' }}>
                         iter {job.iteration}/{job.maxIterations}
                       </span>
@@ -1037,7 +1519,6 @@ function DoneScreen({ wizard, blueprint, submittedId }: {
               })}
             </div>
 
-            {/* Score history */}
             {job.scores.length > 0 && (
               <div className="border-t pt-3" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
                 <p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.3)' }}>Quality scores</p>
@@ -1055,7 +1536,6 @@ function DoneScreen({ wizard, blueprint, submittedId }: {
               </div>
             )}
 
-            {/* Live URL when done */}
             {job.status === 'done' && job.deployUrl && (
               <a
                 href={job.deployUrl}
@@ -1068,7 +1548,6 @@ function DoneScreen({ wizard, blueprint, submittedId }: {
               </a>
             )}
 
-            {/* Last log line */}
             {job.log.length > 0 && (
               <p className="text-xs mt-3 truncate" style={{ color: 'rgba(255,255,255,0.2)' }}>
                 {job.log[job.log.length - 1]}
@@ -1077,7 +1556,7 @@ function DoneScreen({ wizard, blueprint, submittedId }: {
           </div>
         )}
 
-        {/* Launch build CTA — shown before launch */}
+        {/* Launch build CTA */}
         {!jobId && (
           <div className="space-y-3">
             <button
@@ -1105,6 +1584,26 @@ function DoneScreen({ wizard, blueprint, submittedId }: {
             </div>
           </div>
         )}
+
+        {/* Manage dashboard handoff */}
+        <div className="mt-6 pt-5 border-t space-y-3" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+          <a
+            href="/pipeline"
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold transition-all"
+            style={{ background: 'rgba(6,182,212,0.1)', color: '#06b6d4', border: '1px solid rgba(6,182,212,0.2)' }}
+          >
+            Open build pipeline →
+          </a>
+          <a
+            href="https://manage.worker-bee.app/submissions"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-semibold transition-all"
+            style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.45)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            View in manage dashboard →
+          </a>
+        </div>
 
         {submittedId && (
           <p className="text-xs mt-4" style={{ color: 'rgba(255,255,255,0.2)' }}>
