@@ -1,16 +1,17 @@
 'use client'
 import { useState, useCallback, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import {
   ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState,
   Handle, Position, MarkerType,
   type Node, type Edge, type NodeProps,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Brain, Zap, Terminal, FileText } from 'lucide-react'
+import { Brain, Zap, Terminal, FileText, BookOpen, Database, Clock } from 'lucide-react'
 
 // ─── Data model ─────────────────────────────────────────────────────────────
 
-type NodeKind = 'model' | 'agent' | 'cluster' | 'rule' | 'shell' | 'galaxy'
+type NodeKind = 'model' | 'agent' | 'cluster' | 'rule' | 'shell' | 'galaxy' | 'vault'
 
 interface NodeData extends Record<string, unknown> {
   kind: NodeKind
@@ -171,6 +172,96 @@ const SHELLS = [
   { id: 'sh-tachermes',label: 'tac-hermes() fn',        sub: 'Start Qwen :8090 if down · hermes local chat',         color: '#94a3b8', x: 1200, y: 1100 },
 ]
 
+// Memory & Vault layer
+const VAULT_NODES = [
+  {
+    id: 'vault-obsidian',
+    label: 'Obsidian Vault',
+    sub: 'claude-wiki/content/ · 9 active projects · North Star · Critical Facts · brain/',
+    color: '#34d399',
+    icon: 'book',
+    x: 0, y: 1300,
+    skills: [
+      'CRITICAL_FACTS.md — always loaded',
+      'North Star.md — mission + priorities',
+      'work/active/*.md — 9 project preambles',
+      'brain/credential-map.md',
+      'brain/Key Decisions.md',
+      'brain/Patterns.md',
+      'brain/climb-sites.md',
+      'brain/wba.md',
+      'Published: claude-wiki-two.vercel.app',
+    ],
+  },
+  {
+    id: 'vault-agentdb',
+    label: 'AgentDB',
+    sub: 'HNSW vector store · semantic search · ruflo-bridge.sh · ruvector.db',
+    color: '#a78bfa',
+    icon: 'db',
+    x: 500, y: 1300,
+    skills: [
+      'HNSW index (ruvector.db)',
+      'mem-search "query" — semantic search',
+      'mem-store KEY "value"',
+      'Bridged via ruflo-bridge.sh at SessionStart',
+      'Shared across TAC + Hermes + wba',
+    ],
+  },
+  {
+    id: 'vault-memory',
+    label: '.remember/ Memory',
+    sub: 'now.md · today-*.md · recent.md · archive.md · core-memories.md',
+    color: '#38bdf8',
+    icon: 'clock',
+    x: 1000, y: 1300,
+    skills: [
+      'now.md — current session buffer',
+      'today-*.md — daily log',
+      'recent.md — last 7 days',
+      'archive.md — long-term history',
+      'core-memories.md — key moments',
+      'Git-backed: ~/.claude/projects/-Users-drive/memory/',
+    ],
+  },
+  {
+    id: 'vault-hook',
+    label: 'SessionStart Hook',
+    sub: 'session-start.sh · fires on every new session · loads vault into additionalContext',
+    color: '#fb923c',
+    icon: 'zap',
+    x: 1050, y: 1480,
+    skills: [
+      'Tier 1: CRITICAL_FACTS.md (always)',
+      'Tier 2: North Star.md (first 50 lines)',
+      'Tier 3: active project preambles',
+      'Tier 4: recent session state (now.md)',
+      'Vault nav map injected into context',
+      'hooks.json → SessionStart event',
+    ],
+  },
+]
+
+// ─── Obsidian graph (canvas, no SSR) ─────────────────────────────────────────
+
+const NeuralGraphObsidian = dynamic(() => import('./NeuralGraphObsidian'), {
+  ssr: false,
+  loading: () => (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0d1117', borderRadius: 12 }}>
+      <span style={{ color: '#34d399', fontFamily: 'monospace', fontSize: 12 }}>Loading 3D graph…</span>
+    </div>
+  ),
+})
+
+const BrainLayerGraph = dynamic(() => import('./BrainLayerGraph'), {
+  ssr: false,
+  loading: () => (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0d1117', borderRadius: 12 }}>
+      <span style={{ color: '#a78bfa', fontFamily: 'monospace', fontSize: 12 }}>Loading…</span>
+    </div>
+  ),
+})
+
 // ─── Build nodes/edges ───────────────────────────────────────────────────────
 
 function buildGraph() {
@@ -243,6 +334,49 @@ function buildGraph() {
   edges.push({ id: 'hr-sh-jr', source: 'hermes-jr', target: 'sh-jr', style: { stroke: '#818cf8', strokeWidth: 1, opacity: 0.4 } })
   edges.push({ id: 'wba-sh-wba', source: 'wba', target: 'sh-wba', style: { stroke: '#34d399', strokeWidth: 1, opacity: 0.4 } })
   edges.push({ id: 'qwen-sh-tachermes', source: 'qwen-local', target: 'sh-tachermes', style: { stroke: '#a78bfa', strokeWidth: 1, opacity: 0.4 } })
+
+  // Vault / Memory layer
+  VAULT_NODES.forEach(v => {
+    nodes.push({
+      id: v.id, type: 'vaultNode',
+      position: { x: v.x, y: v.y },
+      data: { kind: 'vault', label: v.label, sub: v.sub, color: v.color, icon: v.icon, skills: v.skills },
+    })
+  })
+
+  // SessionStart hook loads vault → TAC reads it
+  edges.push({ id: 'hook-obsidian', source: 'vault-hook', target: 'vault-obsidian',
+    style: { stroke: '#fb923c', strokeWidth: 1.5, opacity: 0.7 }, animated: true,
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#fb923c' },
+  })
+  edges.push({ id: 'hook-memory', source: 'vault-hook', target: 'vault-memory',
+    style: { stroke: '#fb923c', strokeWidth: 1.2, opacity: 0.5 }, animated: true,
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#fb923c' },
+  })
+  // Vault → AgentDB bridge
+  edges.push({ id: 'obsidian-agentdb', source: 'vault-obsidian', target: 'vault-agentdb',
+    style: { stroke: '#34d399', strokeWidth: 1, opacity: 0.5, strokeDasharray: '4 3' },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#34d399' },
+  })
+  // TAC reads from all vault nodes
+  edges.push({ id: 'tac-vault-obsidian', source: 'tac', target: 'vault-obsidian',
+    style: { stroke: '#34d399', strokeWidth: 1.5, opacity: 0.6 }, animated: true,
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#34d399' },
+  })
+  edges.push({ id: 'tac-vault-agentdb', source: 'tac', target: 'vault-agentdb',
+    style: { stroke: '#a78bfa', strokeWidth: 1.5, opacity: 0.6 }, animated: true,
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#a78bfa' },
+  })
+  edges.push({ id: 'tac-vault-memory', source: 'tac', target: 'vault-memory',
+    style: { stroke: '#38bdf8', strokeWidth: 1, opacity: 0.4, strokeDasharray: '3 3' },
+  })
+  // Hermes Jr and wba also use AgentDB
+  edges.push({ id: 'hermes-jr-agentdb', source: 'hermes-jr', target: 'vault-agentdb',
+    style: { stroke: '#818cf8', strokeWidth: 1, opacity: 0.35, strokeDasharray: '3 3' },
+  })
+  edges.push({ id: 'wba-agentdb', source: 'wba', target: 'vault-agentdb',
+    style: { stroke: '#34d399', strokeWidth: 1, opacity: 0.35, strokeDasharray: '3 3' },
+  })
 
   // TAC → frontend cluster
   edges.push({ id: 'tac-sk-frontend', source: 'tac', target: 'sk-frontend', style: { stroke: '#6366f1', strokeWidth: 1, opacity: 0.4 } })
@@ -338,7 +472,8 @@ function SkillGalaxyNode({ data, selected }: NodeProps<Node<NodeData>>) {
   return (
     <div style={{ position: 'relative', width: svgSize, height: svgSize }}>
       <Handle type="target" position={Position.Top} style={{ background: color, left: '50%' }} />
-      <svg width={svgSize} height={svgSize} style={{ overflow: 'visible' }}>
+      {/* suppressHydrationWarning: server/client float precision mismatch in trig values is benign */}
+      <svg width={svgSize} height={svgSize} style={{ overflow: 'visible' }} suppressHydrationWarning>
         {/* Glow rings */}
         <circle cx={cx} cy={cy} r={r - 30} fill="none" stroke={color} strokeWidth={0.5} opacity={0.15} />
         <circle cx={cx} cy={cy} r={r - 10} fill="none" stroke={color} strokeWidth={0.5} opacity={0.1} />
@@ -405,6 +540,45 @@ function ShellNode({ data }: NodeProps<Node<NodeData>>) {
   )
 }
 
+function VaultNode({ data, selected }: NodeProps<Node<NodeData>>) {
+  const [open, setOpen] = useState(false)
+  const color = data.color as string
+  const icon = data.icon as string
+
+  const Icon = icon === 'book' ? BookOpen : icon === 'db' ? Database : icon === 'zap' ? Zap : Clock
+
+  return (
+    <div
+      onClick={() => setOpen(v => !v)}
+      style={{
+        background: `${color}0d`,
+        border: `1.5px solid ${color}66`,
+        borderRadius: 10,
+        padding: '9px 13px',
+        minWidth: 200,
+        cursor: 'pointer',
+        boxShadow: selected ? `0 0 24px ${color}44` : `0 0 8px ${color}22`,
+        transition: 'box-shadow 0.2s',
+      }}
+    >
+      <Handle type="target" position={Position.Top} style={{ background: color, width: 6, height: 6 }} />
+      <Handle type="source" position={Position.Bottom} style={{ background: color, width: 6, height: 6 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+        <Icon size={11} color={color} />
+        <span style={{ fontSize: 10, fontWeight: 700, color }}>{data.label as string}</span>
+      </div>
+      <div style={{ fontSize: 8.5, color: '#64748b', lineHeight: 1.4, marginBottom: open ? 8 : 0 }}>{data.sub as string}</div>
+      {open && data.skills && (
+        <div style={{ borderTop: `1px solid ${color}33`, paddingTop: 6, marginTop: 2 }}>
+          {(data.skills as string[]).map((s, i) => (
+            <div key={i} style={{ fontSize: 8, color: '#94a3b8', padding: '1.5px 0', fontFamily: 'monospace', borderBottom: `1px solid ${color}11` }}>{s}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const nodeTypes = {
   modelNode: ModelNode,
   agentNode: AgentNode,
@@ -412,11 +586,12 @@ const nodeTypes = {
   galaxyNode: SkillGalaxyNode,
   ruleNode: RuleNode,
   shellNode: ShellNode,
+  vaultNode: VaultNode,
 }
 
 // ─── Filter panel ────────────────────────────────────────────────────────────
 
-type FilterKey = 'all' | 'haiku' | 'sonnet' | 'opus' | 'qwen' | 'agents' | 'rules' | 'skills'
+type FilterKey = 'all' | 'haiku' | 'sonnet' | 'opus' | 'qwen' | 'agents' | 'rules' | 'skills' | 'vault'
 
 const FILTERS: { key: FilterKey; label: string; color: string }[] = [
   { key: 'all',    label: 'All',        color: '#e2e8f0' },
@@ -427,6 +602,7 @@ const FILTERS: { key: FilterKey; label: string; color: string }[] = [
   { key: 'agents', label: 'Agents',     color: '#818cf8' },
   { key: 'skills', label: 'Skills',     color: '#22d3ee' },
   { key: 'rules',  label: 'Rules',      color: '#f43f5e' },
+  { key: 'vault',  label: 'Vault',      color: '#34d399' },
 ]
 
 // ─── Main component ─────────────────────────────────────────────────────────
@@ -436,6 +612,7 @@ const { nodes: initialNodes, edges: initialEdges } = buildGraph()
 export default function NeuralMapClient() {
   const [nodes, , onNodesChange] = useNodesState(initialNodes)
   const [edges, , onEdgesChange] = useEdgesState(initialEdges)
+  const [tab, setTab] = useState<'flow' | 'obsidian' | 'brain'>('flow')
   const [filter, setFilter] = useState<FilterKey>('all')
   const [selectedNode, setSelectedNode] = useState<Node<NodeData> | null>(null)
 
@@ -444,6 +621,7 @@ export default function NeuralMapClient() {
     if (filter === 'agents') return nodes.filter(n => n.data.kind === 'agent' || n.data.kind === 'model')
     if (filter === 'rules') return nodes.filter(n => n.data.kind === 'rule' || n.data.kind === 'shell')
     if (filter === 'skills') return nodes.filter(n => n.data.kind === 'cluster' || n.data.kind === 'galaxy' || n.data.kind === 'model')
+    if (filter === 'vault') return nodes.filter(n => n.data.kind === 'vault' || n.id === 'tac')
     // model filter → show that model + clusters that use it + agents that use it
     return nodes.filter(n => {
       if (n.id === filter) return true
@@ -471,29 +649,49 @@ export default function NeuralMapClient() {
           <div>
             <h1 className="text-xl font-bold text-white">Neural Agent Map</h1>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>
-              Agents · Skill clusters · Model routing · Rules · Shells — click any node to inspect
+              Agents · Skill clusters · Model routing · Rules · Shells · Obsidian Vault · Memory
             </p>
           </div>
         </div>
-        {/* Filters */}
-        <div className="flex gap-1.5 flex-wrap">
-          {FILTERS.map(f => (
-            <button key={f.key} onClick={() => setFilter(f.key)}
-              style={{
-                fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 20,
-                border: `1.5px solid ${filter === f.key ? f.color : '#334155'}`,
-                background: filter === f.key ? `${f.color}22` : 'transparent',
-                color: filter === f.key ? f.color : '#64748b',
-                cursor: 'pointer', transition: 'all 0.15s',
-              }}>
-              {f.label}
-            </button>
-          ))}
+
+        <div className="flex items-center gap-3">
+          {/* Tab switcher */}
+          <div style={{ display: 'flex', gap: 2, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, padding: 3 }}>
+            {([['flow', 'Flow Diagram'], ['obsidian', '3D Graph'], ['brain', 'Mind / Skills / 2nd Brain']] as const).map(([key, label]) => (
+              <button key={key} onClick={() => setTab(key)}
+                style={{
+                  fontSize: 11, fontWeight: 600, padding: '5px 14px', borderRadius: 6,
+                  background: tab === key ? '#1e293b' : 'transparent',
+                  color: tab === key ? '#e2e8f0' : '#64748b',
+                  border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+                }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Filters — only show in flow tab */}
+          {tab === 'flow' && (
+            <div className="flex gap-1.5 flex-wrap">
+              {FILTERS.map(f => (
+                <button key={f.key} onClick={() => setFilter(f.key)}
+                  style={{
+                    fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 20,
+                    border: `1.5px solid ${filter === f.key ? f.color : '#334155'}`,
+                    background: filter === f.key ? `${f.color}22` : 'transparent',
+                    color: filter === f.key ? f.color : '#64748b',
+                    cursor: 'pointer', transition: 'all 0.15s',
+                  }}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex gap-4 mb-3 shrink-0 flex-wrap">
+      {/* Legend — flow tab only */}
+      {tab === 'flow' && <div className="flex gap-4 mb-3 shrink-0 flex-wrap">
         {[
           { label: 'Model',   color: '#6366f1', shape: '■' },
           { label: 'Agent',   color: '#818cf8', shape: '◆' },
@@ -501,39 +699,50 @@ export default function NeuralMapClient() {
           { label: '1,460 skills galaxy', color: '#22d3ee', shape: '✦' },
           { label: 'Rule file', color: '#f43f5e', shape: '▬' },
           { label: 'Shell fn', color: '#475569', shape: '▬' },
+          { label: 'Vault / Memory (click to expand)', color: '#34d399', shape: '⬡' },
         ].map(l => (
           <div key={l.label} className="flex items-center gap-1.5">
             <span style={{ color: l.color, fontSize: 10 }}>{l.shape}</span>
             <span style={{ fontSize: 10, color: '#94a3b8' }}>{l.label}</span>
           </div>
         ))}
-      </div>
+      </div>}
 
       {/* Graph */}
-      <div style={{ flex: 1, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: '#060612' }}>
-        <ReactFlow
-          nodes={visibleNodes}
-          edges={visibleEdges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onNodeClick={onNodeClick}
-          nodeTypes={nodeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.15 }}
-          attributionPosition="bottom-left"
-          style={{ background: '#060612' }}
-        >
-          <Background color="#1e293b" gap={24} size={1} />
-          <Controls style={{ background: '#0f172a', border: '1px solid var(--border)' }} />
-          <MiniMap
-            style={{ background: '#0f172a', border: '1px solid var(--border)' }}
-            nodeColor={(n) => (n.data as NodeData).color ?? '#6366f1'}
-          />
-        </ReactFlow>
-      </div>
+      {tab === 'brain' ? (
+        <div style={{ flex: 1, borderRadius: 12, overflow: 'hidden', border: '1px solid #21262d' }}>
+          <BrainLayerGraph />
+        </div>
+      ) : tab === 'obsidian' ? (
+        <div style={{ flex: 1, borderRadius: 12, overflow: 'hidden', border: '1px solid #21262d' }}>
+          <NeuralGraphObsidian />
+        </div>
+      ) : (
+        <div style={{ flex: 1, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: '#060612' }}>
+          <ReactFlow
+            nodes={visibleNodes}
+            edges={visibleEdges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onNodeClick={onNodeClick}
+            nodeTypes={nodeTypes}
+            fitView
+            fitViewOptions={{ padding: 0.15 }}
+            attributionPosition="bottom-left"
+            style={{ background: '#060612' }}
+          >
+            <Background color="#1e293b" gap={24} size={1} />
+            <Controls style={{ background: '#0f172a', border: '1px solid var(--border)' }} />
+            <MiniMap
+              style={{ background: '#0f172a', border: '1px solid var(--border)' }}
+              nodeColor={(n) => (n.data as NodeData).color ?? '#6366f1'}
+            />
+          </ReactFlow>
+        </div>
+      )}
 
-      {/* Side panel when node selected */}
-      {selectedNode && (
+      {/* Side panel when node selected (flow tab only) */}
+      {tab === 'flow' && selectedNode && (
         <div
           style={{
             position: 'absolute', right: 24, top: 120, width: 280,
