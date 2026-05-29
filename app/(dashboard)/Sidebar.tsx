@@ -7,7 +7,7 @@ import {
   Layers, Sparkles, Search, Zap, Shield, Hammer, HelpCircle, Map, Brain,
   Cpu, ArrowLeft, Settings2, BarChart2, Wand2, ScanSearch, ExternalLink,
   ChevronRight, LineChart, Users, FileText, DollarSign, Receipt, Rocket,
-  Terminal, Pin, Activity, Mail,
+  Terminal, Pin, Activity, Mail, Package,
 } from 'lucide-react'
 
 const GLOBAL_NAV = [
@@ -31,6 +31,8 @@ const GLOBAL_NAV = [
   { href: '/vault',          label: 'Vault',        icon: KeyRound },
   { href: '/contacts',       label: 'Contacts',     icon: Users,      accent: '#34d399' },
   { href: '/campaigns',      label: 'Campaigns',    icon: Mail,       accent: '#60a5fa' },
+  { href: '/white-label',    label: 'White Label',  icon: Package,    accent: '#f59e0b' },
+  { href: '/build-offer',    label: 'Build Offer',  icon: Globe,      accent: '#34d399' },
   { href: '/neural-map',     label: 'Neural Map',   icon: Brain,      accent: '#a78bfa' },
   { href: '/configurator',   label: 'Config',       icon: Cpu },
   { href: '/flow-boards',    label: 'Flow Boards',  icon: Pin,        accent: '#c9a96e' },
