@@ -34,7 +34,7 @@ export function MaintenanceHub({ sites }: Props) {
       .catch(() => {})
   }, [])
 
-  const tabs: { key: Tab; label: string; icon: React.ElementType; badge?: number }[] = [
+  const tabs: Array<{ key: Tab; label: string; icon: React.ElementType; badge?: number | undefined }> = [
     { key: 'sentry',   label: 'Sentry',    icon: AlertTriangle },
     { key: 'requests', label: 'Requests',  icon: Inbox,          badge: requestCount },
     { key: 'reviews',  label: 'Reviews',   icon: GitPullRequest, badge: prCount },

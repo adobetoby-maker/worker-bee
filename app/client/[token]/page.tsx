@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getBlueprint } from '@/lib/blueprintStore'
 import { ClientPortal } from './ClientPortal'
+import type { Node, Edge } from '@xyflow/react'
 
 export default async function ClientPortalPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
@@ -38,8 +39,8 @@ export default async function ClientPortalPage({ params }: { params: Promise<{ t
       siteName={site.name}
       siteUrl={site.url}
       milestones={milestones ?? []}
-      blueprintNodes={branchData?.nodes ?? []}
-      blueprintEdges={branchData?.edges ?? []}
+      blueprintNodes={(branchData?.nodes ?? []) as Node[]}
+      blueprintEdges={(branchData?.edges ?? []) as Edge[]}
     />
   )
 }

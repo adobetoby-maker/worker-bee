@@ -4,11 +4,11 @@ import { supabaseAdmin } from '@/lib/supabase'
 export const dynamic = 'force-dynamic'
 
 // POST /api/client-status-email
-// Body: { clientId: string, subject?: string, shareToken?: string }
+// Body: { clientId: string, subject?: string }
 // Sends a project status update email to the client showing all their projects + milestones
 
 export async function POST(req: NextRequest) {
-  const { clientId, subject, shareToken } = await req.json()
+  const { clientId, subject } = await req.json()
   if (!clientId) return NextResponse.json({ error: 'clientId required' }, { status: 400 })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     return { ...site, milestones: milestones ?? [], complete, total, pct, portalToken: token?.token ?? null }
   }))
 
-  const html = buildEmailHtml({ client, sites: siteData, shareToken })
+  const html = buildEmailHtml({ client, sites: siteData })
   const emailSubject = subject ?? `Project Update — ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
 
   const resendRes = await fetch('https://api.resend.com/emails', {
