@@ -68,39 +68,16 @@ function decryptSession(token: string): string | null {
   }
 }
 
-// ── Warm-instance cache (optional speed boost) ────────────────────────────
-// Key = session token. Entries are cleared after SESSION_TTL.
-const cache = new Map<string, { data: VaultData; expires: number }>();
-const SESSION_TTL = 4 * 60 * 60 * 1000;
+// ── Session helpers ───────────────────────────────────────────────────────
+// getSession returns the master password (string) decoded from the cookie token.
+// Credentials are now stored per-row in Supabase — no VaultData blob needed.
 
-export async function getSession(token: string): Promise<VaultData | null> {
-  // Fast path: in-memory cache (works on warm Lambda instances)
-  const hit = cache.get(token);
-  if (hit) {
-    if (Date.now() > hit.expires) { cache.delete(token); }
-    else { hit.expires = Date.now() + SESSION_TTL; return hit.data; }
-  }
-
-  // Cold path: decrypt master password from token, reload vault from Supabase
-  const masterPassword = decryptSession(token);
-  if (!masterPassword) return null;
-
-  try {
-    const data = await unlockVault(masterPassword);
-    cache.set(token, { data, expires: Date.now() + SESSION_TTL });
-    return data;
-  } catch {
-    return null;
-  }
+export function getSession(token: string): string | null {
+  return decryptSession(token);
 }
 
-export function updateSession(token: string, data: VaultData): void {
-  const hit = cache.get(token);
-  if (hit) hit.data = data;
-}
-
-export function deleteSession(token: string): void {
-  cache.delete(token);
+export function deleteSession(_token: string): void {
+  // no-op: session lives only in the cookie — clearing the cookie is enough
 }
 
 // ── Supabase persistence (encrypted blob) ─────────────────
@@ -138,32 +115,25 @@ async function dbUpsert(enc: EncryptedVault): Promise<void> {
   }
 }
 
+// vault_storage is now used only for the "canary" row that verifies the master password.
+// Credentials live in the `credentials` table (see vaultStoreDB.ts).
+
 export async function vaultExists(): Promise<boolean> {
   const enc = await dbGet();
   return enc !== null;
 }
 
-export async function loadVaultFile(): Promise<EncryptedVault> {
+export async function unlockVault(masterPassword: string): Promise<void> {
   const enc = await dbGet();
   if (!enc) throw new Error("No vault found. Create one first.");
-  return enc;
+  // Throws if wrong password — callers catch to show "Incorrect master password"
+  await decryptVault(enc, masterPassword);
 }
 
-export async function saveVaultFile(data: VaultData, masterPassword: string): Promise<void> {
-  const enc = await encryptVault(JSON.stringify(data), masterPassword);
-  await dbUpsert(enc);
-}
-
-export async function unlockVault(masterPassword: string): Promise<VaultData> {
-  const enc = await loadVaultFile();
-  const plain = await decryptVault(enc, masterPassword);
-  return JSON.parse(plain) as VaultData;
-}
-
-export async function initVault(masterPassword: string): Promise<VaultData> {
-  const data: VaultData = { version: 1, credentials: [] };
-  await saveVaultFile(data, masterPassword);
-  return data;
+export async function initVault(masterPassword: string): Promise<void> {
+  // Store a canary so we can verify the master password on future unlocks
+  const canary = await encryptVault("__vault_canary__", masterPassword);
+  await dbUpsert(canary);
 }
 
 // ── CRUD helpers ──────────────────────────────────────────

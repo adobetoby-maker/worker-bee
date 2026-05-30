@@ -7,7 +7,7 @@ import {
   deleteSession,
 } from "@/lib/vaultStore";
 
-// POST /api/auth — unlock existing vault OR create new vault
+// POST /api/vault/auth — unlock existing vault OR initialize new vault
 export async function POST(req: NextRequest) {
   const { masterPassword, action } = await req.json();
 
@@ -19,8 +19,6 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    let data;
-
     if (action === "create") {
       if (await vaultExists()) {
         return NextResponse.json(
@@ -28,9 +26,8 @@ export async function POST(req: NextRequest) {
           { status: 409 }
         );
       }
-      data = await initVault(masterPassword);
+      await initVault(masterPassword);
     } else {
-      // unlock
       if (!(await vaultExists())) {
         return NextResponse.json(
           { error: "No vault found. Create one first." },
@@ -38,7 +35,7 @@ export async function POST(req: NextRequest) {
         );
       }
       try {
-        data = await unlockVault(masterPassword);
+        await unlockVault(masterPassword);
       } catch {
         return NextResponse.json(
           { error: "Incorrect master password" },
@@ -53,7 +50,7 @@ export async function POST(req: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 60 * 60 * 4, // 4 hours
+      maxAge: 60 * 60 * 4,
       path: "/",
     });
     return res;
@@ -64,7 +61,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE /api/auth — lock vault
+// DELETE /api/vault/auth — lock vault
 export async function DELETE(req: NextRequest) {
   const sessionId = req.cookies.get("vault_session")?.value;
   if (sessionId) deleteSession(sessionId);
