@@ -8,6 +8,10 @@ export interface CardData {
   claudePrompt: string
   status: CardStatus
   rotation: number
+  // Graph analysis overlay (ephemeral — never persisted to DB)
+  _clusterColor?: string
+  _importance?: number   // 0–1, normalized PageRank
+  _isBridgeNode?: boolean
 }
 
 export const TYPE_COLOR: Record<CardType, string> = {

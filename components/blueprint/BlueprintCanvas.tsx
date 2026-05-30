@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useState, useRef, useEffect } from 'react'
+import { useCallback, useState, useRef, useEffect, useMemo } from 'react'
 import {
   ReactFlow, Background, Controls, MiniMap,
   addEdge, useNodesState, useEdgesState,
@@ -10,8 +10,9 @@ import '@xyflow/react/dist/style.css'
 import {
   Plus, FileText, Layout, Box, Cpu, Database, Save, GitBranch, Merge,
   RotateCcw, ChevronDown, X, Check, Hammer, Wand2, Loader2, Sparkles,
-  PanelLeftClose, PanelLeftOpen, Video, RefreshCw,
+  PanelLeftClose, PanelLeftOpen, Video, RefreshCw, Network,
 } from 'lucide-react'
+import { analyzeGraph, getClusterColor, CLUSTER_COLORS, type GraphAnalysis } from '@/lib/graphAnalysis'
 import Link from 'next/link'
 import { IndexCardNode } from './IndexCardNode'
 import { StringEdge } from './StringEdge'
@@ -115,6 +116,9 @@ export function BlueprintCanvas({
   const [dispatchError, setDispatchError] = useState('')
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [graphMode, setGraphMode] = useState(false)
+  const [graphAnalysis, setGraphAnalysis] = useState<GraphAnalysis | null>(null)
+
   const [tourStep, setTourStep] = useState<1|2|3>(() => {
     if (typeof window === 'undefined') return initialNodes.length > 0 ? 2 : 1
     const saved = localStorage.getItem(`wb-tour-${siteId}`)
@@ -161,6 +165,41 @@ export function BlueprintCanvas({
   }, [siteId, currentBranch, branchData, persistFull, storedWizardInput, videoUrl])
 
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current) }, [])
+
+  // ── Graph Analysis ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!graphMode) { setGraphAnalysis(null); return }
+    setGraphAnalysis(analyzeGraph(nodes, edges))
+  }, [graphMode, nodes, edges])
+
+  // Derived display nodes/edges — enriched with cluster/importance/bridge data
+  // Never modifies canonical `nodes`/`edges` state (which triggerSave serializes)
+  const displayNodes = useMemo((): Node[] => {
+    if (!graphMode || !graphAnalysis) return nodes
+    const prValues = Object.values(graphAnalysis.pageRank)
+    const maxPR = prValues.length ? Math.max(...prValues) : 1
+    const btValues = Object.values(graphAnalysis.betweenness)
+    const maxBT = btValues.length ? Math.max(...btValues) : 1
+    const bridgeThreshold = maxBT > 0 ? maxBT * 0.25 : 1
+
+    return nodes.map(n => ({
+      ...n,
+      data: {
+        ...n.data,
+        _clusterColor: getClusterColor(graphAnalysis.clusters[n.id] ?? 0),
+        _importance: maxPR > 0 ? (graphAnalysis.pageRank[n.id] ?? 0) / maxPR : 0,
+        _isBridgeNode: (graphAnalysis.betweenness[n.id] ?? 0) >= bridgeThreshold,
+      },
+    }))
+  }, [nodes, graphMode, graphAnalysis])
+
+  const displayEdges = useMemo((): Edge[] => {
+    if (!graphMode || !graphAnalysis) return edges
+    return edges.map(e => ({
+      ...e,
+      data: { ...(e.data ?? {}), isBridge: graphAnalysis.bridges.has(e.id) },
+    }))
+  }, [edges, graphMode, graphAnalysis])
 
   function advanceTour(step: 1|2|3) {
     setTourStep(step)
@@ -651,6 +690,26 @@ export function BlueprintCanvas({
               <Wand2 size={12} /> AI Generate
             </button>
 
+            {/* Graph Analysis toggle */}
+            <button
+              onClick={() => setGraphMode(v => !v)}
+              title={graphMode ? 'Exit graph analysis' : 'Graph analysis — clusters, key nodes, weak links'}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5, padding: '6px 11px', borderRadius: 7,
+                background: graphMode
+                  ? 'linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.25))'
+                  : 'rgba(255,255,255,0.04)',
+                border: graphMode
+                  ? '1px solid rgba(99,102,241,0.5)'
+                  : '1px solid rgba(255,255,255,0.08)',
+                color: graphMode ? '#a5b4fc' : '#475569',
+                fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              <Network size={12} /> Graph
+            </button>
+
             {/* Start over */}
             <button onClick={() => setModal('start-over')} title="Start over" style={{
               padding: '6px 8px', borderRadius: 7, border: '1px solid rgba(255,255,255,0.08)',
@@ -733,7 +792,7 @@ export function BlueprintCanvas({
         {/* ── Canvas ──────────────────────────────────────────── */}
         <div ref={reactFlowWrapper} style={{ flex: 1, position: 'relative' }}>
           <ReactFlow
-            nodes={nodes} edges={edges}
+            nodes={displayNodes} edges={displayEdges}
             onNodesChange={onNodesChangeWrapped}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -810,21 +869,98 @@ export function BlueprintCanvas({
             </div>
           )}
 
-          {/* Legend */}
-          <div style={{
-            position: 'absolute', bottom: 16, left: 16,
-            background: 'rgba(8,13,20,0.85)', backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8,
-            padding: '9px 13px', display: 'flex', gap: 12, fontSize: 10,
-            fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
-          }}>
-            {(['page', 'section', 'component', 'api', 'data'] as CardType[]).map(t => (
-              <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#64748b' }}>
-                <div style={{ width: 7, height: 7, borderRadius: 1, background: TYPE_COLOR[t] }} />
-                {t}
+          {/* Card type legend (hidden in graph mode) */}
+          {!graphMode && (
+            <div style={{
+              position: 'absolute', bottom: 16, left: 16,
+              background: 'rgba(8,13,20,0.85)', backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8,
+              padding: '9px 13px', display: 'flex', gap: 12, fontSize: 10,
+              fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
+            }}>
+              {(['page', 'section', 'component', 'api', 'data'] as CardType[]).map(t => (
+                <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#64748b' }}>
+                  <div style={{ width: 7, height: 7, borderRadius: 1, background: TYPE_COLOR[t] }} />
+                  {t}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Graph Analysis Legend */}
+          {graphMode && graphAnalysis && (
+            <div style={{
+              position: 'absolute', bottom: 16, left: 16,
+              background: 'rgba(8,13,20,0.92)', backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(99,102,241,0.25)', borderRadius: 10,
+              padding: '12px 14px', minWidth: 200,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            }}>
+              <div style={{ fontSize: 9, fontWeight: 800, color: '#334155', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 10 }}>
+                Graph Analysis
               </div>
-            ))}
-          </div>
+
+              {/* Clusters */}
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 5 }}>
+                  Clusters ({graphAnalysis.clusterCount})
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {Array.from({ length: Math.min(graphAnalysis.clusterCount, 8) }, (_, i) => (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      padding: '2px 6px', borderRadius: 4,
+                      background: `${CLUSTER_COLORS[i]}22`,
+                      border: `1px solid ${CLUSTER_COLORS[i]}44`,
+                    }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: CLUSTER_COLORS[i] }} />
+                      <span style={{ fontSize: 9, fontWeight: 700, color: CLUSTER_COLORS[i] }}>C{i + 1}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Edge types */}
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <svg width="28" height="6">
+                    <line x1="0" y1="3" x2="28" y2="3" stroke="#c9a96e" strokeWidth="1.5" opacity="0.75" />
+                  </svg>
+                  <span style={{ fontSize: 9, color: '#475569', fontWeight: 600 }}>Normal connection</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <svg width="28" height="6">
+                    <line x1="0" y1="3" x2="28" y2="3" stroke="#f97316" strokeWidth="2" strokeDasharray="5 3" />
+                  </svg>
+                  <span style={{ fontSize: 9, color: '#f97316', fontWeight: 600 }}>Bridge / weak link</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#a5b4fc', flexShrink: 0 }} />
+                  <span style={{ fontSize: 9, color: '#475569', fontWeight: 600 }}>Pin size = PageRank</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <div style={{ fontSize: 7, fontWeight: 800, color: '#fff', background: '#f97316', padding: '1px 4px', borderRadius: 2 }}>BRIDGE</div>
+                  <span style={{ fontSize: 9, color: '#475569', fontWeight: 600 }}>High betweenness node</span>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 8, marginTop: 4, display: 'flex', gap: 12 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: '#6366f1' }}>{graphAnalysis.clusterCount}</div>
+                  <div style={{ fontSize: 8, color: '#334155', fontWeight: 700, textTransform: 'uppercase' }}>Clusters</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: '#f97316' }}>{graphAnalysis.bridges.size}</div>
+                  <div style={{ fontSize: 8, color: '#334155', fontWeight: 700, textTransform: 'uppercase' }}>Bridges</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: '#10b981' }}>{nodes.length}</div>
+                  <div style={{ fontSize: 8, color: '#334155', fontWeight: 700, textTransform: 'uppercase' }}>Nodes</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
       </div>{/* end right column */}

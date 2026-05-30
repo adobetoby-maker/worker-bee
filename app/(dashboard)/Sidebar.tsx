@@ -7,38 +7,71 @@ import {
   Layers, Sparkles, Search, Zap, Shield, Hammer, HelpCircle, Map, Brain,
   Cpu, ArrowLeft, Settings2, BarChart2, Wand2, ScanSearch, ExternalLink,
   ChevronRight, LineChart, Users, FileText, DollarSign, Receipt, Rocket,
-  Terminal, Pin, Activity, Mail, Package, Megaphone,
+  Terminal, Pin, Activity, Mail, Package, Megaphone, Clock, Flag,
 } from 'lucide-react'
 
-const GLOBAL_NAV = [
-  { href: '/',               label: 'Dashboard',    icon: LayoutDashboard },
-  { href: '/sites',          label: 'Sites',         icon: Globe },
-  { href: '/monitor',        label: 'Monitor',       icon: Activity,     accent: '#34d399' },
-  { href: '/builds',         label: 'Builds',        icon: Hammer,       accent: '#34d399' },
-  { href: '/analytics',      label: 'Analytics',     icon: LineChart,     accent: '#60a5fa' },
-  { href: '/billing',        label: 'Billing',       icon: Receipt,    accent: '#10b981' },
-  { href: '/monetization',   label: 'Monetization', icon: DollarSign, accent: '#34d399' },
-  { href: '/build-studio',   label: 'Build Studio', icon: Terminal,   accent: '#818cf8' },
-  { href: '/ship-ready',     label: 'Ship Ready',   icon: Rocket,     accent: '#34d399' },
-  { href: '/tetrad',         label: 'TETRAD',       icon: Zap,        accent: '#fbbf24' },
-  { href: '/language-lens',  label: 'Lang Lens',    icon: Shield,     accent: '#d4af37' },
-  { href: '/submissions',    label: 'Submissions',  icon: Inbox },
-  { href: '/audits',         label: 'Audits',       icon: Search },
-  { href: '/iterations',     label: 'Iterations',   icon: GitBranch },
-  { href: '/maintenance',    label: 'Maintain',     icon: Wrench },
-  { href: '/batch',          label: 'Batch',        icon: Layers },
-  { href: '/mods',           label: 'Mods',         icon: Sparkles },
-  { href: '/vault',          label: 'Vault',        icon: KeyRound },
-  { href: '/contacts',       label: 'Contacts',     icon: Users,      accent: '#34d399' },
-  { href: '/campaigns',      label: 'Campaigns',    icon: Mail,       accent: '#60a5fa' },
-  { href: '/marketing-push', label: 'Marketing Push', icon: Megaphone,  accent: '#f59e0b' },
-  { href: '/white-label',    label: 'White Label',  icon: Package,    accent: '#f59e0b' },
-  { href: '/build-offer',    label: 'Build Offer',  icon: Globe,      accent: '#34d399' },
-  { href: '/neural-map',     label: 'Neural Map',   icon: Brain,      accent: '#a78bfa' },
-  { href: '/configurator',   label: 'Config',       icon: Cpu },
-  { href: '/flow-boards',    label: 'Flow Boards',  icon: Pin,        accent: '#c9a96e' },
-  { href: '/sitemap-visual', label: 'Sitemap',      icon: Map },
-  { href: '/help',           label: 'Help',         icon: HelpCircle },
+const GLOBAL_NAV_SECTIONS = [
+  {
+    section: 'Clients',
+    items: [
+      { href: '/clients',   label: 'Clients',    icon: Users,    accent: '#818cf8' },
+      { href: '/requests',  label: 'Requests',   icon: Inbox,    accent: '#f59e0b' },
+      { href: '/billing',   label: 'Billing',    icon: Receipt,  accent: '#10b981' },
+      { href: '/sites',     label: 'Sites',      icon: Globe },
+    ],
+  },
+  {
+    section: 'Build',
+    items: [
+      { href: '/builds',       label: 'Builds',       icon: Hammer,    accent: '#34d399' },
+      { href: '/build-studio', label: 'Build Studio', icon: Terminal,  accent: '#818cf8' },
+      { href: '/ship-ready',   label: 'Ship Ready',   icon: Rocket,    accent: '#34d399' },
+      { href: '/submissions',  label: 'Submissions',  icon: Inbox },
+      { href: '/maintenance',  label: 'Maintain',     icon: Wrench },
+      { href: '/iterations',   label: 'Iterations',   icon: GitBranch },
+      { href: '/audits',       label: 'Audits',       icon: Search },
+      { href: '/batch',        label: 'Batch',        icon: Layers },
+      { href: '/mods',         label: 'Mods',         icon: Sparkles },
+    ],
+  },
+  {
+    section: 'Growth',
+    items: [
+      { href: '/analytics',      label: 'Analytics',     icon: LineChart,  accent: '#60a5fa' },
+      { href: '/monetization',   label: 'Monetize',      icon: DollarSign, accent: '#34d399' },
+      { href: '/contacts',       label: 'Contacts',      icon: Users,      accent: '#34d399' },
+      { href: '/campaigns',      label: 'Campaigns',     icon: Mail,       accent: '#60a5fa' },
+      { href: '/marketing-push', label: 'Mktg Push',     icon: Megaphone,  accent: '#f59e0b' },
+      { href: '/white-label',    label: 'White Label',   icon: Package,    accent: '#f59e0b' },
+      { href: '/build-offer',    label: 'Build Offer',   icon: Globe,      accent: '#34d399' },
+    ],
+  },
+  {
+    section: 'Tools',
+    items: [
+      { href: '/monitor',       label: 'Monitor',     icon: Activity,  accent: '#34d399' },
+      { href: '/vault',         label: 'Vault',       icon: KeyRound },
+      { href: '/neural-map',    label: 'Neural Map',  icon: Brain,     accent: '#a78bfa' },
+      { href: '/flow-boards',   label: 'Flow Boards', icon: Pin,       accent: '#c9a96e' },
+      { href: '/tetrad',        label: 'TETRAD',      icon: Zap,       accent: '#fbbf24' },
+      { href: '/language-lens', label: 'Lang Lens',   icon: Shield,    accent: '#d4af37' },
+      { href: '/configurator',  label: 'Config',      icon: Cpu },
+      { href: '/sitemap-visual',label: 'Sitemap',     icon: Map },
+      { href: '/help',          label: 'Help',        icon: HelpCircle },
+    ],
+  },
+]
+
+// Flat list for mobile (first 7 most important)
+const GLOBAL_NAV = GLOBAL_NAV_SECTIONS.flatMap(s => s.items)
+const MOBILE_GLOBAL = [
+  { href: '/',          label: 'Home',     icon: LayoutDashboard },
+  { href: '/clients',   label: 'Clients',  icon: Users,    accent: '#818cf8' },
+  { href: '/requests',  label: 'Requests', icon: Inbox,    accent: '#f59e0b' },
+  { href: '/sites',     label: 'Sites',    icon: Globe },
+  { href: '/billing',   label: 'Billing',  icon: Receipt,  accent: '#10b981' },
+  { href: '/builds',    label: 'Builds',   icon: Hammer,   accent: '#34d399' },
+  { href: '/monitor',   label: 'Monitor',  icon: Activity, accent: '#34d399' },
 ]
 
 function projectNav(siteId: string, siteUrl?: string) {
@@ -56,6 +89,9 @@ function projectNav(siteId: string, siteUrl?: string) {
         { href: evaluateUrl,              label: 'Quality QA', icon: ScanSearch,      accent: '#34d399' },
         { href: `${base}/portal`,         label: 'Portal',     icon: Users,           accent: '#818cf8' },
         { href: `${base}/cms`,            label: 'CMS',        icon: FileText,        accent: '#f59e0b' },
+        { href: `${base}/costs`,          label: 'Costs',      icon: DollarSign,      accent: '#34d399' },
+        { href: `${base}/time`,           label: 'Time',       icon: Clock,           accent: '#60a5fa' },
+        { href: `${base}/milestones`,     label: 'Milestones', icon: Flag,            accent: '#a78bfa' },
       ],
     },
     {
@@ -70,7 +106,6 @@ function projectNav(siteId: string, siteUrl?: string) {
   ]
 }
 
-const MOBILE_GLOBAL = GLOBAL_NAV.slice(0, 7)
 const PROJECT_RE = /^\/sites\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/
 
 type SiteInfo = { id: string; name: string; url: string }
@@ -232,24 +267,46 @@ export default function Sidebar() {
             </div>
           </div>
         </div>
-        <nav className="flex-1 px-2 py-3 space-y-px overflow-y-auto">
-          {GLOBAL_NAV.map(({ href, label, icon: Icon, accent }) => {
-            const active = isActive(href)
-            const activeColor = accent ?? '#6366f1'
-            const activeIconColor = accent ?? '#818cf8'
-            return (
-              <Link key={href} href={href}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all relative"
-                style={{
-                  color: active ? '#e0e7ff' : 'var(--muted-light)',
-                  background: active ? `${activeColor}22` : 'transparent',
-                  boxShadow: active ? `inset 3px 0 0 0 ${activeColor}` : 'none',
-                }}>
-                <Icon size={14} className="shrink-0" style={{ color: active ? activeIconColor : undefined }} />
-                {label}
-              </Link>
-            )
-          })}
+        <nav className="flex-1 px-2 py-3 overflow-y-auto space-y-3">
+          {/* Dashboard always at top */}
+          <Link href="/"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{
+              color: isActive('/') ? '#e0e7ff' : 'var(--muted-light)',
+              background: isActive('/') ? '#6366f122' : 'transparent',
+              boxShadow: isActive('/') ? 'inset 3px 0 0 0 #6366f1' : 'none',
+            }}>
+            <LayoutDashboard size={14} style={{ color: isActive('/') ? '#818cf8' : undefined }} />
+            Dashboard
+          </Link>
+
+          {GLOBAL_NAV_SECTIONS.map(({ section, items }) => (
+            <div key={section}>
+              <div className="px-3 pb-1 pt-1 text-[9px] font-bold uppercase tracking-widest"
+                style={{ color: 'var(--muted)', opacity: 0.45 }}>
+                {section}
+              </div>
+              <div className="space-y-px">
+                {items.map(({ href, label, icon: Icon, accent }) => {
+                  const active = isActive(href)
+                  const activeColor = accent ?? '#6366f1'
+                  const activeIconColor = accent ?? '#818cf8'
+                  return (
+                    <Link key={href} href={href}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+                      style={{
+                        color: active ? '#e0e7ff' : 'var(--muted-light)',
+                        background: active ? `${activeColor}22` : 'transparent',
+                        boxShadow: active ? `inset 3px 0 0 0 ${activeColor}` : 'none',
+                      }}>
+                      <Icon size={14} className="shrink-0" style={{ color: active ? activeIconColor : undefined }} />
+                      {label}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
         <div className="px-2 pb-3 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
           <button onClick={logout}

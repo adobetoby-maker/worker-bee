@@ -8,6 +8,13 @@ export function IndexCardNode({ data, selected }: NodeProps) {
   const typeColor = TYPE_COLOR[d.type] ?? '#6b7280'
   const status = STATUS_META[d.status]
 
+  const clusterColor = d._clusterColor
+  const importance = d._importance ?? 0
+  const isBridgeNode = d._isBridgeNode ?? false
+
+  // Pin size grows with importance (8px base → 18px at max)
+  const pinSize = clusterColor ? Math.round(8 + importance * 10) : 16
+
   return (
     <div style={{
       transform: `rotate(${d.rotation ?? 0}deg)`,
@@ -15,24 +22,56 @@ export function IndexCardNode({ data, selected }: NodeProps) {
       background: 'linear-gradient(160deg, #faf6ee 0%, #f0ead8 100%)',
       borderRadius: 2,
       boxShadow: selected
-        ? `3px 6px 24px rgba(0,0,0,0.6), 0 0 0 2px ${typeColor}, inset 0 1px 0 rgba(255,255,255,0.6)`
+        ? `3px 6px 24px rgba(0,0,0,0.6), 0 0 0 2px ${clusterColor ?? typeColor}, inset 0 1px 0 rgba(255,255,255,0.6)`
         : `3px 6px 18px rgba(0,0,0,0.5), 1px 1px 3px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.6)`,
       cursor: 'grab',
       userSelect: 'none',
       position: 'relative',
       transition: 'box-shadow 0.15s ease',
+      // Cluster border: left stripe when graph mode on
+      borderLeft: clusterColor ? `4px solid ${clusterColor}` : undefined,
     }}>
-      {/* Cork pin */}
+
+      {/* Cork pin — size/glow reflects PageRank importance */}
       <div style={{
-        position: 'absolute', top: -10, left: '50%',
+        position: 'absolute', top: -pinSize / 2 - 4, left: '50%',
         transform: 'translateX(-50%)', zIndex: 20,
-        width: 16, height: 16, borderRadius: '50%',
-        background: 'radial-gradient(circle at 5px 5px, #f5d87a, #c8910a)',
-        boxShadow: '0 2px 5px rgba(0,0,0,0.5), inset 0 -1px 2px rgba(0,0,0,0.2)',
+        width: pinSize, height: pinSize, borderRadius: '50%',
+        background: clusterColor
+          ? `radial-gradient(circle at 35% 35%, ${clusterColor}cc, ${clusterColor})`
+          : 'radial-gradient(circle at 5px 5px, #f5d87a, #c8910a)',
+        boxShadow: clusterColor && importance > 0.5
+          ? `0 2px 5px rgba(0,0,0,0.5), 0 0 ${Math.round(4 + importance * 10)}px ${clusterColor}88`
+          : '0 2px 5px rgba(0,0,0,0.5), inset 0 -1px 2px rgba(0,0,0,0.2)',
+        transition: 'all 0.2s ease',
       }} />
 
       {/* Top type stripe */}
       <div style={{ height: 5, borderRadius: '2px 2px 0 0', background: typeColor }} />
+
+      {/* Cluster + bridge badges (top-right) */}
+      {clusterColor && (
+        <div style={{
+          position: 'absolute', top: 8, right: 8,
+          display: 'flex', gap: 3, alignItems: 'center', zIndex: 10,
+        }}>
+          {isBridgeNode && (
+            <div style={{
+              fontFamily: 'monospace', fontSize: 7, fontWeight: 800,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: '#fff', background: '#f97316',
+              padding: '1px 4px', borderRadius: 2,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+            }}>BRIDGE</div>
+          )}
+          <div style={{
+            width: 8, height: 8, borderRadius: '50%',
+            background: clusterColor,
+            boxShadow: `0 0 4px ${clusterColor}88`,
+            flexShrink: 0,
+          }} />
+        </div>
+      )}
 
       {/* Ruled lines (paper feel) */}
       <div style={{ position: 'absolute', inset: '5px 0 0 0', pointerEvents: 'none', overflow: 'hidden', opacity: 0.08 }}>
@@ -94,12 +133,28 @@ export function IndexCardNode({ data, selected }: NodeProps) {
           transform: 'rotate(-2deg)',
           opacity: d.status === 'planned' ? 0.5 : 0.85,
         }}>{status.label}</div>
+
+        {/* Importance bar (graph mode only) */}
+        {clusterColor && importance > 0 && (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            height: 3, background: 'rgba(0,0,0,0.08)',
+            borderRadius: '0 0 2px 0',
+          }}>
+            <div style={{
+              height: '100%', width: `${Math.round(importance * 100)}%`,
+              background: clusterColor,
+              borderRadius: 'inherit',
+              transition: 'width 0.3s ease',
+            }} />
+          </div>
+        )}
       </div>
 
       <Handle type="target" position={Position.Left}
-        style={{ background: typeColor, border: '2px solid #faf6ee', width: 10, height: 10, left: -5 }} />
+        style={{ background: clusterColor ?? typeColor, border: '2px solid #faf6ee', width: 10, height: 10, left: -5 }} />
       <Handle type="source" position={Position.Right}
-        style={{ background: typeColor, border: '2px solid #faf6ee', width: 10, height: 10, right: -5 }} />
+        style={{ background: clusterColor ?? typeColor, border: '2px solid #faf6ee', width: 10, height: 10, right: -5 }} />
     </div>
   )
 }
