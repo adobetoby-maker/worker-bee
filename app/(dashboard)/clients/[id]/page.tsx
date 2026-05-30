@@ -9,6 +9,7 @@ import {
   DollarSign, ChevronRight, CheckCircle, Circle, AlertCircle,
   MessageSquare, Inbox, Pencil, Globe,
 } from 'lucide-react'
+import { LinkSitePanel } from './LinkSitePanel'
 
 export const metadata = { title: 'Client — Worker-Bee' }
 
@@ -104,6 +105,14 @@ export default async function ClientDetailPage({
     .select('id, name, url, status')
     .eq('client_id', id)
     .order('name', { ascending: true })
+
+  // Fetch unlinked sites so user can assign them to this client
+  const { data: unlinkedSitesRaw } = await db
+    .from('sites')
+    .select('id, name, url, status')
+    .is('client_id', null)
+    .order('name', { ascending: true })
+  const unlinkedSites: any[] = unlinkedSitesRaw ?? []
 
   const siteList: any[] = sites ?? []
   const siteIds = siteList.map((s: any) => s.id)
@@ -264,19 +273,27 @@ export default async function ClientDetailPage({
 
       {/* ── Projects section ───────────────────────────────────────────────── */}
       <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-bold text-white">Projects</h2>
-          <Link
-            href="/sites/new"
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors"
-            style={{
-              background: 'rgba(99,102,241,0.12)',
-              border: '1px solid rgba(99,102,241,0.3)',
-              color: '#818cf8',
-            }}
-          >
-            <Plus size={12} /> New Site
-          </Link>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h2 className="text-base font-bold text-white">
+            Projects
+            <span className="ml-2 text-xs font-normal" style={{ color: 'var(--muted)' }}>
+              {siteList.length} linked
+            </span>
+          </h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <LinkSitePanel clientId={id} unlinkedSites={unlinkedSites} />
+            <Link
+              href={`/sites/new?client_id=${id}`}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors"
+              style={{
+                background: 'rgba(99,102,241,0.12)',
+                border: '1px solid rgba(99,102,241,0.3)',
+                color: '#818cf8',
+              }}
+            >
+              <Plus size={12} /> New Site
+            </Link>
+          </div>
         </div>
 
         {siteList.length === 0 ? (
@@ -285,9 +302,11 @@ export default async function ClientDetailPage({
             style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
             <Globe size={32} className="mx-auto mb-3 opacity-20 text-white" />
-            <p className="text-sm text-white mb-1">No projects yet</p>
-            <p className="text-xs" style={{ color: 'var(--muted)' }}>
-              Create a site and assign this client to it.
+            <p className="text-sm text-white mb-1">No projects linked yet</p>
+            <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>
+              {unlinkedSites.length > 0
+                ? `${unlinkedSites.length} unassigned site${unlinkedSites.length > 1 ? 's' : ''} available — use "Link Existing Site" above.`
+                : 'Create a new site and it will be assigned to this client.'}
             </p>
           </div>
         ) : (
