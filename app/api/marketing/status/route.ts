@@ -55,3 +55,4 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ droids: data })
 }
+// cache bust Sat May 30 20:47:59 MDT 2026
