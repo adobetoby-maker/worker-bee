@@ -1060,7 +1060,7 @@ const smallTargets = await page.evaluate(() => {
     return r.height > 0 && (r.height < 44 || r.width < 44)
   }).map(el => el.textContent?.trim().slice(0,30))
 })
-if (smallTargets.length > 0) console.warn('Small tap targets:', smallTargets)
+if (smallTargets.length > 0) process.env.NODE_ENV !== 'production' && console.warn('Small tap targets:', smallTargets)
 \`\`\`
 Required on mobile (375px):
 - Phone number in hero is a tappable \`<a href="tel:...">\` link ≥ 44px tall

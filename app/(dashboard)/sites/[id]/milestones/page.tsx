@@ -20,6 +20,8 @@ interface Milestone {
   sort_order: number
   completed_at: string | null
   created_at: string
+  source?: 'manual' | 'auto'
+  event_type?: string | null
 }
 
 const STATUS_CYCLE: MilestoneStatus[] = ['pending', 'in_progress', 'complete', 'blocked']
@@ -290,6 +292,13 @@ export default function MilestonesPage() {
                       style={{ color: meta.color, background: meta.bg, border: `1px solid ${meta.border}` }}>
                       {meta.label}
                     </span>
+                    {m.source === 'auto' && (
+                      <span className="text-xs px-1.5 py-0.5 rounded-md shrink-0"
+                        style={{ color: '#94a3b8', background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.15)' }}
+                        title={m.event_type ?? 'auto-detected'}>
+                        auto
+                      </span>
+                    )}
                   </div>
                   {m.description && (
                     <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>{m.description}</p>

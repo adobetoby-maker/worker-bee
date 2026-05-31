@@ -22,7 +22,7 @@ async function listAudits(): Promise<{ audits: SavedAudit[]; error?: string }> {
     })
 
   if (error) {
-    console.error('[audits] list error:', error)
+    process.env.NODE_ENV !== 'production' && console.error('[audits] list error:', error)
     return { audits: [], error: error.message }
   }
 
@@ -34,7 +34,7 @@ async function listAudits(): Promise<{ audits: SavedAudit[]; error?: string }> {
         .from('build-logs')
         .download(`audits/${file.name}`)
       if (dlErr) {
-        console.error('[audits] download error:', file.name, dlErr)
+        process.env.NODE_ENV !== 'production' && console.error('[audits] download error:', file.name, dlErr)
         return null
       }
       if (!blob) return null

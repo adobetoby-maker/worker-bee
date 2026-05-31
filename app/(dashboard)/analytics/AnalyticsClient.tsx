@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ExternalLink, Settings2, TrendingUp, Users, Eye, FileText } from 'lucide-react'
+import { ExternalLink, Settings2, TrendingUp, Users, Eye, FileText, type LucideIcon } from 'lucide-react'
 
 type Site = { id: string; name: string; url: string; stack: string }
 type SiteConfig = { measurementId: string | null; propertyId: string | null }
@@ -12,7 +12,7 @@ type Metrics = {
   error?: string
 }
 
-function MetricTile({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string | number }) {
+function MetricTile({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string | number }) {
   return (
     <div className="rounded-lg px-4 py-3 flex items-center gap-3" style={{ background: '#0b0d15' }}>
       <Icon size={15} style={{ color: 'var(--muted)' }} />

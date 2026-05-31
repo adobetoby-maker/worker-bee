@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { AlertTriangle, Inbox, GitPullRequest, Wrench, Sparkles } from 'lucide-react'
+import { AlertTriangle, Inbox, GitPullRequest, Wrench, Sparkles, type LucideIcon } from 'lucide-react'
 import { SentryPanel } from './SentryPanel'
 import { RequestsPanel, useRequestCount } from './RequestsPanel'
 import { ReviewsPanel } from './ReviewsPanel'
@@ -34,7 +34,7 @@ export function MaintenanceHub({ sites }: Props) {
       .catch(() => {})
   }, [])
 
-  const tabs: Array<{ key: Tab; label: string; icon: React.ElementType; badge?: number | undefined }> = [
+  const tabs: Array<{ key: Tab; label: string; icon: LucideIcon; badge?: number | undefined }> = [
     { key: 'sentry',   label: 'Sentry',    icon: AlertTriangle },
     { key: 'requests', label: 'Requests',  icon: Inbox,          badge: requestCount },
     { key: 'reviews',  label: 'Reviews',   icon: GitPullRequest, badge: prCount },

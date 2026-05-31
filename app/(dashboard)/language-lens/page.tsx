@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase'
-import { BarChart3, MessageSquare, AlertTriangle, Users, Shield, Globe, TrendingUp } from 'lucide-react'
+import { BarChart3, MessageSquare, AlertTriangle, Users, Shield, Globe, TrendingUp, type LucideIcon } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -143,7 +143,7 @@ const SCENARIO_LABELS: Record<string, string> = {
 }
 
 function StatCard({ icon: Icon, label, value, color = '#6366f1' }: {
-  icon: React.ElementType; label: string; value: number; color?: string
+  icon: LucideIcon; label: string; value: number; color?: string
 }) {
   return (
     <div className="card p-4 flex items-center gap-3">

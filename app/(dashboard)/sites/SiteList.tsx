@@ -5,6 +5,7 @@ import {
   Globe, ExternalLink, GitBranch, CheckCircle2, PauseCircle, AlertCircle,
   ChevronDown, ChevronRight, Zap, Clock, AlertTriangle, ShieldCheck, TrendingUp,
 } from 'lucide-react'
+import { type LucideIcon } from 'lucide-react'
 
 interface WbRun {
   site_id: string
@@ -34,7 +35,7 @@ const STACK_LABELS: Record<string, string> = {
   nextjs: 'Next.js', wordpress: 'WordPress', react: 'React', static: 'Static', other: 'Other',
 }
 
-const STATUS_ICON: Record<string, React.ElementType> = {
+const STATUS_ICON: Record<string, LucideIcon> = {
   active: CheckCircle2, paused: PauseCircle, issue: AlertCircle,
 }
 const STATUS_COLOR: Record<string, string> = {

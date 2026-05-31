@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink, Users, ShieldCheck, FileSignature, BadgeCheck, Activity, FolderOpen, Clock } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Users, ShieldCheck, FileSignature, BadgeCheck, Activity, FolderOpen, Clock, type LucideIcon } from 'lucide-react'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { supabaseAdmin as _db } from '@/lib/supabase'
 const db = _db as any
@@ -31,7 +31,7 @@ function StatusChip({ ok, label }: { ok: boolean; label: string }) {
   )
 }
 
-function StatCard({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: number | string; color: string }) {
+function StatCard({ icon: Icon, label, value, color }: { icon: LucideIcon; label: string; value: number | string; color: string }) {
   return (
     <div className="rounded-xl border p-5" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--card)' }}>
       <div className="flex items-center gap-2 mb-3">

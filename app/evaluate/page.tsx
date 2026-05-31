@@ -972,7 +972,7 @@ function EvaluateInner() {
       setPhase('corkboard')
     } catch (err) {
       // Show error inline — stay on results
-      console.error('Blueprint error:', err)
+      process.env.NODE_ENV !== 'production' && console.error('Blueprint error:', err)
     }
   }
 

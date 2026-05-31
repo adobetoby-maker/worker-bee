@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import {
+import { type LucideIcon,
   Plus, Search, KeyRound, Globe, Database, Terminal,
   FileCode2, FileText, Copy, Eye, EyeOff, Pencil, Trash2,
   Tag, ExternalLink, ChevronDown, X,
@@ -9,7 +9,7 @@ import {
 import type { Credential, CredentialCategory } from "@/lib/vaultStore";
 
 // ── Category config ───────────────────────────────────────
-const CATEGORIES: Record<CredentialCategory, { label: string; color: string; icon: React.ElementType }> = {
+const CATEGORIES: Record<CredentialCategory, { label: string; color: string; icon: LucideIcon }> = {
   "login":    { label: "Login",       color: "bg-blue-900/50 text-blue-300 border-blue-800",     icon: Globe },
   "api-key":  { label: "API Key",     color: "bg-purple-900/50 text-purple-300 border-purple-800", icon: KeyRound },
   "database": { label: "Database",    color: "bg-green-900/50 text-green-300 border-green-800",   icon: Database },

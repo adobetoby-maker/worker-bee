@@ -15,6 +15,7 @@ const GLOBAL_NAV_SECTIONS = [
     section: 'Clients',
     items: [
       { href: '/clients',   label: 'Clients',    icon: Users,    accent: '#818cf8' },
+      { href: '/leads',     label: 'Leads',      icon: Users,    accent: '#f59e0b' },
       { href: '/requests',  label: 'Requests',   icon: Inbox,    accent: '#f59e0b' },
       { href: '/billing',   label: 'Billing',    icon: Receipt,  accent: '#10b981' },
       { href: '/sites',     label: 'Sites',      icon: Globe },
@@ -24,6 +25,7 @@ const GLOBAL_NAV_SECTIONS = [
     section: 'Build',
     items: [
       { href: '/builds',       label: 'Builds',       icon: Hammer,    accent: '#34d399' },
+      { href: '/build-zone',   label: 'Build Zone',   icon: Rocket,    accent: '#f59e0b' },
       { href: '/build-studio', label: 'Build Studio', icon: Terminal,  accent: '#818cf8' },
       { href: '/ship-ready',   label: 'Ship Ready',   icon: Rocket,    accent: '#34d399' },
       { href: '/submissions',  label: 'Submissions',  icon: Inbox },
@@ -41,8 +43,11 @@ const GLOBAL_NAV_SECTIONS = [
       { href: '/monetization',   label: 'Monetize',      icon: DollarSign, accent: '#34d399' },
       { href: '/contacts',       label: 'Contacts',      icon: Users,      accent: '#34d399' },
       { href: '/campaigns',      label: 'Campaigns',     icon: Mail,       accent: '#60a5fa' },
+      { href: '/marketing',      label: 'Campaigns',    icon: Megaphone,  accent: '#6366f1' },
       { href: '/marketing-push', label: 'Mktg Push',     icon: Megaphone,  accent: '#f59e0b' },
       { href: '/white-label',    label: 'White Label',   icon: Package,    accent: '#f59e0b' },
+      { href: '/white-labels',          label: 'WL Command',  icon: Package,    accent: '#818cf8' },
+      { href: '/white-labels/builder', label: 'WL LMS Builder',  icon: Package,    accent: '#34d399' },
       { href: '/build-offer',    label: 'Build Offer',   icon: Globe,      accent: '#34d399' },
     ],
   },

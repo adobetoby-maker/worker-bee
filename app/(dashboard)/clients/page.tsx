@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase'
-import { Users, Plus, DollarSign, Clock, ChevronRight, Building2 } from 'lucide-react'
+import { Users, Plus, DollarSign, Clock, ChevronRight, Building2, type LucideIcon } from 'lucide-react'
 
 export const metadata = { title: 'Clients — Worker-Bee' }
 
@@ -14,7 +14,7 @@ function formatCents(cents: number): string {
 }
 
 function StatCard({ label, value, icon: Icon, color }: {
-  label: string; value: string; icon: React.ElementType; color: string
+  label: string; value: string; icon: LucideIcon; color: string
 }) {
   return (
     <div

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink, Newspaper, Calendar, Users, FileText, LogIn, PlusCircle } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Newspaper, Calendar, Users, FileText, LogIn, PlusCircle, type LucideIcon } from 'lucide-react'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { supabaseAdmin as _db } from '@/lib/supabase'
 const db = _db as any
@@ -23,7 +23,7 @@ function ContentRow({ label, value, muted }: { label: string; value: string; mut
 function SectionCard({
   icon: Icon, title, count, color, children, studioPath, studioBase,
 }: {
-  icon: React.ElementType; title: string; count: number; color: string
+  icon: LucideIcon; title: string; count: number; color: string
   children: React.ReactNode; studioPath: string; studioBase: string | null
 }) {
   return (

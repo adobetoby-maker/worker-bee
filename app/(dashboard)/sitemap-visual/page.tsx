@@ -16,6 +16,7 @@ import {
   HelpCircle,
   ChevronRight,
   Map,
+  type LucideIcon,
 } from 'lucide-react'
 
 // ── Tree data ──────────────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ interface RouteNode {
   href: string
   label: string
   desc?: string
-  icon?: React.ElementType
+  icon?: LucideIcon
   accent?: string
   children?: RouteNode[]
 }

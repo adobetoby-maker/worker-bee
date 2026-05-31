@@ -121,7 +121,7 @@ export default function BuildOfferPage() {
 
         <div className="flex flex-wrap gap-3">
           <a
-            href="mailto:hello@andertonassociates.com?subject=Website Build Inquiry"
+            href="mailto:hello@andertongroup.com?subject=Website Build Inquiry"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all cursor-pointer"
             style={{
               background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
@@ -269,7 +269,7 @@ export default function BuildOfferPage() {
                 </div>
               )}
               <a
-                href="mailto:hello@andertonassociates.com?subject=Website Build Inquiry"
+                href="mailto:hello@andertongroup.com?subject=Website Build Inquiry"
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer"
                 style={{
                   background: highlight ? accent : `${accent}18`,
@@ -351,7 +351,7 @@ export default function BuildOfferPage() {
           Email us and we&apos;ll send you the intake form. Most clients are live within 14 days of first contact.
         </p>
         <a
-          href="mailto:hello@andertonassociates.com?subject=Website Build Inquiry"
+          href="mailto:hello@andertongroup.com?subject=Website Build Inquiry"
           className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl text-sm font-bold transition-all cursor-pointer"
           style={{
             background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
@@ -359,7 +359,7 @@ export default function BuildOfferPage() {
             boxShadow: '0 4px 20px rgba(52,211,153,0.35)',
           }}>
           <Mail size={15} />
-          hello@andertonassociates.com
+          hello@andertongroup.com
         </a>
       </div>
 

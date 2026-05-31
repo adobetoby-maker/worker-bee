@@ -45,7 +45,7 @@ async function listSubmissions(): Promise<{ submissions: Submission[]; error?: s
     .list('submissions', { sortBy: { column: 'created_at', order: 'desc' } })
 
   if (error) {
-    console.error('[submissions] list error:', error)
+    process.env.NODE_ENV !== 'production' && console.error('[submissions] list error:', error)
     return { submissions: [], error: error.message }
   }
   if (!data || data.length === 0) return { submissions: [] }
@@ -55,7 +55,7 @@ async function listSubmissions(): Promise<{ submissions: Submission[]; error?: s
       const { data: blob, error: dlErr } = await supabaseAdmin.storage
         .from('blueprints')
         .download(`submissions/${file.name}`)
-      if (dlErr) console.error('[submissions] download error:', file.name, dlErr)
+      if (dlErr) process.env.NODE_ENV !== 'production' && console.error('[submissions] download error:', file.name, dlErr)
       if (!blob) return null
       try {
         return JSON.parse(await blob.text()) as Submission

@@ -180,7 +180,7 @@ export default function DesignSchemePanel({ siteId, initial, siteName, projectPa
       setMode('browse')
       setMergeMap({})
     } catch (err) {
-      console.error(err)
+      process.env.NODE_ENV !== 'production' && console.error(err)
     } finally {
       setBlending(false)
     }

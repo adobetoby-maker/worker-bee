@@ -16,13 +16,14 @@ import {
   Map,
   ArrowRight,
   Plus,
+  type LucideIcon,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface Section {
   href: string
-  icon: React.ElementType
+  icon: LucideIcon
   label: string
   accent: string
   description: string
