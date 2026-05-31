@@ -24,14 +24,14 @@ interface MarketingTask {
 const API_KEY = '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747'
 
 const DROID_COLORS: Record<string, { color: string; bg: string; border: string; label: string }> = {
-  'droid-prlog':      { color: '#34d399', bg: 'rgba(52,211,153,0.12)',  border: 'rgba(52,211,153,0.3)',  label: 'PRLog'    },
-  'droid-reddit':     { color: '#f87171', bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.3)', label: 'Reddit'   },
-  'droid-gbp':        { color: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  border: 'rgba(96,165,250,0.3)',  label: 'GBP'      },
-  'droid-producthunt':{ color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.3)',  label: 'PH'       },
-  'droid-quora':      { color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.3)', label: 'Quora'    },
-  'droid-haro':       { color: '#fbbf24', bg: 'rgba(251,191,36,0.12)',  border: 'rgba(251,191,36,0.3)',  label: 'HARO'     },
-  'droid-pinterest':  { color: '#f472b6', bg: 'rgba(244,114,182,0.12)', border: 'rgba(244,114,182,0.3)', label: 'Pinterest'},
-  'droid-directories':{ color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', border: 'rgba(148,163,184,0.3)', label: 'Dirs'     },
+  'droid-prlog':      { color: '#34d399', bg: 'rgba(52,211,153,0.12)',  border: 'rgba(52,211,153,0.3)',  label: 'PRLog Agent'    },
+  'droid-reddit':     { color: '#f87171', bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.3)', label: 'Reddit Agent'   },
+  'droid-gbp':        { color: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  border: 'rgba(96,165,250,0.3)',  label: 'GBP Agent'      },
+  'droid-producthunt':{ color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.3)',  label: 'PH Agent'       },
+  'droid-quora':      { color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.3)', label: 'Quora Agent'    },
+  'droid-haro':       { color: '#fbbf24', bg: 'rgba(251,191,36,0.12)',  border: 'rgba(251,191,36,0.3)',  label: 'HARO Agent'     },
+  'droid-pinterest':  { color: '#f472b6', bg: 'rgba(244,114,182,0.12)', border: 'rgba(244,114,182,0.3)', label: 'Pinterest Agent'},
+  'droid-directories':{ color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', border: 'rgba(148,163,184,0.3)', label: 'Dir Agent'      },
 }
 
 function getDroidStyle(droidId: string) {
@@ -88,16 +88,16 @@ interface PushData {
 
 // ── Static data ───────────────────────────────────────────────────────────────
 const CHANNELS: Channel[] = [
-  { id: 'craigslist',    name: 'Craigslist',                   url: 'https://craigslist.org',        testStatus: 'partial',  automation: 'partial', notes: 'Captcha handling required' },
-  { id: 'reddit',        name: 'Reddit',                       url: 'https://reddit.com',             testStatus: 'partial',  automation: 'partial', notes: 'Value-first posts, no spam' },
-  { id: 'gmb',           name: 'Google My Business',           url: 'https://business.google.com',   testStatus: 'untested', automation: 'manual',  notes: 'Requires Google login' },
-  { id: 'directories',   name: 'Free Directories',             url: 'https://www.manta.com',          testStatus: 'passed',   automation: 'full',    notes: 'Manta / Hotfrog / EZlocal' },
-  { id: 'forums',        name: 'Niche Forums',                 url: 'https://google.com',             testStatus: 'partial',  automation: 'partial', notes: 'Find active forums per niche' },
-  { id: 'producthunt',   name: 'Product Hunt / IndieHackers',  url: 'https://producthunt.com',        testStatus: 'partial',  automation: 'partial', notes: 'Best for SaaS / tools' },
-  { id: 'pinterest',     name: 'Pinterest',                    url: 'https://pinterest.com',          testStatus: 'partial',  automation: 'partial', notes: 'Visual content, infographics' },
-  { id: 'quora',         name: 'Quora',                        url: 'https://quora.com',              testStatus: 'untested', automation: 'partial', notes: 'Answer questions + link' },
-  { id: 'haro',          name: 'HARO / SourceBottle',          url: 'https://www.helpareporter.com', testStatus: 'untested', automation: 'manual',  notes: 'Email alerts, 3× daily' },
-  { id: 'prlog',         name: 'Press Releases (PRLog)',        url: 'https://prlog.org',             testStatus: 'passed',   automation: 'full',    notes: 'Free press release syndication' },
+  { id: 'craigslist',    name: 'Craigslist Agent',             url: 'https://craigslist.org',        testStatus: 'partial',  automation: 'partial', notes: 'Captcha handling required' },
+  { id: 'reddit',        name: 'Reddit Agent',                 url: 'https://reddit.com',             testStatus: 'partial',  automation: 'partial', notes: 'Value-first posts, no spam' },
+  { id: 'gmb',           name: 'Google Business Agent',        url: 'https://business.google.com',   testStatus: 'untested', automation: 'manual',  notes: 'Requires Google login' },
+  { id: 'directories',   name: 'Directory Agent',              url: 'https://www.manta.com',          testStatus: 'passed',   automation: 'full',    notes: 'Manta / Hotfrog / EZlocal' },
+  { id: 'forums',        name: 'Forum Agent',                  url: 'https://google.com',             testStatus: 'partial',  automation: 'partial', notes: 'Find active forums per niche' },
+  { id: 'producthunt',   name: 'Product Hunt Agent',           url: 'https://producthunt.com',        testStatus: 'partial',  automation: 'partial', notes: 'Best for SaaS / tools' },
+  { id: 'pinterest',     name: 'Pinterest Agent',              url: 'https://pinterest.com',          testStatus: 'partial',  automation: 'partial', notes: 'Visual content, infographics' },
+  { id: 'quora',         name: 'Quora Agent',                  url: 'https://quora.com',              testStatus: 'untested', automation: 'partial', notes: 'Answer questions + link' },
+  { id: 'haro',          name: 'HARO Agent',                   url: 'https://www.helpareporter.com', testStatus: 'untested', automation: 'manual',  notes: 'Email alerts, 3× daily' },
+  { id: 'prlog',         name: 'PRLog Agent',                  url: 'https://prlog.org',             testStatus: 'passed',   automation: 'full',    notes: 'Free press release syndication' },
 ]
 
 const NICHES: Record<string, { label: string; color: string; bg: string; border: string }> = {
