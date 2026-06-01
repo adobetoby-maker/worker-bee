@@ -39,7 +39,7 @@ function IntakeCard({ site }: { site: IntakeSite }) {
   const [open, setOpen] = useState(false)
   const [deploying, setDeploying] = useState(false)
   const [deployed, setDeployed] = useState(false)
-  const m = site.meta
+  const m = site.meta as Record<string, any>
 
   const statusColor = m.intake_status === 'deployed'
     ? '#34d399' : m.intake_status === 'reviewed'

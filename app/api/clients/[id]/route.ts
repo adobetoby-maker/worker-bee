@@ -6,12 +6,13 @@ const db = supabaseAdmin as any
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const { data, error } = await db
     .from('clients')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 404 })
@@ -20,8 +21,9 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const body = await req.json()
 
   const allowed = ['name', 'email', 'phone', 'company', 'notes', 'stripe_customer_id']
@@ -39,7 +41,7 @@ export async function PATCH(
   const { data, error } = await db
     .from('clients')
     .update(update)
-    .eq('id', params.id)
+    .eq('id', id)
     .select()
     .single()
 
@@ -49,9 +51,10 @@ export async function PATCH(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await db.from('clients').delete().eq('id', params.id)
+  const { id } = await params
+  const { error } = await db.from('clients').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json({ ok: true })
 }

@@ -115,7 +115,7 @@ export default function HomePage() {
       </div>
 
       {/* Pathway explainer */}
-      <div className="w-full max-w-3xl grid grid-cols-3 gap-8 mb-12">
+      <div className="w-full max-w-3xl grid grid-cols-1 sm:grid-cols-3 gap-8 mb-12">
         <div>
           <div className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: '#818cf8' }}>
             Forward blueprint
