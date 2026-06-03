@@ -32,24 +32,27 @@ Respond in this exact JSON format:
 }
 `.trim()
 
+const _pw = 'playwright' + '-core'
+const _sparticuz = '@sparticuz' + '/chromium'
+
 async function getChromiumExecutable(): Promise<string | undefined> {
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    const chromium = await import('@sparticuz/chromium')
-    return chromium.default.executablePath()
+    const chromium = await import(_sparticuz as string)
+    return (chromium as any).default.executablePath()
   }
   return undefined
 }
 
 async function getChromiumArgs(): Promise<string[]> {
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    const chromium = await import('@sparticuz/chromium')
-    return chromium.default.args
+    const chromium = await import(_sparticuz as string)
+    return (chromium as any).default.args
   }
   return ['--no-sandbox', '--disable-setuid-sandbox']
 }
 
 async function screenshotPage(url: string): Promise<string[]> {
-  const { chromium } = await import('playwright-core')
+  const { chromium } = await import(_pw as string) as any
   const executablePath = await getChromiumExecutable()
   const args = await getChromiumArgs()
   const browser = await chromium.launch({ executablePath, args, headless: true })

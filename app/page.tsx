@@ -181,13 +181,28 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Admin link */}
+      {/* Agency Dashboard — visible card */}
       <Link
-        href="/sites"
-        className="text-xs transition-colors hover:text-white"
-        style={{ color: 'rgba(255,255,255,0.2)' }}
+        href="/login"
+        className="group flex items-center gap-3 rounded-2xl border px-6 py-4 transition-all hover:-translate-y-0.5"
+        style={{
+          borderColor: 'rgba(255,255,255,0.08)',
+          background: 'rgba(255,255,255,0.03)',
+          maxWidth: '260px',
+          width: '100%',
+        }}
       >
-        Dashboard →
+        <div
+          className="w-9 h-9 rounded-lg flex items-center justify-center text-base shrink-0"
+          style={{ background: 'rgba(79,70,229,0.15)', color: '#818cf8' }}
+        >
+          🔐
+        </div>
+        <div>
+          <div className="text-sm font-semibold text-white">Agency Dashboard</div>
+          <div className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>For Toby</div>
+        </div>
+        <div className="ml-auto text-lg" style={{ color: 'rgba(255,255,255,0.2)' }}>→</div>
       </Link>
     </div>
   )

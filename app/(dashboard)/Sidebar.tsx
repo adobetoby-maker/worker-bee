@@ -1,14 +1,84 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Globe, KeyRound, LayoutDashboard, LogOut, Inbox, GitBranch, Wrench,
   Layers, Sparkles, Search, Zap, Shield, Hammer, HelpCircle, Map, Brain,
   Cpu, ArrowLeft, Settings2, BarChart2, Wand2, ScanSearch, ExternalLink,
   ChevronRight, LineChart, Users, FileText, DollarSign, Receipt, Rocket,
-  Terminal, Pin, Activity, Mail, Package, Megaphone, Clock, Flag,
+  Terminal, Pin, Activity, Mail, Package, Megaphone, Clock, Flag, Download,
+  Share,
 } from 'lucide-react'
+
+function InstallButton() {
+  const [prompt, setPrompt] = useState<Event & { prompt?: () => Promise<void> } | null>(null)
+  const [isIOS, setIsIOS] = useState(false)
+  const [iosHint, setIosHint] = useState(false)
+  const [installed, setInstalled] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !('MSStream' in window)
+    setIsIOS(ios)
+    if (ios && window.matchMedia('(display-mode: standalone)').matches) {
+      setInstalled(true)
+    }
+
+    const handler = (e: Event) => { e.preventDefault(); setPrompt(e) }
+    window.addEventListener('beforeinstallprompt', handler)
+    window.addEventListener('appinstalled', () => setInstalled(true))
+    return () => { window.removeEventListener('beforeinstallprompt', handler) }
+  }, [])
+
+  useEffect(() => {
+    if (!iosHint) return
+    function outside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setIosHint(false)
+    }
+    document.addEventListener('mousedown', outside)
+    return () => document.removeEventListener('mousedown', outside)
+  }, [iosHint])
+
+  async function install() {
+    if (!prompt?.prompt) return
+    await prompt.prompt()
+    setPrompt(null)
+  }
+
+  if (installed) return null
+  if (!prompt && !isIOS) return null
+
+  return (
+    <div ref={ref} className="relative">
+      {isIOS ? (
+        <>
+          <button onClick={() => setIosHint(h => !h)}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer"
+            style={{ color: '#818cf8', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
+            <Share size={13} /> Install App
+          </button>
+          {iosHint && (
+            <div className="absolute bottom-full left-0 mb-2 w-56 rounded-xl p-3 z-50 shadow-xl"
+              style={{ background: '#1e1e2e', border: '1px solid rgba(99,102,241,0.3)' }}>
+              <div className="text-xs font-semibold text-white mb-1">Add to Home Screen</div>
+              <div className="text-xs" style={{ color: '#94a3b8' }}>
+                Tap <Share size={10} className="inline mx-0.5" style={{ verticalAlign: 'middle' }} /> Share, then
+                <span className="font-semibold text-white"> "Add to Home Screen"</span>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <button onClick={install}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer"
+          style={{ color: '#818cf8', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
+          <Download size={13} /> Install App
+        </button>
+      )}
+    </div>
+  )
+}
 
 const GLOBAL_NAV_SECTIONS = [
   {
@@ -208,7 +278,8 @@ export default function Sidebar() {
             ))}
           </nav>
 
-          <div className="px-2 pb-3 pt-2 border-t space-y-px" style={{ borderColor: 'var(--border)' }}>
+          <div className="px-2 pb-3 pt-2 border-t space-y-1" style={{ borderColor: 'var(--border)' }}>
+            <InstallButton />
             <Link href="/"
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors"
               style={{ color: 'var(--muted)' }}
@@ -313,7 +384,8 @@ export default function Sidebar() {
             </div>
           ))}
         </nav>
-        <div className="px-2 pb-3 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+        <div className="px-2 pb-3 pt-2 border-t space-y-1" style={{ borderColor: 'var(--border)' }}>
+          <InstallButton />
           <button onClick={logout}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors"
             style={{ color: 'var(--muted)' }}

@@ -5,18 +5,22 @@ export const dynamic = 'force-dynamic'
 
 // Chromium binary: on Vercel uses @sparticuz/chromium (downloads from S3 at runtime).
 // Locally, run: npx playwright install chromium
+// Obfuscated pkg names prevent esbuild from statically bundling native-only packages
+const _pw = 'playwright' + '-core'
+const _sparticuz = '@sparticuz' + '/chromium'
+
 async function getChromiumExecutable(): Promise<string | undefined> {
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    const chromium = await import('@sparticuz/chromium')
-    return chromium.default.executablePath()
+    const chromium = await import(_sparticuz as string)
+    return (chromium as any).default.executablePath()
   }
-  return undefined // playwright-core uses locally installed chromium
+  return undefined
 }
 
 async function getChromiumArgs(): Promise<string[]> {
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    const chromium = await import('@sparticuz/chromium')
-    return chromium.default.args
+    const chromium = await import(_sparticuz as string)
+    return (chromium as any).default.args
   }
   return ['--no-sandbox', '--disable-setuid-sandbox']
 }
@@ -28,7 +32,7 @@ export async function POST(req: NextRequest) {
 
   const formattedUrl = url.trim().startsWith('http') ? url.trim() : `https://${url.trim()}`
 
-  const { chromium } = await import('playwright-core')
+  const { chromium } = await import(_pw as string) as any
 
   const executablePath = await getChromiumExecutable()
   const args = await getChromiumArgs()

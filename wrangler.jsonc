@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "manage-worker-bee",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "manage-worker-bee"
+    }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "alias": {
+    "playwright-core": "./cf-shims/playwright-stub.js",
+    "playwright": "./cf-shims/playwright-stub.js",
+    "@sparticuz/chromium": "./cf-shims/chromium-stub.js",
+    "chromium-bidi/lib/cjs/bidiMapper/BidiMapper": "./cf-shims/playwright-stub.js",
+    "chromium-bidi/lib/cjs/cdp/CdpConnection": "./cf-shims/playwright-stub.js",
+    "fsevents": "./cf-shims/playwright-stub.js"
+  }
+}

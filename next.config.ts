@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["manage.worker-bee.app"],
+  ...(process.env.NODE_ENV === 'development' && {
+    allowedDevOrigins: ["manage.worker-bee.app"],
+  }),
   serverExternalPackages: ['playwright-core', '@sparticuz/chromium'],
   typescript: {
     ignoreBuildErrors: true,
