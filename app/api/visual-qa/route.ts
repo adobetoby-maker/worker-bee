@@ -65,7 +65,7 @@ async function screenshotPage(url: string): Promise<string[]> {
     await page.waitForTimeout(1500)
 
     for (const scrollY of SCROLLS) {
-      await page.evaluate((y) => window.scrollTo(0, y), scrollY)
+      await page.evaluate((y: number) => window.scrollTo(0, y), scrollY)
       await page.waitForTimeout(400)
       const buf = await page.screenshot({ type: 'jpeg', quality: 85 })
       screenshots.push(buf.toString('base64'))

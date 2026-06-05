@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   try {
     const page = await browser.newPage()
     const consoleErrors: string[] = []
-    page.on('console', (msg) => {
+    page.on('console', (msg: { type(): string; text(): string }) => {
       if (msg.type() === 'error') consoleErrors.push(msg.text().slice(0, 200))
     })
 
@@ -63,8 +63,8 @@ export async function POST(req: NextRequest) {
       clip: { x: 0, y: 0, width: 1280, height: 800 },
     })
 
-    const links = await page.$$eval('a[href]', (els) =>
-      (els as HTMLAnchorElement[])
+    const links = await page.$$eval('a[href]', (els: HTMLAnchorElement[]) =>
+      els
         .map((el) => el.href)
         .filter((h) => h.startsWith('http'))
         .slice(0, 20),
