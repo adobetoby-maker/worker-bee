@@ -13,7 +13,7 @@ export default async function ProspectEmailPage({ params }: { params: Promise<{ 
 
   const [prospectRes, templatesRes] = await Promise.all([
     db.from('prospects')
-      .select('id, business_name, owner_name, email, city, category, demo_url')
+      .select('id, business_name, owner_name, email, city, category, demo_url, payment_link')
       .eq('id', id)
       .single(),
     db.from('email_templates')
@@ -41,7 +41,7 @@ export default async function ProspectEmailPage({ params }: { params: Promise<{ 
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white mb-1">Compose Email</h1>
         <p className="text-sm" style={{ color: 'var(--muted-light)' }}>
-          Select a template, preview with live variables, then open in Gmail to send.
+          Select a template, preview with live data, then send directly from andertongroup.com.
         </p>
       </div>
 

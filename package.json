@@ -38,6 +38,7 @@
     "react-force-graph-3d": "^1.29.1",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
+    "resend": "^6.12.4",
     "three": "^0.184.0"
   },
   "devDependencies": {

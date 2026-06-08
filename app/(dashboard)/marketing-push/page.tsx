@@ -1,10 +1,11 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Megaphone, Play, Download, RefreshCw, ChevronDown, ChevronUp,
   CheckCircle2, Clock, XCircle, Circle, Sparkles, X, Copy,
   ExternalLink, BarChart3, Link2, FlaskConical,
   ClipboardList, ListTodo, Lightbulb, Plus, ArrowUp,
+  Rocket, Zap, MousePointerClick, AlertCircle, Globe,
 } from 'lucide-react'
 
 // ── Marketing task types ───────────────────────────────────────────────────────
@@ -84,6 +85,42 @@ interface Site {
 interface PushData {
   // site id → channel id → status
   submissions: Record<string, Record<string, SubmissionStatus>>
+}
+
+// ── Campaign job types ────────────────────────────────────────────────────────
+interface CampaignJob {
+  id:               string
+  campaign_id:      string
+  channel_id:       string
+  channel_name:     string
+  site_id:          string
+  site_name:        string
+  site_url:         string
+  automation_level: 'full' | 'partial' | 'manual'
+  status:           'queued' | 'running' | 'done' | 'failed' | 'skipped' | 'pending_user'
+  content?:         { title: string; body: string }
+  submit_url?:      string
+  result_url?:      string
+  error?:           string
+}
+
+interface Campaign {
+  id:            string
+  name:          string
+  trigger_type:  string
+  status:        string
+  total_jobs:    number
+  completed_jobs: number
+  failed_jobs:   number
+  created_at:    string
+}
+
+interface LaunchResult {
+  campaignId:   string
+  campaignName: string
+  totalJobs:    number
+  partialJobs:  CampaignJob[]
+  fullAutoJobs: CampaignJob[]
 }
 
 // ── Static data ───────────────────────────────────────────────────────────────
@@ -314,6 +351,16 @@ export default function MarketingPushPage() {
   const [copied,         setCopied] = useState<string | null>(null)
   const [testRunning,    setTestRunning] = useState<string | null>(null)
 
+  // Campaign launch state
+  const [showLaunchModal,  setShowLaunchModal]  = useState(false)
+  const [launching,        setLaunching]        = useState(false)
+  const [activeCampaign,   setActiveCampaign]   = useState<Campaign | null>(null)
+  const [campaignJobs,     setCampaignJobs]     = useState<CampaignJob[]>([])
+  const [pendingTabs,      setPendingTabs]       = useState<CampaignJob[]>([])
+  const [launchNiche,      setLaunchNiche]      = useState<string>('localbiz')
+  const [launchChannels,   setLaunchChannels]   = useState<Set<string>>(new Set(['prlog', 'directories', 'reddit', 'craigslist', 'pinterest']))
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
   // Marketing task state
   const [completedTasks, setCompletedTasks] = useState<MarketingTask[]>([])
   const [todoTasks,      setTodoTasks]      = useState<MarketingTask[]>([])
@@ -374,6 +421,90 @@ export default function MarketingPushPage() {
   }
 
   useEffect(() => { loadTasks() }, [loadTasks])
+
+  // Poll campaign status every 5s while active campaign is running
+  const pollCampaignStatus = useCallback(async (campaignId: string) => {
+    const res = await fetch(`/api/marketing/campaign-status?campaignId=${campaignId}`, {
+      headers: { 'x-api-key': API_KEY },
+    })
+    if (!res.ok) return
+    const d = await res.json()
+    setActiveCampaign(d.campaign)
+    setCampaignJobs(d.jobs ?? [])
+
+    // Stop polling when all active jobs have resolved
+    const activeJobs = (d.jobs ?? []).filter((j: CampaignJob) => j.status === 'queued' || j.status === 'running')
+    if (activeJobs.length === 0) {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
+  }, [])
+
+  const launchCampaign = async () => {
+    const sites = (launchNiche === 'all' ? SITES : SITES.filter(s => s.niche === launchNiche))
+    if (!sites.length) return
+
+    setLaunching(true)
+    try {
+      const res = await fetch('/api/marketing/launch-campaign', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        body: JSON.stringify({
+          campaignName: `${launchNiche === 'all' ? 'All Sites' : NICHES[launchNiche]?.label ?? launchNiche} — ${new Date().toLocaleDateString('en-US')}`,
+          niche:        launchNiche === 'all' ? undefined : launchNiche,
+          channels:     Array.from(launchChannels),
+          sites,
+        }),
+      })
+      if (!res.ok) throw new Error('Launch failed')
+      const result: LaunchResult = await res.json()
+
+      // Open partial-auto channel tabs immediately (one per channel, not per site to avoid tab flood)
+      const seenChannels = new Set<string>()
+      const tabsToOpen: CampaignJob[] = []
+      for (const job of result.partialJobs) {
+        if (!seenChannels.has(job.channel_id) && job.submit_url) {
+          seenChannels.add(job.channel_id)
+          tabsToOpen.push(job)
+        }
+      }
+      tabsToOpen.forEach(job => window.open(job.submit_url, '_blank', 'noopener'))
+      setPendingTabs(result.partialJobs)
+
+      // Start polling campaign status
+      await pollCampaignStatus(result.campaignId)
+      if (pollRef.current) clearInterval(pollRef.current)
+      pollRef.current = setInterval(() => pollCampaignStatus(result.campaignId), 5000)
+
+      setShowLaunchModal(false)
+    } catch {
+      // leave modal open on error
+    }
+    setLaunching(false)
+  }
+
+  const markJobDone = async (jobId: string) => {
+    await fetch('/api/marketing/campaign-status', {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+      body: JSON.stringify({ jobId, status: 'done' }),
+    })
+    setCampaignJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: 'done' } : j))
+    if (activeCampaign) {
+      setPendingTabs(prev => prev.filter(j => j.id !== jobId))
+    }
+  }
+
+  const toggleLaunchChannel = (id: string) => {
+    setLaunchChannels(prev => {
+      const n = new Set(prev)
+      n.has(id) ? n.delete(id) : n.add(id)
+      return n
+    })
+  }
 
   const addTodo = async () => {
     const text = todoInput.trim()
@@ -557,13 +688,32 @@ export default function MarketingPushPage() {
             Free channel submissions for all 54 sites — track, test, and push campaigns
           </p>
         </div>
-        <button
-          onClick={exportCSV}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shrink-0"
-          style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b' }}>
-          <Download size={15} /> Export CSV
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={exportCSV}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+            style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b' }}>
+            <Download size={15} /> Export CSV
+          </button>
+          <button
+            onClick={() => setShowLaunchModal(true)}
+            className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all"
+            style={{ background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.45)', color: '#818cf8' }}>
+            <Rocket size={15} /> Launch Campaign
+          </button>
+        </div>
       </div>
+
+      {/* ── Active campaign status panel ──────────────────────────── */}
+      {activeCampaign && (
+        <CampaignStatusPanel
+          campaign={activeCampaign}
+          jobs={campaignJobs}
+          pendingTabs={pendingTabs}
+          onMarkDone={markJobDone}
+          onDismiss={() => { setActiveCampaign(null); setCampaignJobs([]); setPendingTabs([]) }}
+        />
+      )}
 
       {/* ── Global stats ───────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-4 mb-8">
@@ -859,6 +1009,19 @@ export default function MarketingPushPage() {
           )
         })}
       </div>
+
+      {/* ── Launch campaign modal ──────────────────────────────────── */}
+      {showLaunchModal && (
+        <LaunchCampaignModal
+          launchNiche={launchNiche}
+          launchChannels={launchChannels}
+          launching={launching}
+          onNicheChange={setLaunchNiche}
+          onToggleChannel={toggleLaunchChannel}
+          onLaunch={launchCampaign}
+          onClose={() => setShowLaunchModal(false)}
+        />
+      )}
 
       {/* ── Push campaign modal ─────────────────────────────────────── */}
       {pushModal && (
@@ -1206,6 +1369,241 @@ function PushModal({
               <CheckCircle2 size={12} /> Mark Live
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── LaunchCampaignModal ───────────────────────────────────────────────────────
+function LaunchCampaignModal({
+  launchNiche, launchChannels, launching,
+  onNicheChange, onToggleChannel, onLaunch, onClose,
+}: {
+  launchNiche:      string
+  launchChannels:   Set<string>
+  launching:        boolean
+  onNicheChange:    (n: string) => void
+  onToggleChannel:  (id: string) => void
+  onLaunch:         () => void
+  onClose:          () => void
+}) {
+  const selectedCount = SITES.filter(s => launchNiche === 'all' || s.niche === launchNiche).length
+  const fullAutoSelected   = CHANNELS.filter(c => c.automation === 'full'    && launchChannels.has(c.id)).length
+  const partialAutoSelected = CHANNELS.filter(c => c.automation === 'partial' && launchChannels.has(c.id)).length
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.80)', backdropFilter: 'blur(4px)' }}>
+      <div className="w-full max-w-lg rounded-2xl overflow-hidden flex flex-col"
+        style={{ background: '#0f1117', border: '1px solid rgba(99,102,241,0.35)', maxHeight: '90vh' }}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b shrink-0"
+          style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+          <div className="flex items-center gap-2.5">
+            <Rocket size={18} style={{ color: '#818cf8' }} />
+            <h2 className="text-base font-bold text-white">Launch Campaign</h2>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg transition-colors hover:bg-white/10" style={{ color: 'var(--muted)' }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Niche selector */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-widest mb-2 block" style={{ color: 'var(--muted)' }}>
+              Target Niche — {selectedCount} sites
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {[{ key: 'all', label: 'All Sites', color: '#94a3b8' }, ...Object.entries(NICHES).map(([k, n]) => ({ key: k, label: n.label, color: n.color }))].map(n => (
+                <button key={n.key}
+                  onClick={() => onNicheChange(n.key)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                  style={{
+                    color:      launchNiche === n.key ? n.color : 'var(--muted-light)',
+                    background: launchNiche === n.key ? `${n.color}20`   : 'rgba(255,255,255,0.04)',
+                    border:     launchNiche === n.key ? `1px solid ${n.color}60` : '1px solid var(--border)',
+                  }}>
+                  {n.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Channel selector */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-widest mb-2 block" style={{ color: 'var(--muted)' }}>
+              Channels
+            </label>
+            <div className="space-y-1.5">
+              {CHANNELS.map(ch => {
+                const ac      = AUTO_CONFIG[ch.automation]
+                const checked = launchChannels.has(ch.id)
+                return (
+                  <button key={ch.id}
+                    onClick={() => onToggleChannel(ch.id)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left"
+                    style={{
+                      background: checked ? 'rgba(99,102,241,0.08)' : 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${checked ? 'rgba(99,102,241,0.4)' : 'var(--border)'}`,
+                    }}>
+                    <div className={`w-4 h-4 rounded shrink-0 flex items-center justify-center transition-all`}
+                      style={{ background: checked ? '#6366f1' : 'transparent', border: checked ? '1px solid #6366f1' : '1px solid rgba(255,255,255,0.2)' }}>
+                      {checked && <CheckCircle2 size={10} color="white" />}
+                    </div>
+                    <span className="flex-1 text-xs font-medium text-white">{ch.name}</span>
+                    <span className="text-[10px] font-semibold shrink-0" style={{ color: ac.color }}>
+                      {ch.automation === 'full' ? <><Zap size={9} className="inline mr-0.5" />Full Auto</>
+                        : ch.automation === 'partial' ? <><MousePointerClick size={9} className="inline mr-0.5" />1-Click</>
+                        : <><AlertCircle size={9} className="inline mr-0.5" />Manual</>}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Summary */}
+          <div className="rounded-xl p-4 space-y-2" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
+            <p className="text-xs font-semibold text-white">What will happen:</p>
+            {fullAutoSelected > 0 && (
+              <div className="flex items-start gap-2 text-xs" style={{ color: '#34d399' }}>
+                <Zap size={12} className="mt-0.5 shrink-0" />
+                <span><strong>{fullAutoSelected} full-auto channel{fullAutoSelected > 1 ? 's' : ''}</strong> submit in the background — PRLog press release &amp; directory listing sent automatically</span>
+              </div>
+            )}
+            {partialAutoSelected > 0 && (
+              <div className="flex items-start gap-2 text-xs" style={{ color: '#818cf8' }}>
+                <MousePointerClick size={12} className="mt-0.5 shrink-0" />
+                <span><strong>{partialAutoSelected} tab{partialAutoSelected > 1 ? 's' : ''} open</strong> — Reddit, Pinterest, etc. pre-filled with your content, one click to submit each</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+              <Globe size={12} className="shrink-0" />
+              <span>{selectedCount} site{selectedCount > 1 ? 's' : ''} × {launchChannels.size} channel{launchChannels.size > 1 ? 's' : ''} = {selectedCount * launchChannels.size} total jobs tracked in Supabase</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t flex items-center justify-end gap-3 shrink-0"
+          style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+          <button onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'var(--muted-light)' }}>
+            Cancel
+          </button>
+          <button
+            onClick={onLaunch}
+            disabled={launching || launchChannels.size === 0}
+            className="flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold transition-all disabled:opacity-50"
+            style={{ background: 'rgba(99,102,241,0.25)', border: '1px solid rgba(99,102,241,0.5)', color: '#818cf8' }}>
+            {launching
+              ? <><RefreshCw size={14} className="animate-spin" /> Launching…</>
+              : <><Rocket size={14} /> Launch Now</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── CampaignStatusPanel ───────────────────────────────────────────────────────
+function CampaignStatusPanel({
+  campaign, jobs, pendingTabs, onMarkDone, onDismiss,
+}: {
+  campaign:     Campaign
+  jobs:         CampaignJob[]
+  pendingTabs:  CampaignJob[]
+  onMarkDone:   (jobId: string) => void
+  onDismiss:    () => void
+}) {
+  const done    = jobs.filter(j => j.status === 'done').length
+  const failed  = jobs.filter(j => j.status === 'failed').length
+  const queued  = jobs.filter(j => j.status === 'queued' || j.status === 'running').length
+  const pending = jobs.filter(j => j.status === 'pending_user').length
+
+  const JOB_STATUS_STYLE: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
+    done:         { color: '#34d399', icon: <CheckCircle2 size={11} />, label: 'Done'        },
+    failed:       { color: '#f87171', icon: <XCircle size={11} />,      label: 'Failed'      },
+    queued:       { color: '#94a3b8', icon: <Clock size={11} />,        label: 'Queued'      },
+    running:      { color: '#60a5fa', icon: <RefreshCw size={11} className="animate-spin" />, label: 'Running' },
+    pending_user: { color: '#f59e0b', icon: <MousePointerClick size={11} />, label: '1-Click' },
+    skipped:      { color: '#475569', icon: <Circle size={11} />,       label: 'Skipped'     },
+  }
+
+  return (
+    <div className="mb-6 rounded-xl overflow-hidden"
+      style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.3)' }}>
+
+      {/* Panel header */}
+      <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(99,102,241,0.2)' }}>
+        <div className="flex items-center gap-3">
+          <Rocket size={15} style={{ color: '#818cf8' }} />
+          <span className="text-sm font-bold text-white">{campaign.name}</span>
+          {queued > 0 && <RefreshCw size={12} className="animate-spin" style={{ color: '#818cf8' }} />}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs">
+            <span style={{ color: '#34d399' }}>{done} done</span>
+            {pending > 0 && <span style={{ color: '#f59e0b' }}>{pending} need 1-click</span>}
+            {queued > 0 && <span style={{ color: '#60a5fa' }}>{queued} running</span>}
+            {failed > 0 && <span style={{ color: '#f87171' }}>{failed} failed</span>}
+          </div>
+          <button onClick={onDismiss} className="p-1 rounded hover:bg-white/10 transition-colors" style={{ color: 'var(--muted)' }}>
+            <X size={13} />
+          </button>
+        </div>
+      </div>
+
+      {/* Pending user action items — most important */}
+      {pending > 0 && (
+        <div className="px-5 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          <p className="text-xs font-semibold mb-2" style={{ color: '#f59e0b' }}>
+            <MousePointerClick size={11} className="inline mr-1" />
+            {pending} tabs opened — click Submit in each browser tab, then mark done:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {jobs.filter(j => j.status === 'pending_user').map(job => (
+              <div key={job.id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs"
+                style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                {job.submit_url && (
+                  <a href={job.submit_url} target="_blank" rel="noopener"
+                    className="font-medium hover:underline"
+                    style={{ color: '#f59e0b' }}>
+                    {job.channel_name.replace(' Agent', '')}
+                  </a>
+                )}
+                {!job.submit_url && <span style={{ color: '#f59e0b' }}>{job.channel_name.replace(' Agent', '')}</span>}
+                <span className="text-[10px]" style={{ color: 'var(--muted)' }}>— {job.site_name}</span>
+                <button onClick={() => onMarkDone(job.id)}
+                  className="ml-1 text-[10px] px-1.5 py-0.5 rounded font-semibold transition-all hover:bg-green-400/20"
+                  style={{ color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}>
+                  ✓ Done
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* All job statuses collapsed */}
+      <div className="px-5 py-2.5">
+        <div className="flex flex-wrap gap-1.5">
+          {jobs.filter(j => j.status !== 'skipped').map(job => {
+            const s = JOB_STATUS_STYLE[job.status] ?? JOB_STATUS_STYLE.queued
+            return (
+              <div key={job.id}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium"
+                style={{ color: s.color, background: `${s.color}15`, border: `1px solid ${s.color}30` }}>
+                {s.icon}
+                <span className="hidden sm:inline">{job.site_name.slice(0, 12)}</span>
+                <span>·</span>
+                <span>{job.channel_id.slice(0, 6)}</span>
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
