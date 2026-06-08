@@ -8,7 +8,7 @@ import {
   Cpu, ArrowLeft, Settings2, BarChart2, Wand2, ScanSearch, ExternalLink,
   ChevronRight, LineChart, Users, FileText, DollarSign, Receipt, Rocket,
   Terminal, Pin, Activity, Mail, Package, Megaphone, Clock, Flag, Download,
-  Share,
+  Share, Target,
 } from 'lucide-react'
 
 function InstallButton() {
@@ -109,12 +109,13 @@ const GLOBAL_NAV_SECTIONS = [
   {
     section: 'Growth',
     items: [
-      { href: '/analytics',      label: 'Analytics',     icon: LineChart,  accent: '#60a5fa' },
-      { href: '/monetization',   label: 'Monetize',      icon: DollarSign, accent: '#34d399' },
-      { href: '/contacts',       label: 'Contacts',      icon: Users,      accent: '#34d399' },
-      { href: '/campaigns',      label: 'Campaigns',     icon: Mail,       accent: '#60a5fa' },
-      { href: '/marketing',      label: 'Campaigns',    icon: Megaphone,  accent: '#6366f1' },
-      { href: '/marketing-push', label: 'Mktg Push',     icon: Megaphone,  accent: '#f59e0b' },
+      { href: '/marketing-command', label: 'Mktg Command', icon: Target,     accent: '#f59e0b' },
+      { href: '/analytics',         label: 'Analytics',    icon: LineChart,  accent: '#60a5fa' },
+      { href: '/monetization',      label: 'Monetize',     icon: DollarSign, accent: '#34d399' },
+      { href: '/contacts',          label: 'Contacts',     icon: Users,      accent: '#34d399' },
+      { href: '/campaigns',         label: 'Campaigns',    icon: Mail,       accent: '#60a5fa' },
+      { href: '/marketing',         label: 'Cmpgn Plans',  icon: Megaphone,  accent: '#6366f1' },
+      { href: '/marketing-push',    label: 'Mktg Push',    icon: Megaphone,  accent: '#f59e0b' },
       { href: '/white-label',    label: 'White Label',   icon: Package,    accent: '#f59e0b' },
       { href: '/white-labels',          label: 'WL Command',  icon: Package,    accent: '#818cf8' },
       { href: '/white-labels/builder', label: 'WL LMS Builder',  icon: Package,    accent: '#34d399' },
