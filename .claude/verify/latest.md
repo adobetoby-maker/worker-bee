@@ -12,7 +12,7 @@ Shots: `.claude/verify/shots/p5-today-1440.png`, `p5-billing-1440.png`, `p5-toda
 | MRR edit affordance  | /portfolio/[slug] MRR field renders MrrEditor (pencil → input → PATCH /api/portfolio/[slug]/mrr, admin cookie verified in-route); anon PATCH → 401 confirmed | PASS |
 | Login button contrast| Root cause was disabled-state opacity-50 dimming the white label to lavender-on-indigo; now label stays #f8fafc, only background dims (disabled:bg-indigo-600/45) | PASS |
 | 2560 dead-margin     | p5-today-2560-v2.png: content steps up to 1680px and centers at ≥1920px — margins symmetric, no left-anchored void (Opus's must-fix from first 2560 shot, re-captured after fix) | PASS |
-| Score threshold color| 2560 shot: Farnsworth mission pill 4.75 red FAILING, Hobbs 9.5 green PASS; QA tile beauty numbers use beautyColor (≥7.5 green / 6.5–7.4 amber / <6.5 red) | PASS |
+| Score threshold color| 2560 shot: Farnsworth mission pill 4.75 red (gate-not-passing), Hobbs 9.5 green PASS; QA tile beauty numbers use beautyColor (≥7.5 green / 6.5–7.4 amber / <6.5 red) | PASS |
 | Today rhythm         | 1440 shot: uniform 32px section gaps (SectionHeader mt-8 mb-3 everywhere incl. TapQueue/PendingCommands); footer normalized mt-10→mt-8; no cramped or floating blocks | PASS |
 | Mobile (375)         | Today + Billing @375×812: readable brief, NEED rows, 2×2 stat grid; bottom nav TODAY/FOLIO/CLIENTS/BILLING/LEADS/SITES/MONITOR fits with active states | PASS |
 | tsc                  | Baseline 26 → now 20 (−6: marketing-command's errors left with the retired page; app/_retired excluded in tsconfig). Zero NEW errors. | PASS |
