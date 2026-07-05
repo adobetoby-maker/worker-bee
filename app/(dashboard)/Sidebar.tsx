@@ -8,7 +8,7 @@ import {
   Cpu, ArrowLeft, Settings2, BarChart2, Wand2, ScanSearch, ExternalLink,
   ChevronRight, LineChart, Users, FileText, DollarSign, Rocket,
   Terminal, Pin, Activity, Mail, Package, Megaphone, Clock, Flag, Download,
-  Share, Target,
+  Share, Target, LayoutGrid, Sun,
 } from 'lucide-react'
 
 function InstallButton() {
@@ -141,7 +141,8 @@ const GLOBAL_NAV_SECTIONS = [
 // Flat list for mobile (first 7 most important)
 const GLOBAL_NAV = GLOBAL_NAV_SECTIONS.flatMap(s => s.items)
 const MOBILE_GLOBAL = [
-  { href: '/',          label: 'Home',     icon: LayoutDashboard },
+  { href: '/today',     label: 'Today',    icon: Sun },
+  { href: '/portfolio', label: 'Folio',    icon: LayoutGrid, accent: '#818cf8' },
   { href: '/clients',   label: 'Clients',  icon: Users,    accent: '#818cf8' },
   { href: '/requests',  label: 'Requests', icon: Inbox,    accent: '#f59e0b' },
   { href: '/sites',     label: 'Sites',    icon: Globe },
@@ -345,17 +346,39 @@ export default function Sidebar() {
           </div>
         </div>
         <nav className="flex-1 px-2 py-3 overflow-y-auto space-y-3">
-          {/* Dashboard always at top */}
-          <Link href="/"
-            className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
-            style={{
-              color: isActive('/') ? '#e0e7ff' : 'var(--muted-light)',
-              background: isActive('/') ? '#6366f122' : 'transparent',
-              boxShadow: isActive('/') ? 'inset 3px 0 0 0 #6366f1' : 'none',
-            }}>
-            <LayoutDashboard size={14} style={{ color: isActive('/') ? '#818cf8' : undefined }} />
-            Dashboard
-          </Link>
+          {/* Today (home) always at top */}
+          <div className="space-y-px">
+            <Link href="/today"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+              style={{
+                color: isActive('/today') ? '#e0e7ff' : 'var(--muted-light)',
+                background: isActive('/today') ? '#6366f122' : 'transparent',
+                boxShadow: isActive('/today') ? 'inset 3px 0 0 0 #6366f1' : 'none',
+              }}>
+              <Sun size={14} style={{ color: isActive('/today') ? '#818cf8' : undefined }} />
+              Today
+            </Link>
+            <Link href="/portfolio"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+              style={{
+                color: isActive('/portfolio') ? '#e0e7ff' : 'var(--muted-light)',
+                background: isActive('/portfolio') ? '#6366f122' : 'transparent',
+                boxShadow: isActive('/portfolio') ? 'inset 3px 0 0 0 #6366f1' : 'none',
+              }}>
+              <LayoutGrid size={14} style={{ color: isActive('/portfolio') ? '#818cf8' : undefined }} />
+              Portfolio
+            </Link>
+            <Link href="/overview-legacy"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+              style={{
+                color: isActive('/overview-legacy') ? '#e0e7ff' : 'var(--muted-light)',
+                background: isActive('/overview-legacy') ? '#6366f122' : 'transparent',
+                boxShadow: isActive('/overview-legacy') ? 'inset 3px 0 0 0 #6366f1' : 'none',
+              }}>
+              <LayoutDashboard size={14} style={{ color: isActive('/overview-legacy') ? '#818cf8' : undefined }} />
+              Dashboard
+            </Link>
+          </div>
 
           {GLOBAL_NAV_SECTIONS.map(({ section, items }) => (
             <div key={section}>

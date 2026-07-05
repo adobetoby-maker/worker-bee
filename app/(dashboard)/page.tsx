@@ -1,109 +1,360 @@
+// Built by ATLAS — 2026-07-05
+// TODAY — the operator console home. PRD-atlas-platform §4.2 (Phases 1+2).
+// The morning brief made ambient: staleness, brief, NEEDs, missions, QA, agents, taps, invoices.
 export const dynamic = 'force-dynamic'
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase'
-import { Globe, KeyRound, Cpu, ArrowRight, CheckCircle2, AlertCircle, Search } from 'lucide-react'
+import { formatCents, getInvoiceStatusColor } from '@/lib/billing'
+import { relTime, minutesSince, needTypeColor, qaStateStyle, qaLatestInfo, type QaRow } from '@/lib/atlas-console'
+import {
+  Radio, FileText, ListTodo, Rocket, ShieldCheck, Activity, Terminal,
+  DollarSign, ExternalLink, CircleCheck, CircleAlert,
+} from 'lucide-react'
 
-async function getStats() {
-  const [{ count: totalSites }, { count: activeSites }] = await Promise.all([
-    supabaseAdmin.from('sites').select('*', { count: 'exact', head: true }),
-    supabaseAdmin.from('sites').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-  ])
-  return { totalSites: totalSites ?? 0, activeSites: activeSites ?? 0 }
+export const metadata = { title: 'Today — Worker-Bee' }
+
+const db = supabaseAdmin as any
+
+type NeedRow = {
+  id: string; payload: any; type: string | null; state: string | null
+  priority_score: number | null; source: string | null
+  updated_at: string | null; synced_at: string | null
+}
+type MissionRow = {
+  id: string; name: string | null; payload: any; gate_pass: boolean | null
+  beauty: number | null; quality: string | null; state: string | null; synced_at: string | null
+}
+type CommandRow = {
+  id: string; type: string | null; payload: any; status: string | null
+  requested_by: string | null; created_at: string | null
 }
 
-export default async function DashboardPage() {
-  const stats = await getStats()
-
-  const cards = [
-    { label: 'Total Sites',   value: stats.totalSites,  icon: Globe,         href: '/sites', accent: 'indigo',  statClass: 'stat-indigo'  },
-    { label: 'Active Sites',  value: stats.activeSites, icon: CheckCircle2,  href: '/sites', accent: 'emerald', statClass: 'stat-emerald' },
-    { label: 'Vault Entries', value: '—',               icon: KeyRound,      href: '/vault', accent: 'amber',   statClass: 'stat-amber'   },
-    { label: 'Alerts',        value: 0,                 icon: AlertCircle,   href: '/sites', accent: 'slate',   statClass: 'stat-slate'   },
-  ]
-
-  const ACCENT_TEXT: Record<string, string> = {
-    indigo: '#818cf8', emerald: '#34d399', amber: '#fbbf24', slate: '#64748b',
+async function getData() {
+  const [health, briefs, needs, missions, qa, commands, invoices] = await Promise.all([
+    db.from('atlas_health').select('*'),
+    db.from('atlas_briefs').select('*').order('date', { ascending: false }).limit(1),
+    db.from('atlas_needs').select('*'),
+    db.from('atlas_missions').select('*').order('synced_at', { ascending: false }),
+    db.from('atlas_qa').select('*').order('slug'),
+    db.from('atlas_commands').select('*').in('status', ['pending', 'dispatched']).order('created_at', { ascending: false }),
+    db.from('invoices').select('id, invoice_number, status, total_cents, due_date, sites ( name )').in('status', ['sent', 'overdue']).order('due_date', { ascending: true }),
+  ])
+  return {
+    health: (health.data ?? []) as { key: string; value: any; synced_at: string | null }[],
+    brief: (briefs.data?.[0] ?? null) as { id: string; date: string | null; content: string | null } | null,
+    needs: (needs.data ?? []) as NeedRow[],
+    missions: (missions.data ?? []) as MissionRow[],
+    qa: (qa.data ?? []) as QaRow[],
+    commands: (commands.data ?? []) as CommandRow[],
+    invoices: (invoices.data ?? []) as any[],
   }
+}
 
-  const quickLinks = [
-    { href: '/sites/new',     label: 'Add a site',          desc: 'Register a new client site',        icon: Globe },
-    { href: '/vault',         label: 'Open Vault',           desc: 'Manage credentials & API keys',     icon: KeyRound },
-    { href: '/configurator',  label: 'Claude Configurator',  desc: 'Generate CLAUDE.md & settings',     icon: Cpu },
-    { href: '/audits',        label: 'Evaluate a Site',      desc: 'Audit an existing site for SEO & security issues', icon: Search },
-  ]
+function SectionHeader({ icon: Icon, label, count }: { icon: any; label: string; count?: number | string }) {
+  return (
+    <div className="flex items-center gap-2 mb-3 mt-8">
+      <Icon size={13} style={{ color: 'var(--muted)' }} />
+      <h2 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>{label}</h2>
+      {count !== undefined && (
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums"
+          style={{ background: 'var(--surface2)', color: 'var(--muted-light)' }}>{count}</span>
+      )}
+      <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+    </div>
+  )
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="card rounded-lg px-4 py-2.5 text-xs" style={{ color: 'var(--muted)' }}>
+      {text}
+    </div>
+  )
+}
+
+function Pill({ label, color }: { label: string; color: string }) {
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide whitespace-nowrap"
+      style={{ background: `${color}18`, color, border: `1px solid ${color}33` }}>
+      {label}
+    </span>
+  )
+}
+
+export default async function TodayPage() {
+  const { health, brief, needs, missions, qa, commands, invoices } = await getData()
+
+  // ── Staleness: max(synced_at) across atlas_health ──
+  const lastSynced = health.reduce<string | null>((max, r) =>
+    r.synced_at && (!max || r.synced_at > max) ? r.synced_at : max, null)
+  const staleMins = minutesSince(lastSynced)
+  const isStale = staleMins > 15
+
+  // ── NEED queue: QUEUED/GENERATED first, then priority_score desc; top 10 ──
+  const activeStates = new Set(['QUEUED', 'GENERATED'])
+  const topNeeds = [...needs]
+    .sort((a, b) => {
+      const ra = activeStates.has((a.state ?? '').toUpperCase()) ? 0 : 1
+      const rb = activeStates.has((b.state ?? '').toUpperCase()) ? 0 : 1
+      if (ra !== rb) return ra - rb
+      return (b.priority_score ?? -1) - (a.priority_score ?? -1)
+    })
+    .slice(0, 10)
+
+  // ── Agent health: agent-status payload + bridge heartbeat ──
+  const agentStatus = health.find(h => h.key === 'agent-status')?.value ?? null
+  const bridge = health.find(h => h.key === 'bridge')?.value ?? null
+  const agentTiles: { name: string; status: string }[] = agentStatus
+    ? ['hermes', 'hermes_jr', 'workforce', 'gateway'].map(k => ({
+        name: k.replace('_', ' '),
+        status: String(agentStatus[k] ?? 'unknown'),
+      }))
+    : []
 
   return (
-    <div className="max-w-5xl animate-fade-in">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white mb-1">Dashboard</h1>
-        <p className="text-sm" style={{ color: 'var(--muted-light)' }}>Agency command center</p>
+    <div className="max-w-5xl animate-fade-in pb-16">
+      {/* ── Header + staleness banner ── */}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-white mb-1">Today</h1>
+          <p className="text-sm" style={{ color: 'var(--muted-light)' }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} · operator console
+          </p>
+        </div>
+        {isStale ? (
+          <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold"
+            style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }}>
+            <CircleAlert size={13} />
+            ATLAS last heard {lastSynced ? relTime(lastSynced) : 'never'} — Bridge may be down
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+            style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#34d399' }} />
+            ATLAS live · synced {relTime(lastSynced)}
+          </div>
+        )}
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-10">
-        {cards.map(c => (
-          <Link key={c.label} href={c.href} className="no-underline group">
-            <div className={`card card-glow ${c.statClass} rounded-xl p-5 h-full transition-all`}>
-              <c.icon size={16} className="mb-4 shrink-0" style={{ color: ACCENT_TEXT[c.accent] }} />
-              <div className="text-3xl font-bold leading-none mb-1.5 tabular-nums"
-                style={{ color: ACCENT_TEXT[c.accent] }}>{c.value}</div>
-              <div className="text-xs" style={{ color: 'var(--muted-light)' }}>{c.label}</div>
-            </div>
-          </Link>
-        ))}
-      </div>
+      {/* ── Latest daily brief ── */}
+      <SectionHeader icon={FileText} label="Daily brief" />
+      {brief?.content ? (
+        <details className="card rounded-xl overflow-hidden group" open>
+          <summary className="cursor-pointer px-4 py-3 flex items-center gap-2 text-xs font-semibold select-none list-none"
+            style={{ color: 'var(--muted-light)' }}>
+            <Radio size={12} style={{ color: '#818cf8' }} />
+            {brief.date ?? brief.id}
+            <span className="ml-auto text-[10px] font-normal" style={{ color: 'var(--muted)' }}>click to collapse</span>
+          </summary>
+          <pre className="px-4 pb-4 pt-1 text-[11px] leading-relaxed whitespace-pre-wrap overflow-x-auto font-mono max-h-96 overflow-y-auto"
+            style={{ color: '#cbd5e1' }}>
+            {brief.content}
+          </pre>
+        </details>
+      ) : (
+        <EmptyState text="No brief synced yet — the 06:00 pipeline writes the first one." />
+      )}
 
-      {/* Quick actions */}
-      <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Quick actions</h2>
-        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-10">
-        {quickLinks.map(l => (
-          <Link key={l.href} href={l.href}
-            className="no-underline group card card-glow flex items-center justify-between rounded-xl p-4 transition-all hover:border-indigo-500/40">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                style={{ background: 'var(--surface2)' }}>
-                <l.icon size={14} className="text-indigo-400" />
+      {/* ── NEED queue ── */}
+      <SectionHeader icon={ListTodo} label="NEED queue" count={needs.length} />
+      {topNeeds.length === 0 ? (
+        <EmptyState text="Queue clear — no NEEDs synced." />
+      ) : (
+        <div className="card rounded-xl divide-y" style={{ borderColor: 'var(--border)' }}>
+          {topNeeds.map(n => {
+            const color = needTypeColor(n.type)
+            const p = n.payload ?? {}
+            const summary = p.detail ?? p.summary ?? p.title ?? n.id
+            const age = relTime(p.ts ?? n.updated_at ?? n.synced_at)
+            return (
+              <div key={n.id} className="flex items-center gap-3 px-4 py-2.5" style={{ borderColor: 'var(--border)' }}>
+                <Pill label={n.type ?? '?'} color={color} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs text-white truncate">{String(summary)}</div>
+                  <div className="text-[10px] mt-0.5" style={{ color: 'var(--muted)' }}>
+                    {n.source ?? 'unknown source'} · {age}{p.slug ? ` · ${p.slug}` : ''}
+                  </div>
+                </div>
+                {typeof n.priority_score === 'number' && (
+                  <span className="text-xs font-bold tabular-nums shrink-0" style={{ color: 'var(--muted-light)' }}>
+                    {n.priority_score.toFixed(1)}
+                  </span>
+                )}
+                <span className="text-[10px] uppercase tracking-wide shrink-0" style={{ color: 'var(--muted)' }}>
+                  {n.state ?? '—'}
+                </span>
               </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── Active missions ── */}
+      <SectionHeader icon={Rocket} label="Missions" count={missions.length} />
+      {missions.length === 0 ? (
+        <EmptyState text="No missions synced." />
+      ) : (
+        <div className="card rounded-xl divide-y" style={{ borderColor: 'var(--border)' }}>
+          {missions.map(m => (
+            <div key={m.id} className="flex items-center gap-3 px-4 py-2.5" style={{ borderColor: 'var(--border)' }}>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs text-white truncate">{(m.name ?? m.id).replace(/\*\*/g, '')}</div>
+                <div className="text-[10px] mt-0.5" style={{ color: 'var(--muted)' }}>synced {relTime(m.synced_at)}</div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {m.gate_pass !== null && (
+                  <Pill label={m.gate_pass ? 'gate ✓' : 'gate ✗'} color={m.gate_pass ? '#34d399' : '#f87171'} />
+                )}
+                {typeof m.beauty === 'number' && (
+                  <Pill label={`beauty ${m.beauty.toFixed(1)}`} color={m.beauty >= 7.5 ? '#34d399' : '#fbbf24'} />
+                )}
+                {m.quality && <Pill label={m.quality} color="#60a5fa" />}
+                <Pill label={m.state ?? '—'}
+                  color={(m.state ?? '').toUpperCase() === 'DONE' ? '#34d399'
+                    : (m.state ?? '').toUpperCase() === 'EXECUTING' ? '#fbbf24' : '#64748b'} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── QA board strip ── */}
+      <SectionHeader icon={ShieldCheck} label="QA board" count={qa.length} />
+      {qa.length === 0 ? (
+        <EmptyState text="No QA runs synced yet." />
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          {qa.map(q => {
+            const s = qaStateStyle(q.state)
+            const info = qaLatestInfo(q.latest as any)
+            const href = q.url ? `${q.url.replace(/\/$/, '')}/qa-status.json` : null
+            const inner = (
+              <div className="card card-glow rounded-lg px-3 py-2.5 flex items-center gap-2.5 transition-all h-full">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={s.solid
+                    ? { background: s.color }
+                    : { background: 'transparent', border: `1.5px solid ${s.color}` }} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold text-white truncate">{q.slug}</div>
+                  <div className="text-[10px] truncate" style={{ color: 'var(--muted)' }}>
+                    {(q.state ?? 'unknown').toUpperCase()}
+                    {typeof info.beauty === 'number' ? ` · ${info.beauty.toFixed(1)}` : ''}
+                    {info.ts ? ` · ${relTime(info.ts)}` : ''}
+                  </div>
+                </div>
+                {href && <ExternalLink size={10} className="shrink-0" style={{ color: 'var(--muted)' }} />}
+              </div>
+            )
+            return href ? (
+              <a key={q.slug} href={href} target="_blank" rel="noopener noreferrer" className="no-underline">{inner}</a>
+            ) : (
+              <div key={q.slug}>{inner}</div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── Agent health ── */}
+      <SectionHeader icon={Activity} label="Agent health" />
+      {agentTiles.length === 0 && !bridge ? (
+        <EmptyState text="No agent-status heartbeat synced yet." />
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+          {agentTiles.map(a => {
+            const online = a.status === 'online'
+            const partial = !online && a.status !== 'offline'
+            const color = online ? '#34d399' : partial ? '#fbbf24' : '#ef4444'
+            return (
+              <div key={a.name} className="card rounded-lg px-3 py-2.5 flex items-center gap-2">
+                {online
+                  ? <CircleCheck size={13} style={{ color }} />
+                  : <CircleAlert size={13} style={{ color }} />}
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold text-white capitalize truncate">{a.name}</div>
+                  <div className="text-[10px] truncate" style={{ color }}>{a.status}</div>
+                </div>
+              </div>
+            )
+          })}
+          {bridge && (
+            <div className="card rounded-lg px-3 py-2.5 flex items-center gap-2">
+              <Radio size={13} style={{ color: '#818cf8' }} />
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-white leading-tight mb-0.5 truncate">{l.label}</div>
-                <div className="text-xs truncate" style={{ color: 'var(--muted)' }}>{l.desc}</div>
+                <div className="text-xs font-semibold text-white truncate">bridge</div>
+                <div className="text-[10px] truncate" style={{ color: 'var(--muted-light)' }}>
+                  {relTime(bridge.last_run)}{bridge.host ? ` · ${String(bridge.host).replace('.local', '')}` : ''}
+                </div>
               </div>
             </div>
-            <ArrowRight size={14} className="ml-2 transition-transform group-hover:translate-x-0.5 shrink-0"
-              style={{ color: 'var(--muted)' }} />
-          </Link>
-        ))}
-      </div>
+          )}
+        </div>
+      )}
 
-      {/* Client Links */}
-      <div className="flex items-center gap-2 mb-3">
-        <h2 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Client links</h2>
-        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Link href="/plan" className="no-underline group card card-glow rounded-xl p-5 transition-all hover:border-indigo-500/40">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
-            style={{ background: 'rgba(99,102,241,0.15)' }}>
-            <Globe size={18} style={{ color: '#818cf8' }} />
-          </div>
-          <div className="text-base font-bold text-white mb-1">Plan a New Site →</div>
-          <div className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
-            Walk a client through the site planning wizard to generate a custom blueprint.
-          </div>
-        </Link>
-        <Link href="/evaluate" className="no-underline group card card-glow rounded-xl p-5 transition-all hover:border-cyan-500/40">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
-            style={{ background: 'rgba(6,182,212,0.12)' }}>
-            <Search size={18} style={{ color: '#22d3ee' }} />
-          </div>
-          <div className="text-base font-bold text-white mb-1">Evaluate Existing Site →</div>
-          <div className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
-            Crawl an existing site for SEO, security, and performance issues — then build a fix plan.
-          </div>
-        </Link>
+      {/* ── Pending commands (taps) — read-only until Phase 3 ── */}
+      <SectionHeader icon={Terminal} label="Pending commands" count={commands.length} />
+      {commands.length === 0 ? (
+        <EmptyState text="No pending commands — nothing awaiting a tap." />
+      ) : (
+        <div className="card rounded-xl overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left" style={{ color: 'var(--muted)' }}>
+                <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-[10px]">Type</th>
+                <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-[10px]">Payload</th>
+                <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-[10px]">Status</th>
+                <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-[10px]">Requested</th>
+              </tr>
+            </thead>
+            <tbody>
+              {commands.map(c => (
+                <tr key={c.id} className="border-t" style={{ borderColor: 'var(--border)' }}>
+                  <td className="px-4 py-2.5 font-mono text-white whitespace-nowrap">{c.type ?? '—'}</td>
+                  <td className="px-4 py-2.5 max-w-xs truncate" style={{ color: 'var(--muted-light)' }}>
+                    {c.payload?.summary ?? JSON.stringify(c.payload ?? {}).slice(0, 80)}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <Pill label={c.status ?? '—'} color={c.status === 'pending' ? '#fbbf24' : '#60a5fa'} />
+                  </td>
+                  <td className="px-4 py-2.5 whitespace-nowrap" style={{ color: 'var(--muted)' }}>
+                    {relTime(c.created_at)}{c.requested_by ? ` · ${c.requested_by}` : ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── Unpaid invoices ── */}
+      <SectionHeader icon={DollarSign} label="Unpaid invoices" count={invoices.length} />
+      {invoices.length === 0 ? (
+        <EmptyState text="No unpaid invoices — nothing outstanding." />
+      ) : (
+        <div className="card rounded-xl divide-y" style={{ borderColor: 'var(--border)' }}>
+          {invoices.map(inv => (
+            <Link key={inv.id} href={`/billing/${inv.id}`}
+              className="no-underline flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-white/5"
+              style={{ borderColor: 'var(--border)' }}>
+              <FileText size={13} style={{ color: getInvoiceStatusColor(inv.status) }} />
+              <div className="min-w-0 flex-1">
+                <div className="text-xs text-white truncate">
+                  {inv.invoice_number ?? inv.id} {inv.sites?.name ? `· ${inv.sites.name}` : ''}
+                </div>
+                <div className="text-[10px] mt-0.5" style={{ color: 'var(--muted)' }}>
+                  due {inv.due_date ? new Date(inv.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                </div>
+              </div>
+              <span className="text-xs font-bold tabular-nums text-white">{formatCents(inv.total_cents ?? 0)}</span>
+              <Pill label={inv.status} color={getInvoiceStatusColor(inv.status)} />
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-10 text-[10px] text-center" style={{ color: 'var(--muted)' }}>
+        Legacy dashboard preserved at <Link href="/overview-legacy" className="underline" style={{ color: 'var(--muted-light)' }}>/overview-legacy</Link> · synced by ATLAS Bridge every 5 min
       </div>
     </div>
   )
