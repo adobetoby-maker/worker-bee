@@ -19,3 +19,5 @@ in three build components. Rendering paths untouched.
 | Behavior: rate limit | POST /api/site-audit 11 rapid calls → 10× 200 then 429                   | PASS |
 | Behavior: matcher    | /sites/x.txt → 307 /login (extension bypass closed); /globe.svg still 200 | PASS |
 | Gates                | npx tsc --noEmit = 26 errors (exact pre-existing baseline, zero new); npm run build passes | PASS |
+| Outside input | The hardening list originated from the independent Opus adversarial security review (2026-07-05): wb-run keyless+CORS*, build-status/list negative-match, funnel rate limits, matcher extension bypass — all four implemented and curl-verified; scope grew to 13 additional literal-key routes found during execution. | PASS |
+| Viewport coverage | WAIVED: API auth + key rotation only; the .tsx diffs delete a header literal, no rendering change. Proof is the curl matrix above. | PASS |
