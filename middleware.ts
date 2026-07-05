@@ -134,10 +134,12 @@ export const config = {
   // scoped to known asset locations:
   //   _next/            — Next build output + image optimizer
   //   icons/ demo/ images/ — public asset directories
-  //   named root files  — favicon/robots/sitemap/manifest/sw.js
+  //   named root files  — favicon/robots/sitemap/manifest/sw.js + the public
+  //                       ATLAS QA stamp (qa-status.json/qa-badge.svg — read by
+  //                       the full-monte scanner and the console QA board)
   //   root-level images — single-segment /<name>.<img-ext> only (public/*.svg)
   // Everything else — including any /segment/file.txt — hits the auth check.
   matcher: [
-    '/((?!_next/|icons/|demo/|images/|favicon\\.ico|robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|manifest\\.json|sw\\.js|[^/]+\\.(?:png|jpe?g|gif|svg|ico|webp|avif)$).*)',
+    '/((?!_next/|icons/|demo/|images/|favicon\\.ico|robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|manifest\\.json|sw\\.js|qa-status\\.json|qa-badge\\.svg|[^/]+\\.(?:png|jpe?g|gif|svg|ico|webp|avif)$).*)',
   ],
 }
