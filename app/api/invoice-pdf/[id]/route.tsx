@@ -306,9 +306,14 @@ export async function GET(
     return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
   }
 
-  // If a public token was provided, verify it matches (for client portal access)
-  if (tokenParam && data.public_token !== tokenParam) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Token mode (client portal): the `token` param, if present at all, must be
+  // non-empty AND match. An empty `?token=` must NOT skip this check — the
+  // middleware only exempts non-empty tokens, and this guard is the backstop
+  // if that ever regresses (IDOR found in adversarial review 2026-07-05).
+  if (tokenParam !== null) {
+    if (!tokenParam || !data.public_token || data.public_token !== tokenParam) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
   }
 
   const items = [...(data.invoice_items ?? [])].sort((a: any, b: any) =>

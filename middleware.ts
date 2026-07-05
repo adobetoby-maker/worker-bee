@@ -90,10 +90,12 @@ function isPublic(req: NextRequest): boolean {
   }
 
   // Public invoice page links /api/invoice-pdf/<id>?token=<public_token>.
-  // Only public when a token is supplied — the route 401s on token mismatch.
-  // Without ?token= the request falls through to the admin-cookie check,
-  // closing the route's own "no token ⇒ no check" gap.
-  if (pathname.startsWith('/api/invoice-pdf/') && searchParams.has('token')) return true
+  // Only public when a NON-EMPTY token is supplied — the route 401s on mismatch.
+  // `.has('token')` is true for an empty `?token=`, which the route's own
+  // `tokenParam &&` guard then skips — an IDOR found in adversarial review
+  // 2026-07-05. Require a truthy value so empty/missing tokens fall through
+  // to the admin-cookie check.
+  if (pathname.startsWith('/api/invoice-pdf/') && searchParams.get('token')) return true
 
   return false
 }
