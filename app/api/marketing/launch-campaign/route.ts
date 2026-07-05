@@ -264,13 +264,17 @@ async function processFullAutoJobs(
     }
   }
 
-  // Update campaign completed/failed counts
-  const allDone = completedJobs + failedJobs >= jobs.length
+  // Recount all jobs from DB for accurate totals
+  const { data: allJobs } = await db.from('push_campaign_jobs').select('status').eq('campaign_id', campaignId)
+  const totalDone   = (allJobs ?? []).filter((j: { status: string }) => j.status === 'done').length
+  const totalFailed = (allJobs ?? []).filter((j: { status: string }) => j.status === 'pending_user' || j.status === 'failed').length
+  const totalQueued = (allJobs ?? []).filter((j: { status: string }) => j.status === 'queued' || j.status === 'running').length
+
   await db.from('push_campaigns')
     .update({
-      completed_jobs: db.raw?.(`completed_jobs + ${completedJobs}`) ?? completedJobs,
-      failed_jobs:    db.raw?.(`failed_jobs + ${failedJobs}`) ?? failedJobs,
-      ...(allDone ? { status: failedJobs > 0 ? 'completed' : 'completed' } : {}),
+      completed_jobs: totalDone,
+      failed_jobs:    totalFailed,
+      ...(totalQueued === 0 ? { status: 'completed', completed_at: new Date().toISOString() } : {}),
     })
     .eq('id', campaignId)
 }

@@ -259,7 +259,7 @@ export default async function InvoicePage({
           className="px-8 py-4 border-t flex items-center gap-3"
           style={{ borderColor: 'var(--border)', background: 'rgba(255,255,255,0.01)' }}
         >
-          <InvoiceActions invoiceId={invoice.id} currentStatus={invoice.status} />
+          <InvoiceActions invoiceId={invoice.id} currentStatus={invoice.status} publicToken={(invoice as any).public_token ?? null} />
         </div>
       </div>
     </div>

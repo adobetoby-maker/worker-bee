@@ -6,7 +6,7 @@ import {
   Globe, KeyRound, LayoutDashboard, LogOut, Inbox, GitBranch, Wrench,
   Layers, Sparkles, Search, Zap, Shield, Hammer, HelpCircle, Map, Brain,
   Cpu, ArrowLeft, Settings2, BarChart2, Wand2, ScanSearch, ExternalLink,
-  ChevronRight, LineChart, Users, FileText, DollarSign, Receipt, Rocket,
+  ChevronRight, LineChart, Users, FileText, DollarSign, Rocket,
   Terminal, Pin, Activity, Mail, Package, Megaphone, Clock, Flag, Download,
   Share, Target,
 } from 'lucide-react'
@@ -87,7 +87,7 @@ const GLOBAL_NAV_SECTIONS = [
       { href: '/clients',   label: 'Clients',    icon: Users,    accent: '#818cf8' },
       { href: '/leads',     label: 'Leads',      icon: Users,    accent: '#f59e0b' },
       { href: '/requests',  label: 'Requests',   icon: Inbox,    accent: '#f59e0b' },
-      { href: '/billing',   label: 'Billing',    icon: Receipt,  accent: '#10b981' },
+      { href: '/billing',   label: 'Invoices',   icon: FileText, accent: '#10b981' },
       { href: '/sites',     label: 'Sites',      icon: Globe },
     ],
   },
@@ -145,7 +145,7 @@ const MOBILE_GLOBAL = [
   { href: '/clients',   label: 'Clients',  icon: Users,    accent: '#818cf8' },
   { href: '/requests',  label: 'Requests', icon: Inbox,    accent: '#f59e0b' },
   { href: '/sites',     label: 'Sites',    icon: Globe },
-  { href: '/billing',   label: 'Billing',  icon: Receipt,  accent: '#10b981' },
+  { href: '/billing',   label: 'Invoices', icon: FileText, accent: '#10b981' },
   { href: '/builds',    label: 'Builds',   icon: Hammer,   accent: '#34d399' },
   { href: '/monitor',   label: 'Monitor',  icon: Activity, accent: '#34d399' },
 ]

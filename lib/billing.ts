@@ -41,6 +41,7 @@ export type Invoice = {
   total_cents: number
   notes: string | null
   paid_at: string | null
+  public_token: string | null
   created_at: string
   updated_at: string
 }

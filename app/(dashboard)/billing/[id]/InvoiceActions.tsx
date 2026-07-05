@@ -2,14 +2,15 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Send, CheckCircle, FileDown } from 'lucide-react'
+import { Send, CheckCircle, FileDown, Link2 } from 'lucide-react'
 
 type Props = {
   invoiceId: string
   currentStatus: string
+  publicToken?: string | null
 }
 
-export default function InvoiceActions({ invoiceId, currentStatus }: Props) {
+export default function InvoiceActions({ invoiceId, currentStatus, publicToken }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -39,6 +40,24 @@ export default function InvoiceActions({ invoiceId, currentStatus }: Props) {
       }
     } finally {
       setLoading(null)
+    }
+  }
+
+  function openPdf() {
+    window.open(`/api/invoice-pdf/${invoiceId}`, '_blank')
+  }
+
+  async function copyLink() {
+    if (!publicToken) {
+      showToast('No public token — re-run migration')
+      return
+    }
+    const url = `${window.location.origin}/invoice/${publicToken}`
+    try {
+      await navigator.clipboard.writeText(url)
+      showToast('Client link copied!')
+    } catch {
+      showToast('Copy failed — link: /invoice/' + publicToken)
     }
   }
 
@@ -94,15 +113,27 @@ export default function InvoiceActions({ invoiceId, currentStatus }: Props) {
         </button>
       )}
 
-      {/* Download PDF (placeholder) */}
+      {/* Download PDF */}
       <button
-        onClick={() => showToast('PDF export coming soon')}
+        onClick={openPdf}
         className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors"
         style={{ borderColor: 'var(--border)', color: 'var(--muted-light)' }}
       >
         <FileDown size={12} />
         Download PDF
       </button>
+
+      {/* Copy client link */}
+      {publicToken && (
+        <button
+          onClick={copyLink}
+          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors"
+          style={{ borderColor: 'rgba(99,102,241,0.35)', color: '#818cf8', background: 'rgba(99,102,241,0.07)' }}
+        >
+          <Link2 size={12} />
+          Copy Client Link
+        </button>
+      )}
 
       {/* Toast */}
       {toast && (

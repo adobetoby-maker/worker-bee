@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { formatCents, getInvoiceStatusColor } from '@/lib/billing'
 import type { InvoiceWithMeta } from '@/lib/billing'
 import { Plus, FileText } from 'lucide-react'
+import BillingRowActions from './BillingRowActions'
 
 const db = supabaseAdmin as any
 
@@ -48,7 +49,7 @@ function formatDate(dateStr: string | null): string {
 }
 
 export default async function BillingPage() {
-  // Fetch invoices joined with sites
+  // Fetch invoices joined with sites — include public_token for portal links
   const { data, error } = await db
     .from('invoices')
     .select(`
@@ -66,7 +67,6 @@ export default async function BillingPage() {
     )
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const invoices: InvoiceWithMeta[] = (data ?? []).map((inv: any) => ({
     ...inv,
     site_name: inv.sites?.name ?? null,
@@ -93,6 +93,9 @@ export default async function BillingPage() {
     .reduce((sum, inv) => sum + inv.total_cents, 0)
 
   const draftCount = invoices.filter(inv => inv.status === 'draft').length
+
+  // Grid columns: # | Client | Site | Amount | Status | Issued | Due | View | Actions
+  const grid = '130px 1fr 160px 100px 100px 90px 90px 50px 80px'
 
   return (
     <div className="max-w-5xl">
@@ -154,7 +157,7 @@ export default async function BillingPage() {
             <div
               className="hidden md:grid px-5 py-2.5 border-b text-xs font-semibold uppercase tracking-wider"
               style={{
-                gridTemplateColumns: '130px 1fr 160px 100px 100px 90px 90px 70px',
+                gridTemplateColumns: grid,
                 gap: 12,
                 borderColor: 'rgba(255,255,255,0.06)',
                 background: 'rgba(255,255,255,0.02)',
@@ -169,16 +172,17 @@ export default async function BillingPage() {
               <span>Issued</span>
               <span>Due</span>
               <span></span>
+              <span></span>
             </div>
 
             {/* Table rows */}
             <div>
-              {invoices.map((inv, i) => (
+              {invoices.map((inv) => (
                 <div
                   key={inv.id}
                   className="grid px-5 py-3.5 items-center border-b last:border-b-0 hover:bg-white/[0.02] transition-colors"
                   style={{
-                    gridTemplateColumns: '130px 1fr 160px 100px 100px 90px 90px 70px',
+                    gridTemplateColumns: grid,
                     gap: 12,
                     borderColor: 'rgba(255,255,255,0.05)',
                   }}
@@ -223,7 +227,7 @@ export default async function BillingPage() {
                     {formatDate(inv.due_date)}
                   </div>
 
-                  {/* View */}
+                  {/* View detail */}
                   <div>
                     <Link
                       href={`/billing/${inv.id}`}
@@ -232,6 +236,15 @@ export default async function BillingPage() {
                     >
                       View
                     </Link>
+                  </div>
+
+                  {/* PDF + Copy Link */}
+                  <div>
+                    <BillingRowActions
+                      invoiceId={inv.id}
+                      invoiceNumber={inv.invoice_number}
+                      publicToken={inv.public_token}
+                    />
                   </div>
                 </div>
               ))}
