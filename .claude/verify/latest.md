@@ -25,3 +25,5 @@ Gates: tsc 26 errors (baseline 26, zero new) · `npm run build` ✓ Compiled suc
 Known quirk (pre-existing, flagged for parent): `app/page.tsx` (public landing) silently shadows the (dashboard) group at '/', so the replaced home is exposed at /today; root cleanup belongs to Phase 5 pruning.
 
 beauty_score: 7.6
+| 2560 (4K) | Read /tmp/console-vp2560-{today,portfolio}.png (authed, local prod build): sidebar + full section stack render intact — brief block, 30-item NEED queue with color chips, missions with gate pills, Portfolio 139-property table with kind/stage badges and QA dots; no overlap, no clipping. Content column holds max-width, leaving dead right margin at this width — cosmetic, queued to Phase 5 polish (same fix as andertongroup 2xl widening). | PASS |
+| 5K 2560@2x | Read /tmp/console-vp5K-{today,portfolio}.png: proportionally identical to 2560, text crisp at 2x scale, no rendering artifacts. Same dead-margin note applies. | PASS |
