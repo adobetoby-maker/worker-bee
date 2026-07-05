@@ -1,0 +1,32 @@
+{
+  "schema": "atlas-full-monte/1",
+  "slug": "manage",
+  "runs": [
+    {
+      "iteration": 1,
+      "date": "2026-07-05",
+      "ts": 1783278374,
+      "url": "https://manage.worker-bee.app",
+      "pages_tested": 7,
+      "errors_found": 0,
+      "errors_fixed": 0,
+      "beauty": 7.6,
+      "result": "pass",
+      "report": "~/.atlas/reviewer/reports/manage-2026-07-05.md",
+      "agent": "eyes-v2 (console-merge)"
+    }
+  ],
+  "latest": {
+    "iteration": 1,
+    "date": "2026-07-05",
+    "ts": 1783278374,
+    "url": "https://manage.worker-bee.app",
+    "pages_tested": 7,
+    "errors_found": 0,
+    "errors_fixed": 0,
+    "beauty": 7.6,
+    "result": "pass",
+    "report": "~/.atlas/reviewer/reports/manage-2026-07-05.md",
+    "agent": "eyes-v2 (console-merge)"
+  }
+}
