@@ -21,7 +21,14 @@ async function resendGet(path: string) {
   return res.json()
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Cron auth — Vercel cron sends `Authorization: Bearer ${CRON_SECRET}`
+  // when CRON_SECRET is set in the project env. Fail closed if unset.
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret || req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const key = process.env.RESEND_API_KEY
   if (!key) return NextResponse.json({ error: 'RESEND_API_KEY not set' }, { status: 500 })
 

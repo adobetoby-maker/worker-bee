@@ -29,6 +29,13 @@ async function getGoogleAccessToken(): Promise<string | null> {
 }
 
 export async function GET(req: Request) {
+  // Cron auth — Vercel cron sends `Authorization: Bearer ${CRON_SECRET}`
+  // when CRON_SECRET is set in the project env. Fail closed if unset.
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret || req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const accessToken = await getGoogleAccessToken()
 
   if (!accessToken) {
