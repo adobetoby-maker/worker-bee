@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase'
 import { formatCents, getInvoiceStatusColor } from '@/lib/billing'
-import { relTime, minutesSince, needTypeColor, qaStateStyle, qaLatestInfo, type QaRow, type CommandRow } from '@/lib/atlas-console'
+import { relTime, minutesSince, needTypeColor, qaStateStyle, qaLatestInfo, beautyColor, type QaRow, type CommandRow } from '@/lib/atlas-console'
 import {
   Radio, FileText, ListTodo, Rocket, ShieldCheck, Activity,
   DollarSign, ExternalLink, CircleCheck, CircleAlert,
@@ -118,7 +118,7 @@ export default async function TodayPage() {
     : []
 
   return (
-    <div className="max-w-5xl animate-fade-in pb-16">
+    <div className="max-w-5xl min-[1920px]:max-w-[1680px] min-[1920px]:mx-auto animate-fade-in pb-16">
       {/* ── Header + staleness banner ── */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -212,7 +212,7 @@ export default async function TodayPage() {
                   <Pill label={m.gate_pass ? 'gate ✓' : 'gate ✗'} color={m.gate_pass ? '#34d399' : '#f87171'} />
                 )}
                 {typeof m.beauty === 'number' && (
-                  <Pill label={`beauty ${m.beauty.toFixed(1)}`} color={m.beauty >= 7.5 ? '#34d399' : '#fbbf24'} />
+                  <Pill label={`beauty ${m.beauty.toFixed(1)}`} color={beautyColor(m.beauty)} />
                 )}
                 {m.quality && <Pill label={m.quality} color="#60a5fa" />}
                 <Pill label={m.state ?? '—'}
@@ -244,7 +244,9 @@ export default async function TodayPage() {
                   <div className="text-xs font-semibold text-white truncate">{q.slug}</div>
                   <div className="text-[10px] truncate" style={{ color: 'var(--muted)' }}>
                     {(q.state ?? 'unknown').toUpperCase()}
-                    {typeof info.beauty === 'number' ? ` · ${info.beauty.toFixed(1)}` : ''}
+                    {typeof info.beauty === 'number' && (
+                      <> · <span className="font-semibold" style={{ color: beautyColor(info.beauty) }}>{info.beauty.toFixed(1)}</span></>
+                    )}
                     {info.ts ? ` · ${relTime(info.ts)}` : ''}
                   </div>
                 </div>
@@ -331,8 +333,8 @@ export default async function TodayPage() {
         </div>
       )}
 
-      <div className="mt-10 text-[10px] text-center" style={{ color: 'var(--muted)' }}>
-        Legacy dashboard preserved at <Link href="/overview-legacy" className="underline" style={{ color: 'var(--muted-light)' }}>/overview-legacy</Link> · synced by ATLAS Bridge every 5 min
+      <div className="mt-8 text-[10px] text-center" style={{ color: 'var(--muted)' }}>
+        synced by ATLAS Bridge every 5 min
       </div>
     </div>
   )

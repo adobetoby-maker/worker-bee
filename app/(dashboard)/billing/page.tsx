@@ -49,15 +49,23 @@ function formatDate(dateStr: string | null): string {
 }
 
 export default async function BillingPage() {
-  // Fetch invoices joined with sites — include public_token for portal links
-  const { data, error } = await db
-    .from('invoices')
-    .select(`
-      *,
-      sites ( name, url ),
-      invoice_items ( id )
-    `)
-    .order('created_at', { ascending: false })
+  // Fetch invoices joined with sites — include public_token for portal links.
+  // Properties registry rides along for the MRR strip (Money view, Phase 5).
+  const [{ data, error }, propsRes] = await Promise.all([
+    db
+      .from('invoices')
+      .select(`
+        *,
+        sites ( name, url ),
+        invoice_items ( id )
+      `)
+      .order('created_at', { ascending: false }),
+    db.from('properties').select('slug, name, mrr_cents'),
+  ])
+
+  const properties = (propsRes.data ?? []) as { slug: string; name: string | null; mrr_cents: number | null }[]
+  const mrrProps = properties.filter(p => (p.mrr_cents ?? 0) > 0)
+  const totalMrrCents = mrrProps.reduce((s, p) => s + (p.mrr_cents ?? 0), 0)
 
   if (error) {
     return (
@@ -118,6 +126,39 @@ export default async function BillingPage() {
         >
           <Plus size={15} />
           New Invoice
+        </Link>
+      </div>
+
+      {/* MRR strip — recurring revenue from the property registry (Money view, Phase 5) */}
+      <div
+        className="rounded-xl border p-5 mb-4 flex flex-wrap items-center gap-x-8 gap-y-2"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--muted)' }}>
+            Recurring revenue
+          </p>
+          {totalMrrCents > 0 ? (
+            <p className="text-2xl font-bold" style={{ color: '#34d399' }}>
+              {formatCents(totalMrrCents)}<span className="text-sm font-semibold" style={{ color: 'var(--muted-light)' }}>/mo</span>
+            </p>
+          ) : (
+            <p className="text-2xl font-bold text-white">$0 <span className="text-sm font-semibold" style={{ color: 'var(--muted)' }}>tracked</span></p>
+          )}
+        </div>
+        <div className="text-xs" style={{ color: 'var(--muted)' }}>
+          {totalMrrCents > 0 ? (
+            <>{mrrProps.length} of {properties.length} registry properties carry MRR</>
+          ) : (
+            <>no <span className="font-mono">mrr_cents</span> set on any of the {properties.length} registry rows yet — set MRR per property from its detail page</>
+          )}
+        </div>
+        <Link
+          href="/portfolio"
+          className="ml-auto text-xs px-3 py-1.5 rounded-lg border transition-colors"
+          style={{ borderColor: 'rgba(52,211,153,0.35)', color: '#34d399' }}
+        >
+          Portfolio →
         </Link>
       </div>
 

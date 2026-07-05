@@ -3,11 +3,11 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import {
-  Globe, KeyRound, LayoutDashboard, LogOut, Inbox, GitBranch, Wrench,
-  Layers, Sparkles, Search, Zap, Shield, Hammer, HelpCircle, Map, Brain,
-  Cpu, ArrowLeft, Settings2, BarChart2, Wand2, ScanSearch, ExternalLink,
-  ChevronRight, LineChart, Users, FileText, DollarSign, Rocket,
-  Terminal, Pin, Activity, Mail, Package, Megaphone, Clock, Flag, Download,
+  Globe, KeyRound, LayoutDashboard, LogOut, Inbox, Wrench,
+  Search, Hammer, Map,
+  ArrowLeft, Settings2, BarChart2, Wand2, ScanSearch, ExternalLink,
+  ChevronRight, LineChart, Users, DollarSign, Rocket,
+  Terminal, Activity, Mail, Megaphone, Clock, Flag, Download,
   Share, Target, LayoutGrid, Sun,
 } from 'lucide-react'
 
@@ -80,75 +80,59 @@ function InstallButton() {
   )
 }
 
+// Six-section information architecture (PRD-atlas-platform §4.2, Phase 5):
+// Today · Portfolio · Clients & Money · Acquisition · QA & Repair · Vault & Blueprint.
+// Anything not reachable from these sections lives in app/_retired/ (out of routing, in git).
 const GLOBAL_NAV_SECTIONS = [
   {
-    section: 'Clients',
+    section: 'Clients & Money',
     items: [
-      { href: '/clients',   label: 'Clients',    icon: Users,    accent: '#818cf8' },
-      { href: '/leads',     label: 'Leads',      icon: Users,    accent: '#f59e0b' },
-      { href: '/requests',  label: 'Requests',   icon: Inbox,    accent: '#f59e0b' },
-      { href: '/billing',   label: 'Invoices',   icon: FileText, accent: '#10b981' },
-      { href: '/sites',     label: 'Sites',      icon: Globe },
+      { href: '/clients',   label: 'Clients',    icon: Users,      accent: '#818cf8' },
+      { href: '/billing',   label: 'Billing',    icon: DollarSign, accent: '#10b981' },
+      { href: '/contacts',  label: 'Contacts',   icon: Users,      accent: '#34d399' },
     ],
   },
   {
-    section: 'Build',
+    section: 'Acquisition',
     items: [
+      { href: '/leads',        label: 'Leads',        icon: Target,    accent: '#f59e0b' },
+      { href: '/requests',     label: 'Requests',     icon: Inbox,     accent: '#f59e0b' },
+      { href: '/submissions',  label: 'Submissions',  icon: Inbox },
+      { href: '/campaigns',    label: 'Campaigns',    icon: Mail,      accent: '#60a5fa' },
+      { href: '/marketing',    label: 'Cmpgn Plans',  icon: Megaphone, accent: '#6366f1' },
+      { href: '/analytics',    label: 'Analytics',    icon: LineChart, accent: '#60a5fa' },
+    ],
+  },
+  {
+    section: 'QA & Repair',
+    items: [
+      { href: '/monitor',      label: 'Monitor',      icon: Activity,  accent: '#34d399' },
+      { href: '/maintenance',  label: 'Maintain',     icon: Wrench },
+      { href: '/audits',       label: 'Audits',       icon: Search },
+      { href: '/ship-ready',   label: 'Ship Ready',   icon: Rocket,    accent: '#34d399' },
+    ],
+  },
+  {
+    section: 'Vault & Blueprint',
+    items: [
+      { href: '/vault',        label: 'Vault',        icon: KeyRound },
+      { href: '/sites',        label: 'Sites',        icon: Globe },
+      { href: '/build-studio', label: 'Build Studio', icon: Terminal,  accent: '#818cf8' },
       { href: '/builds',       label: 'Builds',       icon: Hammer,    accent: '#34d399' },
       { href: '/build-zone',   label: 'Build Zone',   icon: Rocket,    accent: '#f59e0b' },
-      { href: '/build-studio', label: 'Build Studio', icon: Terminal,  accent: '#818cf8' },
-      { href: '/ship-ready',   label: 'Ship Ready',   icon: Rocket,    accent: '#34d399' },
-      { href: '/submissions',  label: 'Submissions',  icon: Inbox },
-      { href: '/maintenance',  label: 'Maintain',     icon: Wrench },
-      { href: '/iterations',   label: 'Iterations',   icon: GitBranch },
-      { href: '/audits',       label: 'Audits',       icon: Search },
-      { href: '/batch',        label: 'Batch',        icon: Layers },
-      { href: '/mods',         label: 'Mods',         icon: Sparkles },
-    ],
-  },
-  {
-    section: 'Growth',
-    items: [
-      { href: '/marketing-command', label: 'Mktg Command', icon: Target,     accent: '#f59e0b' },
-      { href: '/analytics',         label: 'Analytics',    icon: LineChart,  accent: '#60a5fa' },
-      { href: '/monetization',      label: 'Monetize',     icon: DollarSign, accent: '#34d399' },
-      { href: '/contacts',          label: 'Contacts',     icon: Users,      accent: '#34d399' },
-      { href: '/campaigns',         label: 'Campaigns',    icon: Mail,       accent: '#60a5fa' },
-      { href: '/marketing',         label: 'Cmpgn Plans',  icon: Megaphone,  accent: '#6366f1' },
-      { href: '/marketing-push',    label: 'Mktg Push',    icon: Megaphone,  accent: '#f59e0b' },
-      { href: '/white-label',    label: 'White Label',   icon: Package,    accent: '#f59e0b' },
-      { href: '/white-labels',          label: 'WL Command',  icon: Package,    accent: '#818cf8' },
-      { href: '/white-labels/builder', label: 'WL LMS Builder',  icon: Package,    accent: '#34d399' },
-      { href: '/build-offer',    label: 'Build Offer',   icon: Globe,      accent: '#34d399' },
-    ],
-  },
-  {
-    section: 'Tools',
-    items: [
-      { href: '/monitor',       label: 'Monitor',     icon: Activity,  accent: '#34d399' },
-      { href: '/vault',         label: 'Vault',       icon: KeyRound },
-      { href: '/neural-map',    label: 'Neural Map',  icon: Brain,     accent: '#a78bfa' },
-      { href: '/flow-boards',   label: 'Flow Boards', icon: Pin,       accent: '#c9a96e' },
-      { href: '/tetrad',        label: 'TETRAD',      icon: Zap,       accent: '#fbbf24' },
-      { href: '/language-lens', label: 'Lang Lens',   icon: Shield,    accent: '#d4af37' },
-      { href: '/configurator',  label: 'Config',      icon: Cpu },
-      { href: '/sitemap-visual',label: 'Sitemap',     icon: Map },
-      { href: '/help',          label: 'Help',        icon: HelpCircle },
     ],
   },
 ]
 
-// Flat list for mobile (first 7 most important)
-const GLOBAL_NAV = GLOBAL_NAV_SECTIONS.flatMap(s => s.items)
+// Flat list for mobile (7 most important)
 const MOBILE_GLOBAL = [
   { href: '/today',     label: 'Today',    icon: Sun },
   { href: '/portfolio', label: 'Folio',    icon: LayoutGrid, accent: '#818cf8' },
-  { href: '/clients',   label: 'Clients',  icon: Users,    accent: '#818cf8' },
-  { href: '/requests',  label: 'Requests', icon: Inbox,    accent: '#f59e0b' },
+  { href: '/clients',   label: 'Clients',  icon: Users,      accent: '#818cf8' },
+  { href: '/billing',   label: 'Billing',  icon: DollarSign, accent: '#10b981' },
+  { href: '/leads',     label: 'Leads',    icon: Target,     accent: '#f59e0b' },
   { href: '/sites',     label: 'Sites',    icon: Globe },
-  { href: '/billing',   label: 'Invoices', icon: FileText, accent: '#10b981' },
-  { href: '/builds',    label: 'Builds',   icon: Hammer,   accent: '#34d399' },
-  { href: '/monitor',   label: 'Monitor',  icon: Activity, accent: '#34d399' },
+  { href: '/monitor',   label: 'Monitor',  icon: Activity,   accent: '#34d399' },
 ]
 
 function projectNav(siteId: string, siteUrl?: string) {
@@ -165,7 +149,6 @@ function projectNav(siteId: string, siteUrl?: string) {
         { href: `${base}/build/progress`, label: 'Progress',   icon: BarChart2,       accent: '#f87171' },
         { href: evaluateUrl,              label: 'Quality QA', icon: ScanSearch,      accent: '#34d399' },
         { href: `${base}/portal`,         label: 'Portal',     icon: Users,           accent: '#818cf8' },
-        { href: `${base}/cms`,            label: 'CMS',        icon: FileText,        accent: '#f59e0b' },
         { href: `${base}/costs`,          label: 'Costs',      icon: DollarSign,      accent: '#34d399' },
         { href: `${base}/time`,           label: 'Time',       icon: Clock,           accent: '#60a5fa' },
         { href: `${base}/milestones`,     label: 'Milestones', icon: Flag,            accent: '#a78bfa' },
@@ -177,7 +160,6 @@ function projectNav(siteId: string, siteUrl?: string) {
         { href: `${base}/edit`,  label: 'Edit Site',   icon: Wrench,   accent: '#94a3b8' },
         { href: '/vault',        label: 'Vault',        icon: KeyRound, accent: '#94a3b8' },
         { href: '/audits',       label: 'Audits',       icon: Search,   accent: '#94a3b8' },
-        { href: '/iterations',   label: 'Iterations',   icon: GitBranch, accent: '#94a3b8' },
       ],
     },
   ]
@@ -282,12 +264,12 @@ export default function Sidebar() {
 
           <div className="px-2 pb-3 pt-2 border-t space-y-1" style={{ borderColor: 'var(--border)' }}>
             <InstallButton />
-            <Link href="/"
+            <Link href="/today"
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors"
               style={{ color: 'var(--muted)' }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
-              <LayoutDashboard size={13} /> Dashboard
+              <Sun size={13} /> Today
             </Link>
             <button onClick={logout}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors text-left"
@@ -367,16 +349,6 @@ export default function Sidebar() {
               }}>
               <LayoutGrid size={14} style={{ color: isActive('/portfolio') ? '#818cf8' : undefined }} />
               Portfolio
-            </Link>
-            <Link href="/overview-legacy"
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
-              style={{
-                color: isActive('/overview-legacy') ? '#e0e7ff' : 'var(--muted-light)',
-                background: isActive('/overview-legacy') ? '#6366f122' : 'transparent',
-                boxShadow: isActive('/overview-legacy') ? 'inset 3px 0 0 0 #6366f1' : 'none',
-              }}>
-              <LayoutDashboard size={14} style={{ color: isActive('/overview-legacy') ? '#818cf8' : undefined }} />
-              Dashboard
             </Link>
           </div>
 

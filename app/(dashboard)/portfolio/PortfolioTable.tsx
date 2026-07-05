@@ -139,7 +139,7 @@ export default function PortfolioTable({
                 <th className="px-3 py-2.5 font-semibold uppercase tracking-wider text-[10px]">Host</th>
                 <th className="px-3 py-2.5 font-semibold uppercase tracking-wider text-[10px]">Live</th>
                 <th className="px-3 py-2.5 font-semibold uppercase tracking-wider text-[10px]">QA</th>
-                <th className="px-3 py-2.5 font-semibold uppercase tracking-wider text-[10px] text-right">MRR</th>
+                <th className="px-3 py-2.5 font-semibold uppercase tracking-wider text-[10px] text-right">MRR/mo</th>
                 <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-[10px]">Repo</th>
               </tr>
             </thead>

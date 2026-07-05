@@ -9,6 +9,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { KIND_COLORS, LIFECYCLE_COLORS, qaStateStyle, qaLatestInfo, relTime, type Property, type QaRow } from '@/lib/atlas-console'
 import { ArrowLeft, ExternalLink, GitBranch, Map, ShieldCheck } from 'lucide-react'
 import RunQaButton from '../../RunQaButton'
+import MrrEditor from './MrrEditor'
 
 const db = supabaseAdmin as any
 
@@ -88,9 +89,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         </Field>
         <Field label="Custom domain">{p.custom_domain ?? <span style={{ color: 'var(--muted)' }}>—</span>}</Field>
         <Field label="MRR">
-          {(p.mrr_cents ?? 0) > 0
-            ? <span style={{ color: '#34d399' }}>${((p.mrr_cents ?? 0) / 100).toLocaleString()}/mo</span>
-            : <span style={{ color: 'var(--muted)' }}>—</span>}
+          <MrrEditor slug={p.slug} mrrCents={p.mrr_cents ?? 0} />
         </Field>
         <Field label="Repo path"><span className="font-mono text-[11px]">{p.repo_path ?? '—'}</span></Field>
         <Field label="GitHub">

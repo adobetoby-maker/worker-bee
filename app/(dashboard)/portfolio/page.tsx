@@ -38,7 +38,7 @@ export default async function PortfolioPage({
   const totalMrrCents = properties.reduce((s, p) => s + (p.mrr_cents ?? 0), 0)
 
   return (
-    <div className="max-w-6xl animate-fade-in pb-16">
+    <div className="max-w-6xl min-[1920px]:max-w-[1800px] min-[1920px]:mx-auto animate-fade-in pb-16">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <LayoutGrid size={18} style={{ color: '#818cf8' }} />

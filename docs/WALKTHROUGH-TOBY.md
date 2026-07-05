@@ -1,6 +1,6 @@
 # Worker Bee — Toby's Recall Guide
 
-Last updated: 2026-07-02
+Last updated: 2026-07-05 (Phase 5 consolidation — six sections, ~19 pages retired to `app/_retired/`)
 Live at: https://manage.worker-bee.app
 
 ---
@@ -11,49 +11,65 @@ Live at: https://manage.worker-bee.app
 
 ---
 
-## 2. The Dashboard — Route Reference
+## 2. The Dashboard — Route Reference (six sections)
+
+Everything reachable from the sidebar's six sections. Anything not listed here
+was retired 2026-07-05 into `app/_retired/` (still in git, returns 404 live).
+
+### Today + Portfolio
 
 | Route | What it does |
 |---|---|
-| `/sites` | Master list of all registered client sites. Each card shows status, stack, last pipeline run score, and links to the Blueprint canvas and site detail page. Click a site name to open its detail view. |
-| `/sites/[id]` | Single site detail: metadata (GitHub repo, Vercel project, stack, status), the Blueprint canvas preview, design schemes, Visual QA card, and a video embed if one is set. |
-| `/sites/new` | Register a new site. Fill in name, URL, stack, GitHub repo. After saving, run `/api/sites/[id]/onboard` to auto-generate the first blueprint. |
-| `/monitor` | Live uptime dashboard. Pings every registered site every 60 seconds, shows latency and HTTP status. Green = up, red = down. |
-| `/billing` | Invoice management. Lists all invoices with status (draft / sent / paid / overdue), totals, and client names. Summary stats at the top (total billed, outstanding, paid this month). |
-| `/billing/new` | Create a new invoice. Pick a site, set client name and email, add line items by category (service, AI cost, hosting, affiliate setup, maintenance), set due date and optional tax rate. |
-| `/billing/[id]` | Invoice detail. Shows all line items, totals, status badge. Actions: mark paid, send client link, download PDF. |
-| `/clients` | Client records. Each client has a name, email, phone, status (new / scoped / quoted / approved / in_progress / complete / declined), and links to their associated sites and invoices. |
-| `/clients/new` | Add a new client. Required: name. Optional: email, phone, company, notes. |
-| `/clients/[id]` | Client detail: contact info, linked sites, milestone progress bar, invoice history, and request log. |
-| `/vault` | Encrypted credential store. Add, search, and copy credentials by category. The master password is stored in the `vault_session` cookie — no re-entry needed between page loads on the same browser. |
-| `/submissions` | Incoming blueprint requests submitted via the public `/plan` form. Each submission contains the client's business name, vision, style preferences, and page list. Includes AI-generated outputs (CLAUDE.md, settings.json, HTML starter). |
-| `/requests` | General inbound work requests from clients — phone, email, form, or message. Each request has status, estimated hours, estimated cost, and links to client + site. |
-| `/leads` | Sales pipeline. Prospects move through stages: New → Active → Engaged → Hot → Talking → Proposal → Won/Lost. Tracks touch count (Email 1, Text 1, Call 1, etc.) and deal value. |
-| `/configurator` | Generates a `CLAUDE.md` and `settings.json` for a new client project from a form. Select stack (Next.js, WordPress, React, static), add routes, toggle Supabase/Tailwind/TypeScript. Download or copy the output. |
-| `/analytics` | GA4 analytics view across all registered sites. Pulls measurement IDs from site configs and shows session/event data per property. |
-| `/audits` | Saved site audit results. Each audit covers SEO score, security headers, performance. Stored in Supabase Storage under `build-logs/audits/`. |
-| `/campaigns` | Email campaigns (broadcast and drip) across your language SaaS properties. Shows status (draft / scheduled / sending / sent), recipient count, and subject line. |
-| `/contacts` | Email subscriber list. Filterable by site, subscription status, and tags. Supports export and bulk delete. |
-| `/marketing` | Marketing campaign tracker for all sites. Shows campaigns by status (draft / active / completed / paused), platforms, and content types. |
-| `/marketing-command` | High-level marketing command center: prospects pipeline summary, active offers, outstanding marketing tasks, and site-by-site GTM status. |
-| `/marketing-push` | Marketing push interface — triggers AI-driven marketing droids (PRLog, Reddit, GBP agents). Shows task queues (completed / todo / could-do) per droid. |
-| `/builds` | Build pipeline job tracker. Shows jobs in stages (queued / building / iterating / deploying / done / error) with phase indicators (research → scaffold → visual-loop → deploy) and score. |
-| `/build-studio` | Terminal + live preview, accessed via Tailscale. Full Claude Code terminal embedded in the browser. |
-| `/build-zone` | Intake-to-build pipeline. Sites that have submitted the intake form but haven't been built yet appear here. |
-| `/batch` | Batch dispatch: trigger build or maintenance runs across multiple sites at once. Only shows active sites with a GitHub repo set. |
-| `/maintenance` | Maintenance hub: schedule or trigger maintenance runs on live sites. |
-| `/mods` | Pronto translation and SEO mod dispatcher. Select a site, pick a mod type, dispatch to the build machine. |
-| `/iterations` | Visual QA iteration log for medical demo sites. Shows each iteration's design params (palette, typography, identity), pass/fail, and screenshots. |
-| `/ship-ready` | Pre-ship checklist per site: SEO, security (CSO), CEO review, and client handoff. Links to Build Studio. |
-| `/monetization` | Revenue tracking across all site types. Shows monthly revenue by site category (climbing, auto repair, language SaaS, etc.). |
-| `/flow-boards` | User journey maps on a cork board canvas. Trace every step from landing page to paid subscriber. |
-| `/neural-map` | Agent ecosystem visualization — shows the ATLAS/TAC/Maxwell/COMMAND network. |
-| `/tetrad` | TETRAD war room: a multi-agent chat interface for strategic sessions. |
-| `/white-label` | White-label offer details and feature list for the auto repair / trades package. |
-| `/white-labels` | All white-label and product sites in the system, categorized. |
-| `/language-lens` | LinguaLens app analytics — session counts, feedback rates, error logs, scenario breakdowns. |
-| `/sitemap-visual` | Visual tree of all dashboard routes with descriptions. Good for orientation. |
-| `/help` | Help index: descriptions of every major section with navigation links. |
+| `/today` | The home screen. ATLAS state made ambient: staleness chip ("ATLAS live · synced Xm ago"), latest daily brief, NEED queue (top 10 by score), missions with gate/beauty/state pills, QA board strip, agent health tiles, tap queue, pending commands, unpaid invoices. Synced by the Bridge every ~5 min. |
+| `/portfolio` | The unified build registry (`properties` table, ~139 rows). Filter chips by kind (client-site / demo / saas / white-label-instance / content / internal / pro-bono) and lifecycle; search; QA state dot per row; MRR/mo column. |
+| `/portfolio/[slug]` | Property detail: all registry fields, inline MRR editor (pencil icon → saves via PATCH), blueprint link (loose-matched sites row), QA run history + Run QA button. |
+
+### Clients & Money
+
+| Route | What it does |
+|---|---|
+| `/clients`, `/clients/new`, `/clients/[id]` | Client records: contact info, status lifecycle (new → scoped → quoted → approved → in_progress → complete / declined), linked sites, milestones, invoices, requests. |
+| `/billing` | The Money view. Top strip: recurring revenue from `properties.mrr_cents` (honest "$0 tracked" empty state until registry rows carry MRR) with Portfolio link; then total invoiced / outstanding / paid this month / drafts; then the invoice list. |
+| `/billing/new`, `/billing/[id]` | Create invoice (line items by category, tax, due date); detail with mark-paid, client link, PDF. |
+| `/contacts` | Email subscriber list. Filterable by site, status, tags; export and bulk delete. |
+
+### Acquisition
+
+| Route | What it does |
+|---|---|
+| `/leads`, `/leads/pipeline` | Sales pipeline: New → Active → Engaged → Hot → Talking → Proposal → Won/Lost, touch tracking, deal value; pipeline board view. |
+| `/requests` | Inbound work requests (public `/request` funnel) with status, est. hours/cost, client + site links. |
+| `/submissions` | Blueprint requests from the public `/plan` form, with AI-generated starters. |
+| `/campaigns` | Email campaigns (broadcast/drip) across the language SaaS properties. |
+| `/marketing` | Campaign plans tracker (draft / active / completed / paused) per site. |
+| `/analytics` | GA4 view across registered sites; links each site's Config page to set `GA_PROPERTY_ID`. |
+
+### QA & Repair
+
+| Route | What it does |
+|---|---|
+| `/monitor` | Live uptime dashboard — pings every registered site, latency + HTTP status, auto-refresh. |
+| `/maintenance` | Maintenance hub: schedule or trigger maintenance runs. |
+| `/audits` | Saved site audit results (SEO / security / performance). |
+| `/ship-ready`, `/ship-ready/[siteKey]` | Pre-ship checklist per site: SEO, CSO, CEO review, handoff. |
+
+### Vault & Blueprint
+
+| Route | What it does |
+|---|---|
+| `/vault` (+`/vault/add`, `/vault/edit`) | AES-256-GCM encrypted credential store. |
+| `/sites`, `/sites/new`, `/sites/[id]` | Registered client sites + blueprint canvas. Per-site subpages: `blueprint`, `build` (+`/progress`), `portal`, `costs`, `time`, `milestones`, `config` (GA + key/value config), `edit` (metadata). The old per-site CMS page is retired. White-label quick card now points at `/portfolio?kind=white-label-instance`. |
+| `/build-studio` | Embedded terminal + live preview (Tailscale). |
+| `/builds` | Build pipeline job tracker for `/plan`-funnel jobs (queued → building → iterating → deploying → done/error). |
+| `/build-zone` | Intake-to-build: sites with intake submitted but not yet built. |
+
+### Retired (2026-07-05 — in `app/_retired/`, 404 live)
+
+marketing-command, marketing-push, flow-boards, sitemap-visual, configurator,
+tetrad, neural-map, `/invoices` (use `/billing`), mods, batch, iterations,
+build-offer, white-label, white-labels (+builder), language-lens (its `lt_*`
+tables don't exist in this database), overview-legacy (the pre-Today home),
+help, monetization (+earnings — MRR now lives on `/billing`), sites/[id]/cms.
 
 ---
 

@@ -36,6 +36,13 @@ export function needTypeColor(type: string | null | undefined): string {
   return NEED_TYPE_COLORS[(type ?? '').toUpperCase()] ?? '#64748b'
 }
 
+// Beauty / mission score → threshold color: ≥7.5 pass green, 6.5–7.4 amber, <6.5 red.
+export function beautyColor(score: number): string {
+  if (score >= 7.5) return '#34d399'
+  if (score >= 6.5) return '#fbbf24'
+  return '#f87171'
+}
+
 // QA board state → { color, solid } (none = red outline, down = red solid)
 export function qaStateStyle(state: string | null | undefined): { color: string; solid: boolean } {
   switch ((state ?? '').toLowerCase()) {
