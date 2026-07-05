@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { signToken, COOKIE } from '@/lib/adminAuth'
+import { verifyAdminPassword } from '@/lib/adminPassword'
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? ''
+export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   const { password } = await req.json()
-  if (!ADMIN_PASSWORD || password !== ADMIN_PASSWORD) {
+  if (typeof password !== 'string' || !(await verifyAdminPassword(password))) {
     return NextResponse.json({ error: 'Invalid password' }, { status: 401 })
   }
   const token = signToken('wb_admin')

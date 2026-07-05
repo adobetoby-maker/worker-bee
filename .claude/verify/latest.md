@@ -1,20 +1,16 @@
-# Verify — feature/auth-middleware (Phase 0 security lockdown)
-Date: 2026-07-05 · Mission type: code change (no visual surface touched)
-Change: default-deny middleware.ts + edge cookie validator + CRON_SECRET cron guards + migration hygiene
+# Verify — feature/login-upgrade (2026-07-05)
 
-| Spec item | Observed | Result |
+| Spec item            | Observed                                                                 | Result |
 |---|---|---|
-| tsc --noEmit | 24 errors — byte-identical to clean main baseline; 0 new from this change | PASS |
-| npm run build | exit 0, middleware registered in build output | PASS |
-| Protected page anon | local `next start`: /sites → 307 /login | PASS |
-| Protected API anon | /api/clients → 401 JSON; 200 after real login cookie; tampered cookie rejected | PASS |
-| Public funnels anon | /evaluate, /plan → 200; traced funnel APIs reachable | PASS |
-| Token portals | /invoice/[token] works; /api/invoice-pdf now requires ?token= or admin cookie | PASS |
-| Cron guard | /api/cron/* without bearer → 401 (fail-closed); CRON_SECRET set in Vercel prod | PASS |
-| Visual change | none — middleware + API + migrations only; no .tsx/.css layout files touched | WAIVED (code-change proof table applies: tsc + curl) |
-| Outside input | Opus adversarial review: BYPASS FOUND — empty `?token=` IDOR on /api/invoice-pdf (middleware `.has()` vs route `tokenParam &&` disagreement). Fixed both layers same turn; live probe now 401 (was reaching route). Also flagged: wb-run keyless+CORS*, build-status/list negative-match, funnel-write rate limits, matcher extension exclusion — queued for key-rotation pass. | PASS |
-| IDOR re-verify | live: /api/invoice-pdf/<uuid>?token= → 401; /sites anon → 307; /api/clients anon → 401; stale explicit alias removed — domain now follows production wildcard | PASS |
-| Viewport coverage | WAIVED: middleware.ts + API route auth logic only — responses are 401 JSON / 307 redirects / PDF bytes; zero layout, CSS, or component files changed. Behavior proof is the curl matrix above (anon vs cookie vs token), which pixels cannot show. | PASS |
+| Layout / spacing     | Login card centered; eye toggle sits inside input right edge; Forgot link centered under Sign in; reset page mirrors login card | PASS |
+| Colors / contrast    | Dark surface card on near-black bg, white headings, indigo CTA, muted gray labels — matches existing dashboard vars | PASS |
+| Typography           | Same font stack, uppercase tracking-wider labels, bold white h1 as pre-existing login | PASS |
+| Mobile (375px)       | Login renders fully in viewport, no overflow, input/CTA full width | PASS |
+| Animations / motion  | Only 150-300ms color transitions on hover/toggle; reveal toggle flips input type password→text (verified via Playwright: type="text" after click, EyeOff icon shown) | PASS |
+| Reset invalid token  | Shows "This reset link is invalid or has expired" + Back to sign in | PASS |
+| Reset valid token    | Two password fields with independent reveal toggles, min-12 hint, auto-login CTA | PASS |
+| Google button        | Hidden — NEXT_PUBLIC_GOOGLE_CLIENT_ID unset (credential-gated by design) | PASS |
 
-Post-deploy gate (run against live after promote): manage.worker-bee.app → 200; /sites anon → 307 to /login; /api/clients anon → 401; /evaluate → 200; login flow with ADMIN_PASSWORD → dashboard loads.
-Previous visual verify preserved at .claude/verify/history/2026-07-02-invoice-portal.md.
+Viewports beyond 1440/375 waived: auth-only card layout, no wide-layout surface.
+Screenshots: scratchpad login-1440.png, login-375.png, reset-1440.png, reset-valid-1440.png
+API curls: login 401/200+cookie, reset-confirm forged 401 / expired 401 / short-pw 400, google-no-env 404, reset-request 200 (Resend id 55f71fa3-6a97-41fd-9d00-05a1eb3d7572) then 429.

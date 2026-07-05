@@ -18,13 +18,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ADMIN_COOKIE, verifyAdminTokenEdge } from '@/lib/adminAuthEdge'
 
 // ── Public pages ────────────────────────────────────────────────────────────
-// '/'          — marketing landing (app/page.tsx), no data
-// '/login'     — admin login form
-// '/plan'      — public blueprint/plan wizard funnel
-// '/evaluate'  — public site-evaluation funnel
-// '/request'   — public maintenance-request funnel
-// '/pipeline'  — public blueprint pipeline funnel
-const PUBLIC_PAGES = new Set(['/', '/login', '/plan', '/evaluate', '/request', '/pipeline'])
+// '/'               — marketing landing (app/page.tsx), no data
+// '/login'          — admin login form
+// '/reset-password' — password reset landing (token-gated server-side in reset-confirm)
+// '/plan'           — public blueprint/plan wizard funnel
+// '/evaluate'       — public site-evaluation funnel
+// '/request'        — public maintenance-request funnel
+// '/pipeline'       — public blueprint pipeline funnel
+const PUBLIC_PAGES = new Set(['/', '/login', '/reset-password', '/plan', '/evaluate', '/request', '/pipeline'])
 
 // '/client/<token>'  — tokenized client portal (server-side token lookup)
 // '/invoice/<token>' — tokenized public invoice view (server-side token lookup)
@@ -33,8 +34,11 @@ const PUBLIC_PAGE_PREFIXES = ['/client/', '/invoice/']
 // ── Public APIs ─────────────────────────────────────────────────────────────
 const PUBLIC_API_EXACT = new Set([
   // auth
-  '/api/auth/login',   // sets the admin cookie
-  '/api/auth/logout',  // clears the admin cookie
+  '/api/auth/login',          // sets the admin cookie
+  '/api/auth/logout',         // clears the admin cookie
+  '/api/auth/reset-request',  // emails reset link to hardcoded operator; 60s rate limit
+  '/api/auth/reset-confirm',  // HMAC reset token verified in-route; sets the admin cookie
+  '/api/auth/google',         // Google ID token verified in-route; sets the admin cookie
 
   // called by public /evaluate funnel (app/evaluate/page.tsx)
   '/api/site-audit',
