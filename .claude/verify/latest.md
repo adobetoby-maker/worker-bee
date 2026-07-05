@@ -10,6 +10,7 @@
 | Reset invalid token  | Shows "This reset link is invalid or has expired" + Back to sign in | PASS |
 | Reset valid token    | Two password fields with independent reveal toggles, min-12 hint, auto-login CTA | PASS |
 | Google button        | Hidden — NEXT_PUBLIC_GOOGLE_CLIENT_ID unset (credential-gated by design) | PASS |
+| Outside input        | Opus critique: "clean, disciplined dark auth flow, 90% shippable" — flagged plaintext-by-default password as a defect; investigated: both reveal toggles default to useState(false) (masked), the screenshot was post-toggle from functional testing. Real takeaway adopted: primary-button label contrast → Phase 5 polish list. | PASS |
 
 Viewports beyond 1440/375 waived: auth-only card layout, no wide-layout surface.
 Screenshots: scratchpad login-1440.png, login-375.png, reset-1440.png, reset-valid-1440.png
