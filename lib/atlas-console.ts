@@ -85,6 +85,43 @@ export type Property = {
   updated_at: string | null
 }
 
+// atlas_commands row — the command path DOWN (console → Bridge → ATLAS queues)
+export type CommandRow = {
+  id: string
+  type: string | null
+  payload: Record<string, unknown> | null
+  status: string | null
+  requested_by: string | null
+  created_at: string | null
+  dispatched_at: string | null
+  completed_at: string | null
+  result: Record<string, unknown> | null
+}
+
+// Command status → chip color. pending amber, dispatched blue,
+// completed green, rejected red; tap-flow extras map to the same family.
+export const COMMAND_STATUS_COLORS: Record<string, string> = {
+  pending: '#fbbf24',
+  pending_operator: '#fbbf24',
+  dispatched: '#60a5fa',
+  approved_by_operator: '#2dd4bf',
+  completed: '#34d399',
+  done: '#34d399',
+  rejected: '#f87171',
+  failed: '#f87171',
+}
+
+export function commandStatusColor(status: string | null | undefined): string {
+  return COMMAND_STATUS_COLORS[(status ?? '').toLowerCase()] ?? '#64748b'
+}
+
+export function commandSummary(c: CommandRow): string {
+  const p = c.payload ?? {}
+  const s = p.summary ?? p.text ?? p.title ?? p.prospect ?? p.slug
+  if (typeof s === 'string' && s.trim()) return s
+  return JSON.stringify(p).slice(0, 80)
+}
+
 export type QaRow = {
   slug: string
   url: string | null

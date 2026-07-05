@@ -7,11 +7,14 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase'
 import { formatCents, getInvoiceStatusColor } from '@/lib/billing'
-import { relTime, minutesSince, needTypeColor, qaStateStyle, qaLatestInfo, type QaRow } from '@/lib/atlas-console'
+import { relTime, minutesSince, needTypeColor, qaStateStyle, qaLatestInfo, type QaRow, type CommandRow } from '@/lib/atlas-console'
 import {
-  Radio, FileText, ListTodo, Rocket, ShieldCheck, Activity, Terminal,
+  Radio, FileText, ListTodo, Rocket, ShieldCheck, Activity,
   DollarSign, ExternalLink, CircleCheck, CircleAlert,
 } from 'lucide-react'
+import PendingCommands from './PendingCommands'
+import TapQueue from './TapQueue'
+import RunQaButton from './RunQaButton'
 
 export const metadata = { title: 'Today — Worker-Bee' }
 
@@ -26,11 +29,6 @@ type MissionRow = {
   id: string; name: string | null; payload: any; gate_pass: boolean | null
   beauty: number | null; quality: string | null; state: string | null; synced_at: string | null
 }
-type CommandRow = {
-  id: string; type: string | null; payload: any; status: string | null
-  requested_by: string | null; created_at: string | null
-}
-
 async function getData() {
   const [health, briefs, needs, missions, qa, commands, invoices] = await Promise.all([
     db.from('atlas_health').select('*'),
@@ -38,7 +36,7 @@ async function getData() {
     db.from('atlas_needs').select('*'),
     db.from('atlas_missions').select('*').order('synced_at', { ascending: false }),
     db.from('atlas_qa').select('*').order('slug'),
-    db.from('atlas_commands').select('*').in('status', ['pending', 'dispatched']).order('created_at', { ascending: false }),
+    db.from('atlas_commands').select('*').order('created_at', { ascending: false }).limit(50),
     db.from('invoices').select('id, invoice_number, status, total_cents, due_date, sites ( name )').in('status', ['sent', 'overdue']).order('due_date', { ascending: true }),
   ])
   return {
@@ -102,6 +100,12 @@ export default async function TodayPage() {
       return (b.priority_score ?? -1) - (a.priority_score ?? -1)
     })
     .slice(0, 10)
+
+  // ── Command path: approve-tap rows get their own Tap queue section;
+  //    everything else renders in Pending commands (client, optimistic) ──
+  const tapStatuses = new Set(['pending', 'pending_operator', 'approved_by_operator', 'dispatched'])
+  const taps = commands.filter(c => c.type === 'approve-tap' && tapStatuses.has(c.status ?? ''))
+  const otherCommands = commands.filter(c => c.type !== 'approve-tap')
 
   // ── Agent health: agent-status payload + bridge heartbeat ──
   const agentStatus = health.find(h => h.key === 'agent-status')?.value ?? null
@@ -230,8 +234,8 @@ export default async function TodayPage() {
             const s = qaStateStyle(q.state)
             const info = qaLatestInfo(q.latest as any)
             const href = q.url ? `${q.url.replace(/\/$/, '')}/qa-status.json` : null
-            const inner = (
-              <div className="card card-glow rounded-lg px-3 py-2.5 flex items-center gap-2.5 transition-all h-full">
+            return (
+              <div key={q.slug} className="card card-glow rounded-lg px-3 py-2.5 flex items-center gap-2.5 transition-all h-full">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={s.solid
                     ? { background: s.color }
@@ -244,13 +248,16 @@ export default async function TodayPage() {
                     {info.ts ? ` · ${relTime(info.ts)}` : ''}
                   </div>
                 </div>
-                {href && <ExternalLink size={10} className="shrink-0" style={{ color: 'var(--muted)' }} />}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <RunQaButton slug={q.slug} compact />
+                  {href && (
+                    <a href={href} target="_blank" rel="noopener noreferrer" title="qa-status.json"
+                      className="inline-flex p-1 rounded transition-colors hover:bg-white/10">
+                      <ExternalLink size={10} style={{ color: 'var(--muted)' }} />
+                    </a>
+                  )}
+                </div>
               </div>
-            )
-            return href ? (
-              <a key={q.slug} href={href} target="_blank" rel="noopener noreferrer" className="no-underline">{inner}</a>
-            ) : (
-              <div key={q.slug}>{inner}</div>
             )
           })}
         </div>
@@ -292,40 +299,11 @@ export default async function TodayPage() {
         </div>
       )}
 
-      {/* ── Pending commands (taps) — read-only until Phase 3 ── */}
-      <SectionHeader icon={Terminal} label="Pending commands" count={commands.length} />
-      {commands.length === 0 ? (
-        <EmptyState text="No pending commands — nothing awaiting a tap." />
-      ) : (
-        <div className="card rounded-xl overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-left" style={{ color: 'var(--muted)' }}>
-                <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-[10px]">Type</th>
-                <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-[10px]">Payload</th>
-                <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-[10px]">Status</th>
-                <th className="px-4 py-2.5 font-semibold uppercase tracking-wider text-[10px]">Requested</th>
-              </tr>
-            </thead>
-            <tbody>
-              {commands.map(c => (
-                <tr key={c.id} className="border-t" style={{ borderColor: 'var(--border)' }}>
-                  <td className="px-4 py-2.5 font-mono text-white whitespace-nowrap">{c.type ?? '—'}</td>
-                  <td className="px-4 py-2.5 max-w-xs truncate" style={{ color: 'var(--muted-light)' }}>
-                    {c.payload?.summary ?? JSON.stringify(c.payload ?? {}).slice(0, 80)}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <Pill label={c.status ?? '—'} color={c.status === 'pending' ? '#fbbf24' : '#60a5fa'} />
-                  </td>
-                  <td className="px-4 py-2.5 whitespace-nowrap" style={{ color: 'var(--muted)' }}>
-                    {relTime(c.created_at)}{c.requested_by ? ` · ${c.requested_by}` : ''}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* ── Tap queue — approve-tap packages awaiting Toby (Phase 3) ── */}
+      <TapQueue initial={taps} />
+
+      {/* ── Pending commands — command path DOWN, live chips + queue form (Phase 3) ── */}
+      <PendingCommands initial={otherCommands} />
 
       {/* ── Unpaid invoices ── */}
       <SectionHeader icon={DollarSign} label="Unpaid invoices" count={invoices.length} />

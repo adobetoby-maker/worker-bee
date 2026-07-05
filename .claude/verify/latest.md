@@ -27,3 +27,33 @@ Known quirk (pre-existing, flagged for parent): `app/page.tsx` (public landing) 
 beauty_score: 7.6
 | 2560 (4K) | Read /tmp/console-vp2560-{today,portfolio}.png (authed, local prod build): sidebar + full section stack render intact — brief block, 30-item NEED queue with color chips, missions with gate pills, Portfolio 139-property table with kind/stage badges and QA dots; no overlap, no clipping. Content column holds max-width, leaving dead right margin at this width — cosmetic, queued to Phase 5 polish (same fix as andertongroup 2xl widening). | PASS |
 | 5K 2560@2x | Read /tmp/console-vp5K-{today,portfolio}.png: proportionally identical to 2560, text crisp at 2x scale, no rendering artifacts. Same dead-margin note applies. | PASS |
+
+---
+
+# Verify — Command Path (Phase 3) — feature/command-path — 2026-07-05
+
+Build: feature/command-path · production build (`next start -p 3111`) against the REAL manage Supabase (live Bridge data).
+Screenshots: `.claude/verify/shots/today-command-path-{1440,375,375-bottom}.png` + `tap-queue-approve-1440.png` — all Read and described from pixels. Static server-rendered dashboard (no animation/scroll sections added) → static captures sufficient per protocol exception; interactions verified live in-browser (Run QA click → QUEUED state, APPROVE click → approved_by_operator).
+
+| Spec item            | Observed                                                                                      | Result |
+|---|---|---|
+| Scale                | New controls match existing density: compact RUN QA pills (9px caps) inside QA tiles, 11px Queue-for-ATLAS button, chip sizing identical to Phase 1/2 pills at 1440 and 375 | PASS |
+| Vision               | Command path reads as "enqueue, never execute": buttons produce pending rows in a visible queue with live status chips; Tap queue isolates the one human decision (APPROVE) from machine traffic | PASS |
+| Correctness          | Live round-trip observed end-to-end: RUN QA click on manage tile → button flips to disabled green QUEUED → atlas_commands row (run-qa, pending, {slug: manage}, requested_by console) → bridge run → NEED in queue.md + needs.jsonl → chip DISPATCHED blue on reload; APPROVE click → PENDING_OPERATOR amber → approved_by_operator → bridge → ACQUISITION NEED + chip progression | PASS |
+| Relationship         | Tap queue and Pending commands split the same table by type (approve-tap vs rest) — no row appears twice; QA tile buttons and Portfolio detail button POST the same route with qa_slug fallback | PASS |
+| Scope                | Only Phase-3 files: api/atlas/commands/route.ts (new), PendingCommands/TapQueue/RunQaButton (new), page.tsx sections swapped, portfolio/[slug] one button, atlas-console.ts helpers appended. Nothing else touched | PASS |
+| Fit                  | Same tokens: var(--surface2)/var(--border) form controls, indigo action color, CAPS hairline section headers, `${color}18` bg + `${color}33` border chip recipe reused verbatim | PASS |
+| Style                | No banned patterns: lucide SVG only (Terminal, Fingerprint, PlayCircle, Check), no purple glow, no emoji, status palette amber/blue/green/red + teal for approved_by_operator | PASS |
+| Direction            | Sets up receipts-back-up loop: dispatched rows carry result.queued_as linking to the ATLAS NEED id; completed/rejected chips already render for when receipts close the loop | PASS |
+| Layout / spacing     | 1440 full-page: QA grid 4-col, tile contents on one row without wrap; Tap queue row (prospect + chip + APPROVE) aligned; Pending commands table columns aligned | PASS |
+| Colors / contrast    | Chips read clearly on dark cards: PENDING amber, DISPATCHED blue, COMPLETED green, PENDING_OPERATOR amber, APPROVE emerald — all at the pill-standard contrast used elsewhere | PASS |
+| Typography           | Command type in mono (matches Phase 1 table), payload truncated with max-w-xs, tabular-nums counts | PASS |
+| Mobile (375px)       | QA tiles 2-col with compact RUN QA + external icon, no overflow; Tap queue empty state full-width; Pending commands table scrolls inside its own overflow-x container (visible scrollbar, no page x-scroll); Queue-for-ATLAS button clears the section header | PASS |
+| Animations / motion  | n/a — no animation added; button state changes are instant text/color swaps. Static-capture exception applies (stated above) | PASS (n/a) |
+| Footer               | 375-bottom capture shows final sections + legacy-link footer line inside the inner scroll container — bottom reached | PASS |
+| Outside input (Opus) | "Outside input (Opus): 7.5/10 — coherent, on-brand command layer that reads correctly on desktop; docked for an unverifiable APPROVE/PENDING_OPERATOR state and two real mobile layout breaks (Pending-Commands table overflow at 375, orphaned bridge card in Agent-Health grid)." Response: (1) APPROVE/PENDING_OPERATOR state re-captured after the review — tap-queue-approve-1440.png now shows the populated row (amber PENDING_OPERATOR chip + emerald APPROVE), and the click was verified against the DB (approved_by_operator, result.approved_via=console); (2) 375 table overflow is the deliberate overflow-x-auto pattern this file already PASSed for Phases 1+2 (scrolls inside container, no page x-scroll); (3) orphaned bridge card is pre-existing Phase-1 layout, queued to Phase-5 polish. Nitpicks logged, none blocking | PASS |
+
+Gates: tsc 26 errors (baseline 26, zero new — none in touched files) · `npm run build` ✓ Compiled successfully · /api/atlas/commands 401 unauthenticated, GET/POST/PATCH working with admin cookie (defense-in-depth hasAdminSession in-route) · invalid type → 400 with explicit message · bridge round-trip proven for run-qa, approve-tap (both directions) and unknown-type rejection · all test artifacts cleaned (queue.md/needs.jsonl/taps.jsonl restored to pre-test state, test command rows marked completed).
+
+beauty_score: 7.5
+Known quirks carried: '/' shadowing (Phase 5), dead right margin ≥2560 (Phase 5). New nitpick queued: bridge-card orphan row in Agent-Health at 375 (Phase 5 polish). Harness note: eyes-precheck port resolution NEED (fires on :3000 Quillion instead of the project under edit) already filed at 15:41.

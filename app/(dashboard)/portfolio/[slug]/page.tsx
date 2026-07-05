@@ -8,6 +8,7 @@ import { notFound } from 'next/navigation'
 import { supabaseAdmin } from '@/lib/supabase'
 import { KIND_COLORS, LIFECYCLE_COLORS, qaStateStyle, qaLatestInfo, relTime, type Property, type QaRow } from '@/lib/atlas-console'
 import { ArrowLeft, ExternalLink, GitBranch, Map, ShieldCheck } from 'lucide-react'
+import RunQaButton from '../../RunQaButton'
 
 const db = supabaseAdmin as any
 
@@ -131,6 +132,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         <ShieldCheck size={13} style={{ color: 'var(--muted)' }} />
         <h2 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>QA runs</h2>
         <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+        <RunQaButton slug={p.qa_slug ?? p.slug} />
       </div>
       {qa && qs ? (
         <div className="card rounded-xl p-4">
