@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { marketingAuth } from '@/lib/apiKeyAuth'
 import { supabaseAdmin } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseAdmin as any
-const API_KEY = '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747'
 
 // POST /api/marketing/tasks/[id]/approve
 // Marks task as approved and triggers publish via campaign publish endpoint
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const apiKey = req.headers.get('x-api-key')
-  if (apiKey !== API_KEY) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  if (!marketingAuth(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const { id } = await params
   const body = await req.json()
@@ -56,7 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://manage.worker-bee.app'
     fetch(`${baseUrl}/api/marketing/campaigns/${task.campaign_id}/publish`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.MARKETING_API_KEY ?? '' },
       body: JSON.stringify(publishPayload),
     }).catch(() => {})
   }

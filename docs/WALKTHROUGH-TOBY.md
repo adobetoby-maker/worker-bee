@@ -75,7 +75,7 @@ Rule: always spread existing branches when writing a new one — never overwrite
 ### Pushing a Blueprint Update (from Claude Code)
 ```bash
 curl -s -X POST https://manage.worker-bee.app/api/blueprints/update \
-  -H "x-api-key: 9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747" \
+  -H "x-api-key: $(grep '^BLUEPRINT_API_KEY=' ~/.claude/api-keys.env | cut -d= -f2)" \
   -H "content-type: application/json" \
   -d '{"siteId": "<UUID>", "nodes": [...], "edges": [...], "summary": "..."}'
 ```

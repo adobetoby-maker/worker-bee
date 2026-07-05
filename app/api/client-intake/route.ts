@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rateLimit'
 import { supabaseAdmin } from '@/lib/supabase'
 
 const db = supabaseAdmin as any
@@ -41,6 +42,9 @@ export async function GET(req: NextRequest) {
 
 // ── POST — receive intake form submission ────────────────────────────────────
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, 'client-intake', 5)
+  if (limited) return limited
+
   const token = req.nextUrl.searchParams.get('token')
   if (!token) return NextResponse.json({ error: 'token required' }, { status: 400 })
 

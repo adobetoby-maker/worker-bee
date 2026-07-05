@@ -50,7 +50,6 @@ interface Campaign {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const API_KEY = '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747'
 
 const APPROVAL_META: Record<ApprovalStatus, {
   label: string; color: string; bg: string; border: string; icon: React.ReactNode
@@ -128,7 +127,7 @@ export default function CampaignReviewPage() {
     setLoading(true)
     try {
       const res = await fetch(`/api/marketing/campaigns/${campaignId}`, {
-        headers: { 'x-api-key': API_KEY },
+        headers: {},
       })
       if (res.ok) {
         const d = await res.json()
@@ -164,7 +163,7 @@ export default function CampaignReviewPage() {
       if (action === 'approve' && selectedTask) {
         await fetch(`/api/marketing/tasks/${taskId}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             content_brief: {
               ...(selectedTask.content_brief ?? {}),
@@ -179,7 +178,7 @@ export default function CampaignReviewPage() {
 
       const res = await fetch(`/api/marketing/tasks/${taskId}/approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
       if (res.ok) {
@@ -207,7 +206,7 @@ export default function CampaignReviewPage() {
     for (const t of pending) {
       await fetch(`/api/marketing/tasks/${t.id}/approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'approve' }),
       })
     }
@@ -223,7 +222,7 @@ export default function CampaignReviewPage() {
     try {
       const res = await fetch(`/api/marketing/campaigns/${campaignId}/tasks`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           platform:   addForm.platform,
           copy:       addForm.copy.trim(),

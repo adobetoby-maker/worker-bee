@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { marketingAuth } from '@/lib/apiKeyAuth'
 import { supabaseAdmin } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseAdmin as any
 
-const API_KEY = process.env.INTERNAL_API_KEY ?? '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747'
 
 // Channels with their automation levels — must stay in sync with the UI CHANNELS array
 const CHANNEL_META: Record<string, { name: string; automation: 'full' | 'partial' | 'manual' }> = {
@@ -120,8 +120,7 @@ async function submitManta(siteName: string, siteUrl: string, body: string): Pro
 }
 
 export async function POST(req: NextRequest) {
-  const key = req.headers.get('x-api-key')
-  if (key !== API_KEY) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!marketingAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
   const { sites, channels, niche, campaignName, triggerType = 'manual' } = body as {

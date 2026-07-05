@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 const PRONTO_URL = 'https://pronto-en.worker-bee.app/api/translate'
 const BUILD_API_URL = 'https://build-api.worker-bee.app/run'
 const BUILD_API_KEY = 'wb-build-local-9f4a2c'
-const BLUEPRINT_API_KEY = '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747'
+const BLUEPRINT_API_KEY = "$(grep '^BLUEPRINT_API_KEY=' ~/.claude/api-keys.env | cut -d= -f2)"
 
 function buildTranslateSpec(site: { id: string; name: string; github_repo: string | null }, langs: string[], tone: string, prontoKey: string): string {
   const langList = langs.join(', ')

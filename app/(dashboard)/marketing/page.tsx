@@ -31,7 +31,6 @@ interface Campaign {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const API_KEY = '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747'
 
 const STATUS_META: Record<CampaignStatus, {
   label: string; color: string; bg: string; border: string; icon: React.ReactNode
@@ -87,7 +86,7 @@ export default function MarketingCampaignsPage() {
     try {
       const params = filter !== 'all' ? `?status=${filter}` : ''
       const res = await fetch(`/api/marketing/campaigns${params}`, {
-        headers: { 'x-api-key': API_KEY },
+        headers: {},
       })
       if (res.ok) {
         const data = await res.json()

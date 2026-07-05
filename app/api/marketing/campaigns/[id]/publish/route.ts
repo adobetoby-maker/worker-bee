@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { marketingAuth } from '@/lib/apiKeyAuth'
 import { supabaseAdmin } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseAdmin as any
-const API_KEY = '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747'
 
 // Platform → tier mapping
 const PLATFORM_TIER: Record<string, string> = {
@@ -17,8 +17,7 @@ const PLATFORM_TIER: Record<string, string> = {
 // POST /api/marketing/campaigns/[id]/publish
 // Body: { task_id, platform, copy, asset_url, scheduled_at? }
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const apiKey = req.headers.get('x-api-key')
-  if (apiKey !== API_KEY) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  if (!marketingAuth(req)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const { id: campaignId } = await params
   const body = await req.json()

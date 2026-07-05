@@ -132,7 +132,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? 'https://manage.worker-bee.app'}/api/marketing/launch-campaign`, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747' },
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.MARKETING_API_KEY ?? '' },
       body: JSON.stringify({
         campaignName: `${siteName} — Email 1 auto-launch`,
         triggerType:  'email_send',

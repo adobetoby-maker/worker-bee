@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { blueprintAuth } from '@/lib/apiKeyAuth'
 import { supabaseAdmin } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // Large sends can take a while
 
-const API_KEY = '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747'
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? 're_7yAskh9s_B5fERdUz4C4CGS7JoytQQ8DW'
 
-function requireApiKey(req: NextRequest): boolean {
-  return req.headers.get('x-api-key') === API_KEY
-}
+const requireApiKey = blueprintAuth
 
 function interpolate(html: string, contact: { name?: string | null; email: string }): string {
   return html

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rateLimit'
 import { supabaseAdmin } from '@/lib/supabase'
 
 const CORS = {
@@ -12,6 +13,9 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, 'bp-submit', 5)
+  if (limited) return limited
+
   try {
     const body = await req.json()
 

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { blueprintAuth } from '@/lib/apiKeyAuth'
 import { supabaseAdmin } from '@/lib/supabase'
 
 const RESEND_KEY = process.env.RESEND_API_KEY ?? 're_7yAskh9s_B5fERdUz4C4CGS7JoytQQ8DW'
-const API_KEY = '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747'
 const FROM = 'Toby Anderton <hello@andertongroup.com>'
 const REPLY_TO = 'max.c.anderton@gmail.com'
 
@@ -32,7 +32,7 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
-  if (req.headers.get('x-api-key') !== API_KEY) {
+  if (!blueprintAuth(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: cors() })
   }
 

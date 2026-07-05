@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rateLimit'
 import { getBlueprint, saveBlueprint } from '@/lib/blueprintStore'
 
 // Internal route — no API key required (dashboard-only)
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, 'bp-import-audit', 5)
+  if (limited) return limited
+
   try {
     const { siteId, branchName, nodes, edges } = await req.json()
     if (!siteId || !branchName || !Array.isArray(nodes)) {

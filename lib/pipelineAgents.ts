@@ -101,7 +101,7 @@ ${ctx.referenceUrls.length > 0 ? `3. Screenshot each reference site for visual b
 ## Report back when done
 \`\`\`bash
 curl -s -X POST https://manage.worker-bee.app/api/build-log \\
-  -H "x-api-key: 9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747" \\
+  -H "x-api-key: $(grep '^BLUEPRINT_API_KEY=' ~/.claude/api-keys.env | cut -d= -f2)" \\
   -H "content-type: application/json" \\
   -d '{"siteId":"${ctx.siteId}","phase":"researcher","status":"done","artifacts":["${ctx.researchBriefPath}"]}'
 \`\`\`
@@ -169,7 +169,7 @@ Whitelist all image domains from the research brief in next.config.ts remotePatt
 ## Report back
 \`\`\`bash
 curl -s -X POST https://manage.worker-bee.app/api/build-log \\
-  -H "x-api-key: 9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747" \\
+  -H "x-api-key: $(grep '^BLUEPRINT_API_KEY=' ~/.claude/api-keys.env | cut -d= -f2)" \\
   -H "content-type: application/json" \\
   -d '{"siteId":"${ctx.siteId}","phase":"provisioner","status":"done","artifacts":["${ctx.localPath}","${ctx.githubRepo}"]}'
 \`\`\`
@@ -212,7 +212,7 @@ ${ctx.blueprintSummary}
 ## Report back
 \`\`\`bash
 curl -s -X POST https://manage.worker-bee.app/api/build-log \\
-  -H "x-api-key: 9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747" \\
+  -H "x-api-key: $(grep '^BLUEPRINT_API_KEY=' ~/.claude/api-keys.env | cut -d= -f2)" \\
   -H "content-type: application/json" \\
   -d '{"siteId":"${ctx.siteId}","phase":"builder","status":"done","artifacts":["${ctx.localPath}"]}'
 \`\`\`
@@ -264,7 +264,7 @@ git add . && git commit -m "fix: visual qa pass"
 ## Report back
 \`\`\`bash
 curl -s -X POST https://manage.worker-bee.app/api/build-log \\
-  -H "x-api-key: 9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747" \\
+  -H "x-api-key: $(grep '^BLUEPRINT_API_KEY=' ~/.claude/api-keys.env | cut -d= -f2)" \\
   -H "content-type: application/json" \\
   -d '{"siteId":"${ctx.siteId}","phase":"visual-qa","status":"done","artifacts":["/tmp/wb-qa-desktop.png","/tmp/wb-qa-mobile.png"]}'
 \`\`\`
@@ -304,7 +304,7 @@ git add . && git commit -m "feat: design elevation pass"
 ## Report back
 \`\`\`bash
 curl -s -X POST https://manage.worker-bee.app/api/build-log \\
-  -H "x-api-key: 9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747" \\
+  -H "x-api-key: $(grep '^BLUEPRINT_API_KEY=' ~/.claude/api-keys.env | cut -d= -f2)" \\
   -H "content-type: application/json" \\
   -d '{"siteId":"${ctx.siteId}","phase":"designer","status":"done"}'
 \`\`\`
@@ -361,7 +361,7 @@ Fix all issues. Commit: \`git add . && git commit -m "fix: conversion audit pass
 ## Report back
 \`\`\`bash
 curl -s -X POST https://manage.worker-bee.app/api/build-log \\
-  -H "x-api-key: 9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747" \\
+  -H "x-api-key: $(grep '^BLUEPRINT_API_KEY=' ~/.claude/api-keys.env | cut -d= -f2)" \\
   -H "content-type: application/json" \\
   -d '{"siteId":"${ctx.siteId}","phase":"qa-gate","status":"done"}'
 \`\`\`
@@ -407,13 +407,13 @@ curl -s -X POST "\${SUPABASE_URL}/auth/v1/admin/users" \\
 ## Report back
 \`\`\`bash
 curl -s -X POST https://manage.worker-bee.app/api/build-log \\
-  -H "x-api-key: 9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747" \\
+  -H "x-api-key: $(grep '^BLUEPRINT_API_KEY=' ~/.claude/api-keys.env | cut -d= -f2)" \\
   -H "content-type: application/json" \\
   -d '{"siteId":"${ctx.siteId}","phase":"deployer","status":"done","artifacts":["https://${ctx.domain}"]}'
 
 # Final blueprint update
 curl -s -X POST https://manage.worker-bee.app/api/blueprints/update \\
-  -H "x-api-key: 9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747" \\
+  -H "x-api-key: $(grep '^BLUEPRINT_API_KEY=' ~/.claude/api-keys.env | cut -d= -f2)" \\
   -H "content-type: application/json" \\
   -d '{"siteId":"${ctx.siteId}","summary":"All 7 pipeline agents complete. Live at https://${ctx.domain}.","nodes":[],"edges":[]}'
 \`\`\`

@@ -4,19 +4,22 @@ const supabaseAdmin = require('@/lib/supabase').supabaseAdmin as any
 
 export const dynamic = 'force-dynamic'
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, x-api-key',
-}
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: CORS })
+// Machine endpoint — every known caller is a script (gather.sh daily brief,
+// push-to-worker-bee skill). No browser callers, so CORS was dropped and
+// x-api-key === WB_RUN_API_KEY is enforced on BOTH methods. Fails CLOSED
+// when the env var is unset. Hardened 2026-07-05 (security review — this
+// route previously accepted anonymous reads AND writes).
+function auth(req: NextRequest): boolean {
+  const key = process.env.WB_RUN_API_KEY
+  const header = req.headers.get('x-api-key')
+  return Boolean(key && header && header === key)
 }
 
 // GET /api/wb-run?siteId=xxx          → last 10 runs for that site
 // GET /api/wb-run?all=1               → most recent run per site (for daily brief)
 export async function GET(req: NextRequest) {
+  if (!auth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { searchParams } = new URL(req.url)
   const siteId = searchParams.get('siteId')
   const all = searchParams.get('all') === '1'
@@ -39,10 +42,10 @@ export async function GET(req: NextRequest) {
       seen.add(r.site_id)
       return true
     })
-    return NextResponse.json({ runs: latest }, { headers: CORS })
+    return NextResponse.json({ runs: latest })
   }
 
-  if (!siteId) return NextResponse.json({ error: 'siteId required' }, { status: 400, headers: CORS })
+  if (!siteId) return NextResponse.json({ error: 'siteId required' }, { status: 400 })
 
   const { data, error } = await supabaseAdmin
     .from('wb_pipeline_runs')
@@ -51,12 +54,14 @@ export async function GET(req: NextRequest) {
     .order('run_at', { ascending: false })
     .limit(10)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: CORS })
-  return NextResponse.json({ runs: data ?? [] }, { headers: CORS })
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ runs: data ?? [] })
 }
 
-// POST /api/wb-run  — record a new run (called by wb-push.sh or Claude)
+// POST /api/wb-run  — record a new run (called by the push-to-worker-bee skill)
 export async function POST(req: NextRequest) {
+  if (!auth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const body = await req.json()
   const {
     site_id, triggered_by = 'claude', phases = {}, seo_score, cso_score,
@@ -76,6 +81,6 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: CORS })
-  return NextResponse.json({ run: data }, { status: 201, headers: CORS })
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ run: data }, { status: 201 })
 }

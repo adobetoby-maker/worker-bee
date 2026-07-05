@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { blueprintAuth } from '@/lib/apiKeyAuth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
-const API_KEY = '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747'
 const FAL_KEY = process.env.FAL_KEY
 const COMFY_URL = process.env.COMFY_URL ?? null
 
-function requireApiKey(req: NextRequest): boolean {
-  return req.headers.get('x-api-key') === API_KEY
-}
+const requireApiKey = blueprintAuth
 
 // POST /api/ai/image-gen
 export async function POST(req: NextRequest) {

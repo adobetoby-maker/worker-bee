@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rateLimit'
 import type { AuditCheck, AuditResult, GitHubSummary, CheckStatus } from '@/lib/types/audit'
 
 export const dynamic = 'force-dynamic'
@@ -596,6 +597,9 @@ function calcPerfScore(checks: AuditCheck[]): number {
 // ── Main handler ───────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, 'site-audit', 10)
+  if (limited) return limited
+
   const fetchedAt = new Date().toISOString()
 
   let body: { url?: string; githubRepo?: string }

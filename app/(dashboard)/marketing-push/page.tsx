@@ -22,7 +22,6 @@ interface MarketingTask {
   updated_at: string
 }
 
-const API_KEY = '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747'
 
 const DROID_COLORS: Record<string, { color: string; bg: string; border: string; label: string }> = {
   'droid-prlog':      { color: '#34d399', bg: 'rgba(52,211,153,0.12)',  border: 'rgba(52,211,153,0.3)',  label: 'PRLog Agent'    },
@@ -381,7 +380,7 @@ export default function MarketingPushPage() {
   const loadTasks = useCallback(async () => {
     setTasksLoading(true)
     try {
-      const headers = { 'x-api-key': API_KEY }
+      const headers = {}
       const [completedRes, todoRes, couldDoRes] = await Promise.all([
         fetch('/api/marketing/tasks?type=completed&limit=20', { headers }),
         fetch('/api/marketing/tasks?type=todo&done=false', { headers }),
@@ -406,14 +405,14 @@ export default function MarketingPushPage() {
   }, [])
 
   const seedTasks = async () => {
-    const headers = { 'x-api-key': API_KEY, 'Content-Type': 'application/json' }
+    const headers = { 'Content-Type': 'application/json' }
     await Promise.all(SEED_TASKS.map(t =>
       fetch('/api/marketing/tasks', { method: 'POST', headers, body: JSON.stringify(t) })
     ))
     // Reload after seeding
     const [todoRes, couldDoRes] = await Promise.all([
-      fetch('/api/marketing/tasks?type=todo&done=false', { headers: { 'x-api-key': API_KEY } }),
-      fetch('/api/marketing/tasks?type=could_do',        { headers: { 'x-api-key': API_KEY } }),
+      fetch('/api/marketing/tasks?type=todo&done=false', { headers: {} }),
+      fetch('/api/marketing/tasks?type=could_do',        { headers: {} }),
     ])
     const [todoData, couldDoData] = await Promise.all([todoRes.json(), couldDoRes.json()])
     setTodoTasks(todoData.tasks ?? [])
@@ -425,7 +424,7 @@ export default function MarketingPushPage() {
   // Poll campaign status every 5s while active campaign is running
   const pollCampaignStatus = useCallback(async (campaignId: string) => {
     const res = await fetch(`/api/marketing/campaign-status?campaignId=${campaignId}`, {
-      headers: { 'x-api-key': API_KEY },
+      headers: {},
     })
     if (!res.ok) return
     const d = await res.json()
@@ -451,7 +450,7 @@ export default function MarketingPushPage() {
     try {
       const res = await fetch('/api/marketing/launch-campaign', {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           campaignName: `${launchNiche === 'all' ? 'All Sites' : NICHES[launchNiche]?.label ?? launchNiche} — ${new Date().toLocaleDateString('en-US')}`,
           niche:        launchNiche === 'all' ? undefined : launchNiche,
@@ -489,7 +488,7 @@ export default function MarketingPushPage() {
   const markJobDone = async (jobId: string) => {
     await fetch('/api/marketing/campaign-status', {
       method:  'PATCH',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jobId, status: 'done' }),
     })
     setCampaignJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: 'done' } : j))
@@ -511,7 +510,7 @@ export default function MarketingPushPage() {
     if (!text) return
     const res = await fetch('/api/marketing/tasks', {
       method: 'POST',
-      headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ droid_id: todoInputDroid, type: 'todo', text }),
     })
     if (res.ok) {
@@ -526,7 +525,7 @@ export default function MarketingPushPage() {
     if (!text) return
     const res = await fetch('/api/marketing/tasks', {
       method: 'POST',
-      headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ droid_id: ideaInputDroid, type: 'could_do', text }),
     })
     if (res.ok) {
@@ -539,7 +538,7 @@ export default function MarketingPushPage() {
   const markTodoDone = async (task: MarketingTask) => {
     const res = await fetch(`/api/marketing/tasks/${task.id}`, {
       method: 'PATCH',
-      headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ done: true }),
     })
     if (res.ok) {
@@ -548,7 +547,7 @@ export default function MarketingPushPage() {
       // Also log as completed entry
       const completedRes = await fetch('/api/marketing/tasks', {
         method: 'POST',
-        headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ droid_id: task.droid_id, type: 'completed', text: task.text, site: task.site ?? undefined, channel: task.channel ?? undefined }),
       })
       if (completedRes.ok) {
@@ -561,7 +560,7 @@ export default function MarketingPushPage() {
   const promoteToTodo = async (task: MarketingTask) => {
     const res = await fetch('/api/marketing/tasks', {
       method: 'POST',
-      headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ droid_id: task.droid_id, type: 'todo', text: task.text, site: task.site ?? undefined, channel: task.channel ?? undefined, promoted_from: 'could_do' }),
     })
     if (res.ok) {
@@ -570,7 +569,7 @@ export default function MarketingPushPage() {
       // Delete the could_do
       await fetch(`/api/marketing/tasks/${task.id}`, {
         method: 'DELETE',
-        headers: { 'x-api-key': API_KEY },
+        headers: {},
       })
       setCouldDoTasks(prev => prev.filter(t => t.id !== task.id))
     }
@@ -579,7 +578,7 @@ export default function MarketingPushPage() {
   const dismissIdea = async (task: MarketingTask) => {
     await fetch(`/api/marketing/tasks/${task.id}`, {
       method: 'DELETE',
-      headers: { 'x-api-key': API_KEY },
+      headers: {},
     })
     setCouldDoTasks(prev => prev.filter(t => t.id !== task.id))
   }

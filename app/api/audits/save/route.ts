@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rateLimit'
 import { supabaseAdmin } from '@/lib/supabase'
 import type { AuditSavePayload, AuditSaveResponse } from '@/lib/types/audit'
 
@@ -14,6 +15,9 @@ function slugify(url: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, 'audits-save', 5)
+  if (limited) return limited
+
   let body: AuditSavePayload
   try {
     body = await req.json() as AuditSavePayload

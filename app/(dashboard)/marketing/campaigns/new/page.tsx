@@ -37,7 +37,6 @@ type ToneOption = {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const API_KEY = '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747'
 
 const PLATFORMS: Platform[] = [
   { id: 'facebook',  label: 'Facebook',  emoji: '📘', tier: 'Zapier',     tierColor: '#60a5fa' },
@@ -189,7 +188,7 @@ export default function NewCampaignPage() {
     try {
       const res = await fetch('/api/marketing/campaigns', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           site_id:       form.siteId,
           name:          form.campaignName.trim(),

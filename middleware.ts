@@ -62,7 +62,7 @@ const PUBLIC_API_EXACT = new Set([
   // machine endpoints that enforce their own x-api-key (verified in code)
   '/api/blueprints/update', // checks x-api-key === BLUEPRINT_API_KEY
 
-  // machine endpoint — WARNING: wb-run does NOT check any key (see commit msg)
+  // machine endpoint — enforces x-api-key === WB_RUN_API_KEY in-route (GET+POST)
   '/api/wb-run',
 
   // inbound webhook — route checks svix-signature header presence
@@ -70,7 +70,7 @@ const PUBLIC_API_EXACT = new Set([
 ])
 
 const PUBLIC_API_PREFIXES = [
-  '/api/marketing/', // every marketing route enforces x-api-key itself (verified all 11)
+  '/api/marketing/', // every marketing route enforces MARKETING_API_KEY or admin session in-route (lib/apiKeyAuth.marketingAuth)
   '/api/cron/',      // routes now enforce Authorization: Bearer CRON_SECRET themselves
 ]
 
@@ -127,8 +127,17 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Skip Next internals and static assets; everything else goes through auth.
+  // Skip Next internals and GENUINE static assets only. The previous matcher
+  // excluded ANY path ending in a static-looking extension — which meant a
+  // protected dynamic route could skip auth entirely via a suffix like
+  // /sites/x.txt (found in adversarial review 2026-07-05). Asset skips are now
+  // scoped to known asset locations:
+  //   _next/            — Next build output + image optimizer
+  //   icons/ demo/ images/ — public asset directories
+  //   named root files  — favicon/robots/sitemap/manifest/sw.js
+  //   root-level images — single-segment /<name>.<img-ext> only (public/*.svg)
+  // Everything else — including any /segment/file.txt — hits the auth check.
   matcher: [
-    '/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|avif|css|js|map|txt|woff2?)$).*)',
+    '/((?!_next/|icons/|demo/|images/|favicon\\.ico|robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|manifest\\.json|sw\\.js|[^/]+\\.(?:png|jpe?g|gif|svg|ico|webp|avif)$).*)',
   ],
 }

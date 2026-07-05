@@ -1,10 +1,20 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { hasAdminSession } from '@/lib/apiKeyAuth'
 import type { BuildJob } from '@/app/api/build-trigger/route'
 
 // GET /api/build-status/list
-// Returns all build jobs, sorted newest first
-export async function GET() {
+// Returns all build jobs, sorted newest first.
+// Admin-only, enforced IN-ROUTE (defense in depth): the middleware allowlists
+// /api/build-status/<jobId> for the public /plan poller and excludes /list via
+// a negative string match — this check makes /list safe even if that matcher
+// logic ever regresses. Uses the same signed-cookie verification as
+// lib/adminAuth.requireAdmin(), but returns 401 JSON instead of a login
+// redirect because this is an API route (node runtime).
+export async function GET(req: NextRequest) {
+  if (!hasAdminSession(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const { data, error } = await supabaseAdmin.storage
     .from('build-logs')
     .list('jobs', { limit: 100, sortBy: { column: 'created_at', order: 'desc' } })

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { marketingAuth } from '@/lib/apiKeyAuth'
 import { supabaseAdmin } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabaseAdmin as any
-const API_KEY = '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747'
-const auth = (req: NextRequest) => req.headers.get('x-api-key') === API_KEY
+const auth = marketingAuth
 
 // GET /api/marketing/campaigns/[id]/tasks
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

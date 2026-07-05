@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { blueprintAuth } from '@/lib/apiKeyAuth'
 import { supabaseAdmin } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
-const BLUEPRINT_API_KEY = process.env.BLUEPRINT_API_KEY ?? '9fd6a40a79137d7fdb4ea7dc97d7c40478af2fae339dc8b25cc4595bd8dd1747'
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? 're_7yAskh9s_B5fERdUz4C4CGS7JoytQQ8DW'
 const RESEND_AUDIENCE_WORKERBEE = process.env.RESEND_AUDIENCE_WORKERBEE ?? '558a4229-3b49-4685-a0fd-9b1ebf48549a'
 const FROM_ADDRESS = 'Toby Anderton — Anderton & Associates <hello@andertongroup.com>'
 const NOTIFY_TO = 'adobetoby@gmail.com'
 
-function requireApiKey(req: NextRequest): boolean {
-  return req.headers.get('x-api-key') === BLUEPRINT_API_KEY
-}
+const requireApiKey = blueprintAuth
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)

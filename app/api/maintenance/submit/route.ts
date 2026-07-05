@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rateLimit'
 import { supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, 'maint-submit', 5)
+  if (limited) return limited
+
   try {
     const { name, email, business, raw, cleaned } = await req.json() as {
       name: string
