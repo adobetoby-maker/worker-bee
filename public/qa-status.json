@@ -5,7 +5,7 @@
     {
       "iteration": 1,
       "date": "2026-07-05",
-      "ts": 1783278374,
+      "ts": "2026-07-05T19:12:28+00:00",
       "url": "https://manage.worker-bee.app",
       "pages_tested": 7,
       "errors_found": 0,
@@ -19,7 +19,7 @@
   "latest": {
     "iteration": 1,
     "date": "2026-07-05",
-    "ts": 1783278374,
+    "ts": "2026-07-05T19:12:28+00:00",
     "url": "https://manage.worker-bee.app",
     "pages_tested": 7,
     "errors_found": 0,
