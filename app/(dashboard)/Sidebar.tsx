@@ -8,7 +8,7 @@ import {
   ArrowLeft, Settings2, BarChart2, Wand2, ScanSearch, ExternalLink,
   ChevronRight, LineChart, Users, DollarSign, Rocket,
   Terminal, Activity, Mail, Megaphone, Clock, Flag, Download,
-  Share, Target, LayoutGrid, Sun,
+  Share, Target, LayoutGrid, Sun, Radar,
 } from 'lucide-react'
 
 function InstallButton() {
@@ -119,6 +119,7 @@ const GLOBAL_NAV_SECTIONS = [
       { href: '/sites',        label: 'Sites',        icon: Globe },
       { href: '/build-studio', label: 'Build Studio', icon: Terminal,  accent: '#818cf8' },
       { href: '/builds',       label: 'Builds',       icon: Hammer,    accent: '#34d399' },
+      { href: '/missions',     label: 'Missions',     icon: Radar,     accent: '#6366f1' },
       { href: '/build-zone',   label: 'Build Zone',   icon: Rocket,    accent: '#f59e0b' },
     ],
   },

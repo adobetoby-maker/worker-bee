@@ -61,6 +61,7 @@ const PUBLIC_API_EXACT = new Set([
 
   // machine endpoints that enforce their own x-api-key (verified in code)
   '/api/blueprints/update', // checks x-api-key === BLUEPRINT_API_KEY
+  '/api/missions/update', // checks x-api-key === BLUEPRINT_API_KEY in-route (lib/apiKeyAuth.blueprintAuth)
 
   // machine endpoint — enforces x-api-key === WB_RUN_API_KEY in-route (GET+POST)
   '/api/wb-run',
