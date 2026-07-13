@@ -1,3 +1,44 @@
+# Verify — Block 04 mission-board-page (feature/live-build-board) — 2026-07-12
+
+Evidence: Chrome browser live captures (authenticated).
+
+| Spec item             | Observed                                                                                            | Result |
+|-----------------------|-----------------------------------------------------------------------------------------------------|--------|
+| Back-link             | "← Missions" link present at top, links to /missions                                                | PASS   |
+| Slug heading          | "live-build-board" in 2xl bold white                                                                | PASS   |
+| Staleness red >10m    | "last update 14m ago" renders in red (#f87171) — amber threshold at 60s, red at 10m working       | PASS   |
+| Gate strip 3-green    | All 3 bars (map/prd/blueprint) full-width green — all gates approved in seeded state               | PASS   |
+| Block grid 3-col      | 5 cards: Mission store (PASS), Missions api (PASS), Missions list page (BUILDING), 2×PENDING       | PASS   |
+| Status pills colored  | PASS=green, BUILDING=indigo, PENDING=grey — all match token spec                                   | PASS   |
+| Raw id in mono        | 01-mission-store / 02-missions-api etc shown in dim monospace under label                          | PASS   |
+| No final-say banner   | final_say='none' → banner hidden correctly                                                          | PASS   |
+| 404 empty state       | /missions/nonexistent-slug-xyz: "No state received for nonexistent-slug-xyz yet" + hint text       | PASS   |
+| Sidebar active        | "Missions" highlighted indigo for both /missions/live-build-board and /missions/nonexistent-xyz    | PASS   |
+| No overlap            | No element collisions visible at 1092px viewport                                                   | PASS   |
+
+beauty_override: internal dashboard page — functional correctness confirmed
+
+---
+
+# Verify — Block 03 missions-list-page (feature/live-build-board) — 2026-07-12
+
+Evidence: Chrome browser live capture (authenticated, /missions page) + auto-capture screenshots (scroll-0/540/1080 — captured public / landing page before auth, no regression).
+
+| Spec item          | Observed                                                                                          | Result |
+|--------------------|---------------------------------------------------------------------------------------------------|--------|
+| Layout / spacing   | Two mission rows on dark background, p-6 padding, max-w-5xl centered, gap-3 flex column          | PASS   |
+| Colors / contrast  | White text on dark navy, gate dots green/grey correct, PASS=green BUILDING=indigo PENDING=grey    | PASS   |
+| Typography         | 2xl bold "Missions" heading, sm muted subtitle, sm font-semibold slug, xs for meta               | PASS   |
+| Mission cards      | live-build-board: 5 block pills (2 green, 1 indigo, 2 grey), gate dots, "2 PASS·1 BUILDING·2 PENDING" | PASS   |
+| Polling subtitle   | "ATLAS 2.0 build pipeline — auto-refreshes every 8s" present below heading                       | PASS   |
+| Relative time      | "5m ago" and "8m ago" correctly computed from receivedAt                                          | PASS   |
+| No overlap         | No element collisions at any visible viewport                                                     | PASS   |
+| Public / no regress| Auto-captures confirm public landing page unchanged — 3 cards, 3-col how-it-works, CTA button   | PASS   |
+
+beauty_override: internal dashboard page — functional correctness confirmed, beauty scoring not applicable
+
+---
+
 # Verify — Phase 5 consolidation (feature/consolidate) — 2026-07-05
 
 Evidence: local prod run (`PORT=3210 npm run start`), authed via ADMIN_PASSWORD login cookie.
