@@ -1,0 +1,132 @@
+{
+  "currentBranch": "main",
+  "branches": {
+    "main": {
+      "nodes": [
+        {
+          "id": "home-page",
+          "type": "card",
+          "position": { "x": 80, "y": 80 },
+          "data": {
+            "type": "page",
+            "title": "Landing Page Root",
+            "description": "Next.js 15 app router page that assembles all sections, sets metadata, and applies dark navy global styles",
+            "status": "planned",
+            "rotation": 1.2,
+            "claudePrompt": "Next.js 15 app router page. Background #080d1a applied in globals.css body. Import and stack: Navbar, Hero, SocialProof, Features, Pricing, HowItWorks, ApplicationForm, Footer. Set metadata title to Salvorias Your Web Presence Paid in SAV and description matching the 25-spot SAV offer. Add scroll-behavior smooth in globals.css. No extra wrappers. overflow-x-hidden on main."
+          }
+        },
+        {
+          "id": "hero-section",
+          "type": "card",
+          "position": { "x": 340, "y": 80 },
+          "data": {
+            "type": "section",
+            "title": "Hero — Paid in SAV",
+            "description": "Full-viewport hero with urgency badge, bold gradient headline, dual CTAs, and three stat chips below",
+            "status": "planned",
+            "rotation": -1.8,
+            "claudePrompt": "Min-height screen flex center. Absolute ambient glow blobs: amber-500 slash 6 opacity 700px centered blur-[120px], violet-600 slash 6 bottom-left blur-[80px]. Pulsing amber badge: Only 25 Spots Available. H1 7xl font-black: Your Web Presence Paid in SAV — last three words use text-gradient-gold via CSS background-clip. Two CTAs: amber-500 filled to #apply, ghost bordered to #features. Stats row: 25 Spots / 3-5 wk / 8 Pages in amber-400."
+          }
+        },
+        {
+          "id": "social-proof",
+          "type": "card",
+          "position": { "x": 600, "y": 80 },
+          "data": {
+            "type": "section",
+            "title": "Social Proof Bar",
+            "description": "Slim trust bar naming the three established CJA-built sites that prove team credibility",
+            "status": "planned",
+            "rotation": 0.4,
+            "claudePrompt": "Slim section py-10 border-y border-white slash 5 bg-white slash [0.02]. Flex row centered: gray-600 text By the team behind then three names side by side: PreparednessMama WildernessToday TwinsAndCounting in gray-400 font-semibold tracking-wide. Hover to gray-200. Responsive: stack to column on mobile. No images needed."
+          }
+        },
+        {
+          "id": "features-grid",
+          "type": "card",
+          "position": { "x": 860, "y": 80 },
+          "data": {
+            "type": "section",
+            "title": "6-Feature Package Grid",
+            "description": "Three-column grid of deliverable cards each with emoji icon, title, and short description of what the client gets",
+            "status": "planned",
+            "rotation": 0.9,
+            "claudePrompt": "Id features. Amber eyebrow THE OFFER. H2 Everything You Need to Launch. 3-col lg 2-col sm grid gap-5. Six cards each bg-white slash [0.03] border border-white slash 10 rounded-2xl p-6: emoji in amber-500 slash 10 border amber-500 slash 20 icon box, white title, gray-500 description. Cards: Custom Design Salient theme, Performance WP Rocket CDN, SSL Security firewall malware, Mobile First tested all browsers, Content Setup 8 pages, Launch Ready DNS migration go-live. Hover: translateY -2px border-amber-500 slash 30."
+          }
+        },
+        {
+          "id": "pricing-card",
+          "type": "card",
+          "position": { "x": 1100, "y": 80 },
+          "data": {
+            "type": "section",
+            "title": "Pricing — 1,995 SAV",
+            "description": "Centered premium card with amber glow border, oversized price, SAV token context, and apply CTA",
+            "status": "planned",
+            "rotation": -0.6,
+            "claudePrompt": "Max-w-xl mx-auto. Card gradient-to-b from gray-900 to #0d1220 border amber-500 slash 25 rounded-3xl py-12 px-10 text-center. Box-shadow 0 0 40px amber-500 slash 25. Absolute shimmer h-px top gradient amber across card width. Badge SAV Community Website Package amber border. Price 8xl font-black 1,995 with USD in SAV label right. Footnote: token locked at current rate no USD. Full-width amber CTA to #apply. Micro text: Free to apply no commitment."
+          }
+        },
+        {
+          "id": "how-it-works",
+          "type": "card",
+          "position": { "x": 1340, "y": 80 },
+          "data": {
+            "type": "section",
+            "title": "4-Step Timeline",
+            "description": "Vertical numbered timeline walking the client from application to live site in four clear steps",
+            "status": "planned",
+            "rotation": 2.0,
+            "claudePrompt": "Amber eyebrow HOW IT WORKS. H2 From Application to Live Site. Four items flex gap-8: circle 48px amber-500 slash 10 border amber-500 slash 30 with 01-04 in amber font-mono, then heading plus gray-500 body. Gradient connector line absolute left-6 top-14 to bottom fading transparent between steps. Last step no connector. Steps: Share branding assets, We draft the structure, Design and build 3-5 weeks, You approve we launch SAV transfer same day."
+          }
+        },
+        {
+          "id": "application-form",
+          "type": "card",
+          "position": { "x": 1580, "y": 80 },
+          "data": {
+            "type": "component",
+            "title": "SAV Application Form",
+            "description": "Eight-field client-side form with loading state, success confirmation, and email contact fallback",
+            "status": "planned",
+            "rotation": -2.1,
+            "claudePrompt": "Use client. useState submitted loading. Section id apply bg-white slash [0.015] border-t border-white slash 5. Eight fields: Name required, Business slash Project, SAV Wallet Address required font-mono, Telegram, Discord, Type of Site select 6 options, 3 Sites You Love textarea, Number 1 Goal textarea rows-4. Inputs: bg-white slash [0.04] border border-white slash 10 focus-border-amber-500 slash 60. Submit: amber-500 full-width with spin loader during loading 1.2s. Success: trophy emoji heading 48h response note contact email."
+          }
+        },
+        {
+          "id": "footer",
+          "type": "card",
+          "position": { "x": 1820, "y": 80 },
+          "data": {
+            "type": "section",
+            "title": "Footer",
+            "description": "Three-column footer with brand blurb, services list, company links, email, copyright, and legal links",
+            "status": "planned",
+            "rotation": 1.5,
+            "claudePrompt": "Border-t border-white slash 5 py-16. Three columns: Brand col with CJA logo mark amber gradient 7px rounded and name, blurb about WordPress Pinterest SEO, copyright 2026 CJA Web Services LLC Lehi Utah. Services col: WordPress Development Pinterest Growth SEO Analytics Content Strategy Site Maintenance Salvorias SAV. Company col: How It Works Why CJA Payment Options Start a Project Contact plus info at cjawebservices.com in amber. Bottom bar: Salvorias community offer text plus Privacy and Terms links."
+          }
+        }
+      ],
+      "edges": [
+        { "id": "e1", "source": "home-page", "target": "hero-section", "type": "string" },
+        { "id": "e2", "source": "home-page", "target": "social-proof", "type": "string" },
+        { "id": "e3", "source": "home-page", "target": "features-grid", "type": "string" },
+        { "id": "e4", "source": "home-page", "target": "pricing-card", "type": "string" },
+        { "id": "e5", "source": "home-page", "target": "how-it-works", "type": "string" },
+        { "id": "e6", "source": "home-page", "target": "application-form", "type": "string" },
+        { "id": "e7", "source": "home-page", "target": "footer", "type": "string" },
+        { "id": "e8", "source": "hero-section", "target": "application-form", "type": "string" },
+        { "id": "e9", "source": "pricing-card", "target": "application-form", "type": "string" }
+      ],
+      "updatedAt": "2026-05-15T00:00:00.000Z"
+    }
+  },
+  "summary": "Salvorias — single-page Next.js 15 landing page for CJA Web Services SAV token web-build offer. Dark navy #080d1a + amber-500 accent. 25-spot community offer at 1,995 USD in SAV. 8 nodes: page root, hero, social-proof bar, features grid (6 cards), pricing block, how-it-works timeline (4 steps), application form (8 fields + success state), footer. Stack: Next.js 15, React 19, Tailwind v3, TypeScript. Deploy target: salvorias.worker-bee.app",
+  "wizardInput": {
+    "business": "CJA Web Services — digital agency by the team behind PreparednessMama WildernessToday TwinsAndCounting. Lehi Utah. Offering 25 spots to SAV token holders for a complete custom WordPress site build: Salient theme, WP Rocket, SSL, mobile-first, 8 pages, DNS + go-live support. Price: 1,995 USD value paid in SAV tokens at rate locked at time of agreement.",
+    "goal": "Convert SAV token holders into web-build clients. Show the quality of the offer, build trust via social proof, create urgency around 25 spots, and capture applications through an 8-field form targeting name, wallet address, site type, and design goals.",
+    "extra": "Single-page landing page. Dark navy #080d1a background. Amber-500 #f59e0b primary accent — gold represents SAV token value. Crypto-adjacent luxury aesthetic inspired by lovable.dev and linear.app. Urgency: only 25 spots. No USD accepted — SAV only. Token amount locked at current rate at agreement signing.",
+    "generatedAt": "2026-05-15T00:00:00.000Z"
+  }
+}

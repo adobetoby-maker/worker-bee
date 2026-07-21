@@ -1,0 +1,197 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink-900: #06080F;
+  --ink-800: #0A0E1A;
+  --ink-700: #0F1421;
+  --ink-600: #181F35;
+  --bullion-300: #DBB263;
+  --bullion-400: #D4A752;
+  --bullion-500: #B98A3D;
+  --bullion-100: #F4DDA0;
+  --cream: #F4F1E8;
+  --cream-muted: #C8C4B7;
+  --cream-dim: #7E8093;
+}
+
+html {
+  scroll-behavior: smooth;
+  background-color: var(--ink-900);
+}
+
+body {
+  background-color: var(--ink-900);
+  color: var(--cream);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+  font-feature-settings: "ss01", "ss02", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--bullion-400);
+  color: var(--ink-900);
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display), ui-serif, Georgia, serif;
+    font-feature-settings: "liga", "dlig";
+  }
+
+  /* Gold gradient text — antique luxury, not punchy amber */
+  .text-bullion-gradient {
+    background: linear-gradient(
+      135deg,
+      #F4DDA0 0%,
+      #D4A752 35%,
+      #B98A3D 60%,
+      #EBC777 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 60px rgba(212, 167, 82, 0.15);
+  }
+
+  /* Used for figures (1,995, 25, etc.) */
+  .text-bullion-leaf {
+    background: linear-gradient(
+      180deg,
+      #F4DDA0 0%,
+      #D4A752 50%,
+      #8C682E 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glow-bullion {
+    box-shadow:
+      0 0 0 1px rgba(212, 167, 82, 0.2),
+      0 0 60px -10px rgba(212, 167, 82, 0.35),
+      0 0 120px -30px rgba(212, 167, 82, 0.18);
+  }
+
+  .glow-bullion-soft {
+    box-shadow: 0 0 40px -8px rgba(212, 167, 82, 0.22);
+  }
+
+  /* Hairline gold rule */
+  .rule-bullion {
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      rgba(212, 167, 82, 0.4) 30%,
+      rgba(212, 167, 82, 0.6) 50%,
+      rgba(212, 167, 82, 0.4) 70%,
+      transparent 100%
+    );
+    height: 1px;
+  }
+
+  /* SVG noise grain overlay — vault texture */
+  .noise-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.035;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  /* Vignette to ground deep dark sections */
+  .vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(6, 8, 15, 0.7) 100%);
+  }
+
+  /* Card with vault-grade hover */
+  .card-vault {
+    position: relative;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, rgba(255, 255, 255, 0.005) 100%),
+      var(--ink-700);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 1rem;
+    transition: transform 400ms cubic-bezier(0.2, 0.7, 0.2, 1),
+                border-color 400ms ease,
+                box-shadow 400ms ease;
+  }
+
+  .card-vault:hover {
+    transform: translateY(-3px);
+    border-color: rgba(212, 167, 82, 0.35);
+    box-shadow:
+      0 20px 50px -25px rgba(212, 167, 82, 0.35),
+      inset 0 1px 0 rgba(212, 167, 82, 0.18);
+  }
+
+  /* Letterpress / engraved text */
+  .text-engraved {
+    text-shadow:
+      0 1px 0 rgba(0, 0, 0, 0.5),
+      0 -1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  /* Scroll progress rail */
+  .scroll-rail {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 1px;
+    height: 100vh;
+    background: rgba(212, 167, 82, 0.08);
+    z-index: 60;
+  }
+
+  /* Custom focus ring — matches the bullion theme */
+  .focus-bullion:focus {
+    outline: none;
+    border-color: rgba(212, 167, 82, 0.6);
+    box-shadow: 0 0 0 3px rgba(212, 167, 82, 0.12);
+  }
+
+  /* Pulse ring (urgency badge) */
+  @keyframes pulse-bullion {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(212, 167, 82, 0.4); }
+    50%      { box-shadow: 0 0 0 8px rgba(212, 167, 82, 0); }
+  }
+  .pulse-bullion {
+    animation: pulse-bullion 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Slow shimmer for the hairline at top of pricing card */
+  @keyframes shimmer-pass {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+  .shimmer-pass {
+    animation: shimmer-pass 4.2s linear infinite;
+  }
+
+  /* Spin/loader */
+  @keyframes spin-soft { to { transform: rotate(360deg); } }
+  .spin-soft { animation: spin-soft 0.9s linear infinite; }
+}
+
+/* Container with refined max-width for editorial feel */
+.container-vault {
+  width: 100%;
+  max-width: 76rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .container-vault { padding-left: 2.5rem; padding-right: 2.5rem; }
+}
